@@ -27,8 +27,7 @@ The server is built using the <a href="https://github.com/jlowin/fastmcp" target
 - [✨ Features](#-features)
 - [🏗️ Project Structure](#️-project-structure)
 - [📥 Installation](#-installation)
-- [🚀 Running the Server](#-running-the-server)
-- [🔧 Claude Desktop Integration](#-claude-desktop-integration)
+- [🚀 Running the Server using Claude](#-running-the-server-using-Claude-Desktop-Integration)
 - [⚠️ Known Issues](#️-known-issues-and-limitations)
 - [📋 API Reference](#-api-reference)
 
