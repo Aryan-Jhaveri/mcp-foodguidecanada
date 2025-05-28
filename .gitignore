@@ -35,3 +35,5 @@ Thumbs.db
 # Project specific
 cache/
 downloads/
+prompts/
+.claude/
