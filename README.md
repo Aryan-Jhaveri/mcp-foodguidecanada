@@ -21,9 +21,9 @@ The server is built using the <a href="https://github.com/jlowin/fastmcp" target
 
 - [📝 Description](#-description)
 - [✨ Features](#-features)
-- [🏗️ Project Structure](#️-project-structure)
 - [📥 Installation](#-installation)
 - [🚀 Running the Server using Claude](#-running-the-server-using-Claude-Desktop-Integration)
+- [🏗️ Project Structure](#️-project-structure)
 - [⚠️ Known Issues](#️-known-issues-and-limitations)
 - [📋 API Reference](#-api-reference)
 
@@ -34,68 +34,20 @@ This server exposes Canada's Food Guide recipe functionalities as MCP tools, inc
 ### Recipe Search & Retrieval
 
 * **Search Operations:**
-    * Search for recipes by text query
-    * Filter by ingredients (fruits, vegetables, proteins, whole grains)
-    * Filter by meal type (breakfast, lunch, dinner, snacks)
-    * Filter by cooking appliance (oven, stovetop, etc.)
-    * Filter by collections (vegetarian, kid-friendly, etc.)
-    * Configure maximum search pages
+    - Search for recipes by text query
+    - Filter by ingredients (fruits, vegetables, proteins, whole grains)
+    - Filter by meal type (breakfast, lunch, dinner, snacks)
+    - Filter by cooking appliance (oven, stovetop, etc.)
+    - Filter by collections (vegetarian, kid-friendly, etc.)
+    - Configure maximum search pages
 * **Recipe Operations:**
-    * Fetch detailed recipe information by URL
-    * Get ingredients, instructions, cooking times, and servings
-    * Retrieve recipe tips and nutritional highlights
+    - Fetch detailed recipe information by URL
+    - Get ingredients, instructions, cooking times, and servings
+    - Retrieve recipe tips and images from the recipe
 * **Filter Operations:**
     * List all available filter categories
     * Get specific filter options (e.g., all available vegetables)
     * Find valid collections for recipe filtering
-
-## 🏗️ Project Structure
-
-Here's what each file does in simple terms:
-
-### 🗂️ **Root Files**
-* **`main.py`**: The starting point if you want to run this as a command-line tool (instead of an MCP server)
-* **`requirements.txt`**: Lists all the Python packages this project needs to work
-
-### 📁 **`src/` Folder - The Heart of the Project**
-This is where all the main code lives:
-
-* **`server.py`** ⭐ **START HERE**: This is the main file that creates the MCP server. It:
-  - Sets up the three tools (search_recipes, get_recipe, list_filters) that Claude can use
-  - Connects everything together
-  - This is the file you run to start the server
-
-* **`cli.py`**: Creates a command-line interface so you can test the recipe search in your terminal (useful for debugging)
-
-#### 📁 **`api/` Folder - Talks to Canada's Food Guide Website**
-* **`search.py`**: Goes to Canada's Food Guide website and searches for recipes
-  - Takes your search terms and filters 
-  - Returns a list of recipe titles and URLs
-* **`recipe.py`**: Takes a recipe URL and extracts all the details:
-  - Ingredients list, cooking steps, prep time, tips, photos, etc.
-  - Does the "web scraping" to pull information from the HTML
-
-#### 📁 **`models/` Folder - Data Structures**
-* **`recipe.py`**: Defines what a "Recipe" looks like in code (title, ingredients, instructions, etc.)
-* **`filters.py`**: Manages the search filters (like "vegetarian", "breakfast", "chicken")
-  - Downloads available filters from the website and caches them
-  - Converts user-friendly names (like "apple") into website codes (like "43")
-
-#### 📁 **`utils/` Folder - Helper Functions**
-* **`url_builder.py`**: Builds the correct web addresses for searching Canada's Food Guide
-* **`downloader.py`**: Can save recipes to your computer as files (JSON or Markdown format)
-* **`parser.py`**: Currently empty (reserved for future HTML parsing utilities)
-
-### 📁 **Other Folders**
-* **`cache/`**: Stores downloaded filter information so the app doesn't have to re-download it every time
-* **`prompts/`**: Contains documentation and examples for MCP integration
-
-### 🔄 **How It All Works Together**:
-1. `server.py` creates the MCP tools
-2. When LLM calls `search_recipes`, it uses `search.py` and `url_builder.py` to find recipes
-3. When LLM calls `get_recipe`, it uses `recipe.py` to extract all recipe details
-4. The `models/` define how data is structured
-5. Everything gets returned to LLM in a format it can understand
 
 ## 📥 Installation
 ### <a href="https://youtu.be/FWH9_HMKwro" target="_blank">Check out this Video Tutorial for setup and installation for Claude!</a>
@@ -169,6 +121,55 @@ To use this server with Claude Desktop:
 
 4. **Restart Claude Desktop**:
    - The server will now be available in your conversations
+
+## 🏗️ Project Structure
+
+Here's what each file does in simple terms:
+
+### 🗂️ **Root Files**
+* **`main.py`**: The starting point if you want to run this as a command-line tool (instead of an MCP server)
+* **`requirements.txt`**: Lists all the Python packages this project needs to work
+
+### 📁 **`src/` Folder - The Heart of the Project**
+This is where all the main code lives:
+
+* **`server.py`** ⭐ **START HERE**: This is the main file that creates the MCP server. It:
+  - Sets up the three tools (search_recipes, get_recipe, list_filters) that Claude can use
+  - Connects everything together
+  - This is the file you run to start the server
+
+* **`cli.py`**: Creates a command-line interface so you can test the recipe search in your terminal (useful for debugging)
+
+#### 📁 **`api/` Folder - Talks to Canada's Food Guide Website**
+* **`search.py`**: Goes to Canada's Food Guide website and searches for recipes
+  - Takes your search terms and filters 
+  - Returns a list of recipe titles and URLs
+* **`recipe.py`**: Takes a recipe URL and extracts all the details:
+  - Ingredients list, cooking steps, prep time, tips, photos, etc.
+  - Does the "web scraping" to pull information from the HTML
+
+#### 📁 **`models/` Folder - Data Structures**
+* **`recipe.py`**: Defines what a "Recipe" looks like in code (title, ingredients, instructions, etc.)
+* **`filters.py`**: Manages the search filters (like "vegetarian", "breakfast", "chicken")
+  - Downloads available filters from the website and caches them
+  - Converts user-friendly names (like "apple") into website codes (like "43")
+
+#### 📁 **`utils/` Folder - Helper Functions**
+* **`url_builder.py`**: Builds the correct web addresses for searching Canada's Food Guide
+* **`downloader.py`**: Can save recipes to your computer as files (JSON or Markdown format)
+* **`parser.py`**: Currently empty (reserved for future HTML parsing utilities)
+
+### 📁 **Other Folders**
+* **`cache/`**: Stores downloaded filter information so the app doesn't have to re-download it every time
+* **`prompts/`**: Contains documentation and examples for MCP integration
+
+### 🔄 **How It All Works Together**:
+1. `server.py` creates the MCP tools
+2. When LLM calls `search_recipes`, it uses `search.py` and `url_builder.py` to find recipes
+3. When LLM calls `get_recipe`, it uses `recipe.py` to extract all recipe details
+4. The `models/` define how data is structured
+5. Everything gets returned to LLM in a format it can understand
+
 
 ## ⚠️ Known Issues and Limitations
 
