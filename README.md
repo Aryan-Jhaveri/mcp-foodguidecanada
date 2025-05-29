@@ -133,7 +133,7 @@ Here's what each file does in simple terms:
 ### 📁 **`src/` Folder - The Heart of the Project**
 This is where all the main code lives:
 
-* **`server.py`** ⭐ **START HERE**: This is the main file that creates the MCP server. It:
+* **`server.py`** : This is the main file that creates the MCP server. It:
   - Sets up the three tools (search_recipes, get_recipe, list_filters) that Claude can use
   - Connects everything together
   - This is the file you run to start the server
