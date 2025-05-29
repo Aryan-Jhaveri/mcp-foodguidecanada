@@ -115,7 +115,7 @@ This is where all the main code lives:
 
 3. **Install dependencies**:
    ```bash
-   pip install -r requirements.txt
+   pip3 install -r requirements.txt
    ```
 
 ## 🚀 Running the Server using Claude Desktop Integration
