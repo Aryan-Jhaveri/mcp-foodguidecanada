@@ -104,8 +104,8 @@ This is where all the main code lives:
 ## 📥 Installation
 
 1. **Prerequisites**:
-   - Python 3.8 or higher
-   - pip (Python package installer)
+   - <a href="https://www.python.org/#:~:text=Download" target="_blank">Python 3.8 or higher</a>
+   - <a href="https://pip.pypa.io/en/stable/installation/" target="_blank">pip (Python package installer)</a>
 
 2. **Clone the repository**:
    ```bash
