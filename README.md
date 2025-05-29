@@ -9,7 +9,7 @@
 This project is essentially a **web scraper built specifically for Canada's Food Guide website** that's been wrapped into a <a href="https://modelcontextprotocol.io/" target="_blank">Model Context Protocol (MCP)</a> server. 
 
 **What it does in simple terms:**
-- Uses **BeautifulSoup4** to scrape recipe data from Canada's official Food Guide website
+- Uses **BeautifulSoup4** to scrape recipe data from <a href="https://food-guide.canada.ca/en/" target="_blank">Canada's Food Guide </a>
 - Provides LLMs (like Claude) with easy-to-use tools for cooking and meal planning
 - Eliminates the need for LLMs to navigate complex website structures or parse HTML
 
