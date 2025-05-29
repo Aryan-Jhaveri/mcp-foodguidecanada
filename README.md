@@ -6,7 +6,7 @@
 
 ## 📝 Description
 
-This project is essentially a **web scraper built specifically for <a href="https://food-guide.canada.ca/en/" target="_blank">Canada's Food Guide </a> ** that's been wrapped into a <a href="https://modelcontextprotocol.io/" target="_blank">Model Context Protocol (MCP)</a> server. 
+This project is essentially a **web scraper built specifically for <a href="https://food-guide.canada.ca/en/" target="_blank">Canada's Food Guide </a>** that's been wrapped into a <a href="https://modelcontextprotocol.io/" target="_blank">Model Context Protocol (MCP)</a> server. 
 
 **Why this matters:**
 Instead of LLMs having to figure out Canada's Food Guide website structure, search through HTML, and extract recipe information manually each call, this server gives LLMs three simple, ready-to-use tools for quick-calls:
