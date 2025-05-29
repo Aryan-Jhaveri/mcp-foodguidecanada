@@ -1,4 +1,4 @@
-# 🍲 <a href="https://food-guide.canada.ca/en/" target="_blank"><img src="https://food-guide.canada.ca/themes/custom/food_guide/images/social-image-en.jpg" alt="Canada's Food Guide - MCP Server" width="600"></a>
+# 🍲 <a href="https://food-guide.canada.ca/en/" target="_blank">Canada's Food Guide - MCP Server</a>
 
 <a href="https://www.python.org/downloads/" target="_blank"><img src="https://img.shields.io/badge/python-3.8+-blue.svg" alt="Python 3.8+"></a>
 <a href="https://opensource.org/licenses/MIT" target="_blank"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
