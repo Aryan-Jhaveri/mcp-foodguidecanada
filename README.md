@@ -14,12 +14,12 @@ This project is essentially a **web scraper built specifically for Canada's Food
 - Eliminates the need for LLMs to navigate complex website structures or parse HTML
 
 **Why this matters:**
-Instead of Claude having to figure out Canada's Food Guide website structure, search through HTML, and extract recipe information manually, this server gives Claude three simple, ready-to-use tools:
+Instead of LLMs having to figure out Canada's Food Guide website structure, search through HTML, and extract recipe information manually, this server gives LLMs three simple, ready-to-use tools:
 1. 🔍 **Search for recipes** with smart filtering (by ingredient, meal type, dietary preferences)
 2. 📖 **Get complete recipe details** (ingredients, instructions, cooking tips, nutritional info)
 3. 📋 **Discover available filters** (see what ingredients, meal types, and collections are available)
 
-The server is built using the <a href="https://github.com/jlowin/fastmcp" target="_blank">FastMCP</a> library and uses custom BeautifulSoup4 scrapers fine-tuned to Canada's Food Guide website structure, making nutrition resources directly accessible to AI assistants.
+The server is built using the <a href="https://github.com/jlowin/fastmcp" target="_blank">FastMCP</a> library and uses custom BeautifulSoup4 scrapers fine-tuned to Canada's Food Guide website structure, making Canada's Food Guide Recipes directly accessible to AI assistants.
 
 ## 📑 Table of Contents
 
@@ -96,10 +96,10 @@ This is where all the main code lives:
 
 ### 🔄 **How It All Works Together**:
 1. `server.py` creates the MCP tools
-2. When Claude calls `search_recipes`, it uses `search.py` and `url_builder.py` to find recipes
-3. When Claude calls `get_recipe`, it uses `recipe.py` to extract all recipe details
+2. When LLM calls `search_recipes`, it uses `search.py` and `url_builder.py` to find recipes
+3. When LLM calls `get_recipe`, it uses `recipe.py` to extract all recipe details
 4. The `models/` define how data is structured
-5. Everything gets returned to Claude in a format it can understand
+5. Everything gets returned to LLM in a format it can understand
 
 ## 📥 Installation
 ### <a href="https://youtu.be/FWH9_HMKwro" target="_blank">Check out this Video Tutorial for setup and installation for Claude!</a>
@@ -169,12 +169,7 @@ To use this server with Claude Desktop:
 
 ### Troubleshooting
 - If the server doesn't appear, check the Claude Desktop logs for error messages
-- Ensure all file paths are absolute (start with `/`)
 - Verify Python 3.8+ is installed: `python3 --version`
-- Test the server manually first: `python3 src/server.py`
-
-         3. **Verify the Python path**:
-            - The example uses `/opt/anaconda3/bin/python3` - you should replace this with the result of running `which python3` in your terminal if it's different
 
 4. **Restart Claude Desktop**:
    - The server will now be available in your conversations
@@ -186,7 +181,6 @@ To use this server with Claude Desktop:
 - **Search Limitations**: Maximum number of pages and results is capped
 - **Performance**: Web scraping may be slow compared to a direct API
 - **Availability**: Requires internet connection to access the Canada's Food Guide website
-- **Parsing Errors**: Complex recipe formats may occasionally be parsed incorrectly
 
 ## 📋 API Reference
 
