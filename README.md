@@ -102,6 +102,7 @@ This is where all the main code lives:
 5. Everything gets returned to Claude in a format it can understand
 
 ## 📥 Installation
+### <a href="https://youtu.be/FWH9_HMKwro" target="_blank">Check out this Video Tutorial for setup and installation for Claude!</a>
 
 1. **Prerequisites**:
    - <a href="https://www.python.org/#:~:text=Download" target="_blank">Python 3.8 or higher</a>
