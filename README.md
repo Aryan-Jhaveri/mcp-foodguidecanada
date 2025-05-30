@@ -19,6 +19,8 @@ Instead of LLMs having to figure out Canada's Food Guide website structure, sear
 
 The server is built using the <a href="https://github.com/jlowin/fastmcp" target="_blank">FastMCP</a> library and uses custom BeautifulSoup4 scrapers fine-tuned to Canada's Food Guide website structure, making Canada's Food Guide Recipes directly accessible to AI assistants.
 
+<b>Looking to contribute?</b> Check the implementations.md to see where the next versions of the project could go towards.
+
 ## 📑 Table of Contents
 
 - [📝 Description](#-description)
