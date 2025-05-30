@@ -8,3 +8,4 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
 
 [] Make windows version of setup
 
+[] Maybe create a tool to create .ics files (need to see how different LLM clients display artifacts)
