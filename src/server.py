@@ -106,7 +106,7 @@ def register_recipe_tools(mcp: FastMCP):
             for result in results:
                 if 'url' in result and not result.get('source'):
                     result['source'] = 'Health Canada\'s Food Guide'
-                    result['website'] = 'https://food-guide.canada.ca/'
+                    result['website'] = 'https://food-guide.canada.ca/' ## <---  Update this to slug url + url builder (May 30,2025)
             
             return results
             
@@ -150,7 +150,7 @@ def register_recipe_tools(mcp: FastMCP):
             - source: "Health Canada's Food Guide" for proper attribution
             - website: "https://food-guide.canada.ca/" for reference
 
-        Source: Health Canada's Food Guide - https://food-guide.canada.ca/
+        Source: Health Canada's Food Guide - https://food-guide.canada.ca/ + the recipe slug URL builder
         """
         if not url or not url.startswith('https://food-guide.canada.ca/'):
             return {"error": "Invalid URL. Must be a Canada's Food Guide recipe URL."}
