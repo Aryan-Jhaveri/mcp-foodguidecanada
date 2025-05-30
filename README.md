@@ -1,11 +1,11 @@
 # 🍲 <a href="https://food-guide.canada.ca/en/" target="_blank">Canada's Food Guide - MCP Server</a>
-Click the image to watch the trailer!
-[![Watch the trailer](https://img.youtube.com/vi/FWH9_HMKwro/maxresdefault.jpg)](https://youtu.be/VtKMYpnC2EI)
-
 <a href="https://www.python.org/downloads/" target="_blank"><img src="https://img.shields.io/badge/python-3.8+-blue.svg" alt="Python 3.8+"></a>
 <a href="https://opensource.org/licenses/MIT" target="_blank"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
 <a href="https://modelcontextprotocol.io/" target="_blank"><img src="https://img.shields.io/badge/MCP-ModelContextProtocol-green.svg" alt="MCP"></a>
 
+
+Click the image to watch example uses of the mcp server to 1) find themed recipes, and creating an .ics event to block meal prep time; 2) find recipes based on an image of your groceries!
+[![Watch the trailer](https://img.youtube.com/vi/VtKMYpnC2EI/maxresdefault.jpg)](https://youtu.be/VtKMYpnC2EI)
 ## 📝 Description
 
 This project is essentially a **web scraper built specifically for <a href="https://food-guide.canada.ca/en/" target="_blank">Canada's Food Guide </a>** that's been wrapped into a <a href="https://modelcontextprotocol.io/" target="_blank">Model Context Protocol (MCP)</a> server. 
