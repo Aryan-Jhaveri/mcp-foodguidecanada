@@ -6,3 +6,4 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
 
 [] Remove nutritional information tag for recipes
 
+[] Make windows version of setup
