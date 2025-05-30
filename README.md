@@ -1,6 +1,6 @@
 # 🍲 <a href="https://food-guide.canada.ca/en/" target="_blank">Canada's Food Guide - MCP Server</a>
-
-[![Watch the trailer](https://share.gifyoutube.com/VtKMYpnC2EI.gif)](https://youtu.be/VtKMYpnC2EI)
+Click the image to watch the trailer!
+[![Watch the trailer](https://img.youtube.com/vi/FWH9_HMKwro/maxresdefault.jpg)](https://youtu.be/VtKMYpnC2EI)
 
 <a href="https://www.python.org/downloads/" target="_blank"><img src="https://img.shields.io/badge/python-3.8+-blue.svg" alt="Python 3.8+"></a>
 <a href="https://opensource.org/licenses/MIT" target="_blank"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
@@ -52,7 +52,7 @@ This server exposes Canada's Food Guide recipe functionalities as MCP tools, inc
     * Find valid collections for recipe filtering
 
 ## 📥 Installation
-
+Click the image to Watch the setup tutorial!
 [![Watch the setup tutorial](https://img.youtube.com/vi/FWH9_HMKwro/maxresdefault.jpg)](https://youtu.be/FWH9_HMKwro)
 
 1. **Prerequisites**:
