@@ -12,7 +12,7 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
 
 [] Remove nutritional information tag for recipes
 
-[] Make windows version of setup
+[] Make windows version of setup and installation
 
 [] Maybe create a tool to create .ics files (need to see how different LLM clients display artifacts)
 
