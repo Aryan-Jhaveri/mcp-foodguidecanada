@@ -1,6 +1,6 @@
 # 🍲 <a href="https://food-guide.canada.ca/en/" target="_blank">Canada's Food Guide - MCP Server</a>
 
-[![Watch the trailer](https://share.gifyoutube.com/VtKMYpnC2EI)](https://youtu.be/VtKMYpnC2EI)
+[![Watch the trailer](https://share.gifyoutube.com/VtKMYpnC2EI.gif)](https://youtu.be/VtKMYpnC2EI)
 
 <a href="https://www.python.org/downloads/" target="_blank"><img src="https://img.shields.io/badge/python-3.8+-blue.svg" alt="Python 3.8+"></a>
 <a href="https://opensource.org/licenses/MIT" target="_blank"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
