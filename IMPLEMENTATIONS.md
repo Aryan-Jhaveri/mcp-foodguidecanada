@@ -37,6 +37,10 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
 
 
 ## Notes
+
+<details>
+<summary> List of notes and questions to consider
+
 * In V2.0, The MCP server becomes and amalgam of access to reference intake values and Canadian Nutrient File, and a temporary local database access. The workflow of the agent becomes something like:
 
 Input Recipe Query --> Download recipe to temporary db as an sql table [Ingredients, serving size, units, and amount] --> When asked: Fetch recipe nutrient profile for different ingredients --|--> If asked: Compare values for recipes for a days worth, with DRI Table values to find if food the user is planning on consuming meets DRI requirments
@@ -49,10 +53,11 @@ Input Recipe Query --> Download recipe to temporary db as an sql table [Ingredie
     
     = What database would be ideal for LLMS to - add calculated coloumns to adjust serving size, pull recipe information (q: what to include?), DRI information, and nutrient information for recipes.
 
+</details>
 
 ## Plan
 
-<details>
+
 1. Add Database functionality 
     - Because majority of the following features for nutritional information depend on the LLM already having the data for recipe downloaded
 
@@ -60,7 +65,7 @@ Input Recipe Query --> Download recipe to temporary db as an sql table [Ingredie
     - Canandian Nutrient File could be a 3.0 update
 
 3. 
-</details>
+
 
 ```mermaid
 graph TD;
