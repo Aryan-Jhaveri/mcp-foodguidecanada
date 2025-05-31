@@ -4,15 +4,15 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
 ### May 30, 2025
 [] Add a temporary and/or permanent database system for LLMs to
 
-    - To input ingredients (see 'access to Food nutrition Canada)
+- To input ingredients (see 'access to Food nutrition Canada)
 
-    - To use *math tools* to adjust serving size, 
+- To use *math tools* to adjust serving size, 
 
-    - To store favorites in recipes
+- To store favorites in recipes
 
-    - To calculate calories and calories per serving 
-    
-    (look into creating embedding for recipe titles, and creating an automated pipe that pulls and updated recipe title db)
+- To calculate calories and calories per serving 
+
+(look into creating embedding for recipe titles, and creating an automated pipe that pulls and updated recipe title db)
 
 [] Remove nutritional information tag for recipes
 
@@ -22,17 +22,17 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
 
 [] Add Access to Canadian Nutrient File  to convert and search for nutrition profiles for ingredients https://food-nutrition.canada.ca/cnf-fce/?lang=eng (https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/nutrient-data.html)
 
-    - To fetch recipe ingredient nutrient profiles
-    
-    - Consider instead https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/nutrient-data/nutrient-value-some-common-foods-2008.html#tbl_con_mat
+- To fetch recipe ingredient nutrient profiles
 
-    - There is search by food, but also search by nutrient https://food-nutrition.canada.ca/cnf-fce/newNutrientSearch
+- Consider instead https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/nutrient-data/nutrient-value-some-common-foods-2008.html#tbl_con_mat
+
+- There is search by food, but also search by nutrient https://food-nutrition.canada.ca/cnf-fce/newNutrientSearch
 
 [] Add Access to Dietary Reference Intake tables https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes.html
 
-    - Also Consider references for tables and academic sources to be cited
+- Also Consider references for tables and academic sources to be cited
 
-    - Consider adding math support for equations for EER https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes/tables/equations-estimate-energy-requirement.html
+- Consider adding math support for equations for EER https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes/tables/equations-estimate-energy-requirement.html
 
 
 
