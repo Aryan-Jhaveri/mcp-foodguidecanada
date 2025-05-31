@@ -20,14 +20,19 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
 
 [] Maybe create a tool to create .ics files (need to see how different LLM clients display artifacts)
 
-[] Add Access to Canadian Nutrient File  to convert and search for nutrition profiles for ingredients https://food-nutrition.canada.ca/cnf-fce/?lang=eng
+[] Add Access to Canadian Nutrient File  to convert and search for nutrition profiles for ingredients https://food-nutrition.canada.ca/cnf-fce/?lang=eng (https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/nutrient-data.html)
 
     - To fetch recipe ingredient nutrient profiles
+    
+    - Consider instead https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/nutrient-data/nutrient-value-some-common-foods-2008.html#tbl_con_mat
+
+    - There is search by food, but also search by nutrient https://food-nutrition.canada.ca/cnf-fce/newNutrientSearch
 
 [] Add Access to Dietary Reference Intake tables https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes.html
 
     - Also Consider references for tables and academic sources to be cited
 
+    - Consider adding math support for equations for EER https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes/tables/equations-estimate-energy-requirement.html
 
 
 
@@ -40,3 +45,5 @@ Input Recipe Query --> Download recipe to temporary db as an sql table [Ingredie
 
     - What can be the most efficient template database design ready for the agent to go look like?
 
+    - What math tools can be added for Database (serving size calculator/multiplyer) and EER?
+    
