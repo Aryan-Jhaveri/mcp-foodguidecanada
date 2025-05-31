@@ -6,6 +6,7 @@ from fastmcp import FastMCP
 from .connection import get_db_connection
 from .schema import initialize_database, create_recipe_session_tables, cleanup_session_tables, list_active_sessions
 from .math_tools import register_math_tools
+from .ingredient_parser import register_ingredient_tools
 from ..models.db_models import RecipeInput, FavoriteInput, SessionInput, RecipeQueryInput
 from ..config import MAX_QUERY_ROWS
 
@@ -20,6 +21,9 @@ def register_db_tools(mcp: FastMCP):
     
     # Register math and calculation tools
     register_math_tools(mcp)
+    
+    # Register ingredient parsing tools
+    register_ingredient_tools(mcp)
 
     @mcp.tool()
     def store_recipe_in_session(recipe_input: RecipeInput) -> Dict[str, Any]:

@@ -373,6 +373,7 @@ def register_math_tools(mcp: FastMCP):
         except Exception as e:
             return {"error": f"Unexpected error in recipe comparison: {e}"}
 
+    #----
     # FUTURE: Placeholder tools for nutritional analysis
     # These will be implemented when Canadian Nutrient File (CNF) integration is added
     
@@ -427,7 +428,7 @@ def register_math_tools(mcp: FastMCP):
 
 def _scale_ingredient_amount(ingredient_text: str, scale_factor: float) -> tuple[str, Dict[str, Any]]:
     """
-    Helper function to scale ingredient amounts in text.
+    Helper function to scale ingredient amounts in text with improved parsing priority.
     
     Args:
         ingredient_text: Original ingredient string
@@ -436,74 +437,176 @@ def _scale_ingredient_amount(ingredient_text: str, scale_factor: float) -> tuple
     Returns:
         Tuple of (scaled_ingredient_text, amount_info_dict)
     """
-    # Patterns to match numbers, fractions, and ranges
-    number_patterns = [
-        r'(\d+(?:\.\d+)?)\s*(?:to|\-)\s*(\d+(?:\.\d+)?)',  # Ranges like "2-3" or "2 to 3"
-        r'(\d+)\s*/\s*(\d+)',  # Fractions like "1/2" or "3/4"
-        r'(\d+(?:\.\d+)?)',  # Simple numbers like "2" or "1.5"
-    ]
+    # Use the improved parsing function
+    parsed_data = _parse_ingredient_comprehensive(ingredient_text)
     
     amount_info = {
-        'found_amount': False,
-        'original_amount': '',
+        'found_amount': parsed_data['amount'] is not None,
+        'original_amount': parsed_data['original_amount_text'],
         'scaled_amount': '',
-        'ingredient_base': ingredient_text
+        'ingredient_base': parsed_data['clean_name']
     }
     
-    scaled_text = ingredient_text
-    
-    for pattern in number_patterns:
-        match = re.search(pattern, ingredient_text)
-        if match:
-            amount_info['found_amount'] = True
-            
-            if len(match.groups()) == 2 and '/' in pattern:
-                # Handle fractions
-                numerator = float(match.group(1))
-                denominator = float(match.group(2))
-                original_value = numerator / denominator
-                scaled_value = original_value * scale_factor
-                
-                # Convert back to fraction if reasonable
-                scaled_fraction = _decimal_to_fraction(scaled_value)
-                amount_info['original_amount'] = f"{match.group(1)}/{match.group(2)}"
-                amount_info['scaled_amount'] = scaled_fraction
-                
-                scaled_text = ingredient_text.replace(match.group(0), scaled_fraction)
-                
-            elif len(match.groups()) == 2:
-                # Handle ranges
-                low = float(match.group(1)) * scale_factor
-                high = float(match.group(2)) * scale_factor
-                amount_info['original_amount'] = f"{match.group(1)}-{match.group(2)}"
-                amount_info['scaled_amount'] = f"{_format_number(low)}-{_format_number(high)}"
-                
-                scaled_text = ingredient_text.replace(match.group(0), amount_info['scaled_amount'])
-                
-            else:
-                # Handle simple numbers
-                original_value = float(match.group(1))
-                scaled_value = original_value * scale_factor
-                amount_info['original_amount'] = match.group(1)
-                amount_info['scaled_amount'] = _format_number(scaled_value)
-                
-                scaled_text = ingredient_text.replace(match.group(0), amount_info['scaled_amount'])
-            
-            # Extract ingredient base (text after the amount)
-            amount_info['ingredient_base'] = ingredient_text[match.end():].strip()
-            break
+    if parsed_data['amount'] is not None:
+        # Scale the amount
+        scaled_value = parsed_data['amount'] * scale_factor
+        scaled_amount_text = _decimal_to_fraction(scaled_value)
+        
+        amount_info['scaled_amount'] = scaled_amount_text
+        
+        # Replace the original amount in the text with the scaled amount
+        scaled_text = ingredient_text.replace(parsed_data['original_amount_text'], scaled_amount_text, 1)
+    else:
+        scaled_text = ingredient_text
+        amount_info['scaled_amount'] = ''
     
     return scaled_text, amount_info
 
+def _parse_ingredient_comprehensive(text: str) -> Dict[str, Any]:
+    """
+    Comprehensive ingredient parsing that handles complex formats correctly.
+    Prioritizes main measurements over parenthetical ones.
+    
+    Args:
+        text: Raw ingredient text
+        
+    Returns:
+        Dict with parsed components
+    """
+    # Check if this is a section header (ends with colon)
+    if text.strip().endswith(':'):
+        return {
+            'amount': None,
+            'unit': None,
+            'clean_name': text.strip(),
+            'original_amount_text': '',
+            'parsing_notes': 'Section header'
+        }
+    
+    # Unicode fractions mapping
+    unicode_fractions = {
+        '½': 0.5, '⅓': 0.333, '⅔': 0.667, '¼': 0.25, '¾': 0.75,
+        '⅕': 0.2, '⅖': 0.4, '⅗': 0.6, '⅘': 0.8, '⅙': 0.167,
+        '⅚': 0.833, '⅛': 0.125, '⅜': 0.375, '⅝': 0.625, '⅞': 0.875
+    }
+    
+    # Strategy: Try to find the primary amount first, then check parenthetical amounts
+    text = text.strip()
+    
+    # Patterns in order of priority - main measurements before parenthetical ones
+    amount_patterns = [
+        # Decimal numbers at start (like "250 mL" or "125 mL")
+        (r'^(\d+(?:\.\d+)?)\s*', 'decimal'),
+        # Mixed numbers with Unicode fractions (like "1½")
+        (r'^(\d+)\s*([½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞])\s*', 'mixed_unicode'),
+        # Regular fractions at start (like "1/2")
+        (r'^(\d+)\s*/\s*(\d+)\s*', 'fraction'),
+        # Standalone Unicode fractions at start (like "½")
+        (r'^([½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞])\s*', 'unicode'),
+        # Ranges (like "2-3" or "2 to 3")
+        (r'^(\d+(?:\.\d+)?)\s*(?:to|\-)\s*(\d+(?:\.\d+)?)\s*', 'range'),
+    ]
+    
+    amount = None
+    original_amount_text = ''
+    unit = None
+    parsing_notes = []
+    remaining_text = text
+    
+    # Try each pattern in priority order
+    for pattern, pattern_type in amount_patterns:
+        match = re.match(pattern, text)
+        if match:
+            original_amount_text = match.group(0).strip()
+            
+            if pattern_type == 'decimal':
+                amount = float(match.group(1))
+                parsing_notes.append(f"Decimal: {match.group(1)}")
+                
+            elif pattern_type == 'mixed_unicode':
+                whole_part = float(match.group(1))
+                fraction_char = match.group(2)
+                amount = whole_part + unicode_fractions[fraction_char]
+                parsing_notes.append(f"Mixed Unicode: {match.group(1)}{fraction_char}")
+                
+            elif pattern_type == 'fraction':
+                numerator = float(match.group(1))
+                denominator = float(match.group(2))
+                amount = numerator / denominator
+                parsing_notes.append(f"Fraction: {match.group(1)}/{match.group(2)}")
+                
+            elif pattern_type == 'unicode':
+                fraction_char = match.group(1)
+                amount = unicode_fractions[fraction_char]
+                parsing_notes.append(f"Unicode fraction: {fraction_char}")
+                
+            elif pattern_type == 'range':
+                # For ranges, take the average (could be improved)
+                low = float(match.group(1))
+                high = float(match.group(2))
+                amount = (low + high) / 2
+                original_amount_text = f"{match.group(1)}-{match.group(2)}"
+                parsing_notes.append(f"Range (using average): {original_amount_text}")
+            
+            # Remove matched amount from text
+            remaining_text = text[match.end():].strip()
+            break
+    
+    # Try to extract unit from remaining text
+    if amount is not None:
+        # Common units in order of specificity (longer/more specific first)
+        units = [
+            'package', 'packages', 'pkg', 'tablespoon', 'tablespoons', 'teaspoon', 'teaspoons',
+            'can', 'cans', 'jar', 'jars', 'bottle', 'bottles',
+            'bunch', 'bunches', 'head', 'heads', 'clove', 'cloves', 'piece', 'pieces',
+            'slice', 'slices', 'strip', 'strips', 'sprig', 'sprigs',
+            'kilogram', 'kilograms', 'pound', 'pounds', 'ounce', 'ounces',
+            'liter', 'liters', 'gram', 'grams', 'tbsp', 'tsp', 'cup', 'cups',
+            'kg', 'lb', 'lbs', 'oz', 'mL', 'ml', 'g', 'L'
+        ]
+        
+        # Only treat as unit if it's followed by a space or end of string to avoid "large" matching "L"
+        for unit_option in units:
+            pattern = rf'\b{re.escape(unit_option.lower())}\b'
+            if re.match(pattern, remaining_text.lower()):
+                unit = unit_option
+                remaining_text = remaining_text[len(unit_option):].strip()
+                parsing_notes.append(f"Unit: {unit}")
+                break
+    
+    # Clean up remaining text (remove parenthetical info if needed, extra whitespace)
+    clean_name = re.sub(r'\([^)]*\)', '', remaining_text).strip()
+    clean_name = re.sub(r'\s+', ' ', clean_name)
+    
+    return {
+        'amount': amount,
+        'unit': unit,
+        'clean_name': clean_name,
+        'original_amount_text': original_amount_text,
+        'parsing_notes': '; '.join(parsing_notes) if parsing_notes else 'No amount found'
+    }
+
 def _decimal_to_fraction(decimal_value: float) -> str:
-    """Convert decimal to common fraction representation."""
-    common_fractions = {
+    """Convert decimal to common fraction representation, preferring Unicode fractions."""
+    # Unicode fractions for better display
+    unicode_fractions = {
+        0.125: "⅛", 0.25: "¼", 0.333: "⅓", 0.375: "⅜",
+        0.5: "½", 0.625: "⅝", 0.667: "⅔", 0.75: "¾", 0.875: "⅞"
+    }
+    
+    # Regular fractions as fallback
+    regular_fractions = {
         0.125: "1/8", 0.25: "1/4", 0.33: "1/3", 0.375: "3/8",
         0.5: "1/2", 0.625: "5/8", 0.67: "2/3", 0.75: "3/4", 0.875: "7/8"
     }
     
-    # Check if close to a common fraction
-    for frac_decimal, frac_str in common_fractions.items():
+    # Check if close to a Unicode fraction first
+    for frac_decimal, frac_unicode in unicode_fractions.items():
+        if abs(decimal_value - frac_decimal) < 0.05:
+            return frac_unicode
+    
+    # Check if close to a regular fraction
+    for frac_decimal, frac_str in regular_fractions.items():
         if abs(decimal_value - frac_decimal) < 0.05:
             return frac_str
     
@@ -511,7 +614,14 @@ def _decimal_to_fraction(decimal_value: float) -> str:
     whole_part = int(decimal_value)
     fractional_part = decimal_value - whole_part
     
-    for frac_decimal, frac_str in common_fractions.items():
+    for frac_decimal, frac_unicode in unicode_fractions.items():
+        if abs(fractional_part - frac_decimal) < 0.05:
+            if whole_part > 0:
+                return f"{whole_part}{frac_unicode}"
+            else:
+                return frac_unicode
+    
+    for frac_decimal, frac_str in regular_fractions.items():
         if abs(fractional_part - frac_decimal) < 0.05:
             if whole_part > 0:
                 return f"{whole_part} {frac_str}"

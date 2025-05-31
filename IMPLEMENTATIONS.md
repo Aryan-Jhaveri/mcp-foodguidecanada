@@ -2,13 +2,13 @@
 A list future ideas, tasks, and ideas to improve/maintain the mcp server
 
 ### May 30, 2025
-[] Add a temporary and/or permanent database system for LLMs to:
+[x] Add a temporary and/or permanent database system for LLMs to:
 
-- To input ingredients (see 'access to Food nutrition Canada)
+[x] To input ingredients (see 'access to Food nutrition Canada)
 
-- To use *math tools* to adjust serving size, 
+[-] To use *math tools* to adjust serving size,  NOTE: I WOULD NOT COMPLETELY TRUST THESE MEASUREMENTS!!!
 
-- To store favorites in recipes
+[x] To store favorites in recipes
 
 - To calculate calories and calories per serving 
 
@@ -151,7 +151,7 @@ erDiagram
         string special_considerations
     }
     
-    %% User Customization & Calculations
+    %% Recipe Customization & Calculations
     RECIPE_CALCULATIONS {
         string calc_id PK
         string recipe_id FK
@@ -169,7 +169,7 @@ erDiagram
         json custom_notes
     }
     
-    %% Meal Planning
+    %% Meal Planning -- Most probably not going to be added
     MEAL_PLANS {
         string plan_id PK
         string user_session
