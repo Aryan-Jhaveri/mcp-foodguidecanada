@@ -51,6 +51,7 @@ Input Recipe Query --> Download recipe to temporary db as an sql table [Ingredie
 
 
 ## Plan
+
 <details>
 1. Add Database functionality 
     - Because majority of the following features for nutritional information depend on the LLM already having the data for recipe downloaded
