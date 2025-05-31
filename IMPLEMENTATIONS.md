@@ -40,7 +40,6 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
 
 
 <summary> List of notes and questions to consider </summary>
-
 <details>
 * In V2.0, The MCP server becomes and amalgam of access to reference intake values and Canadian Nutrient File, and a temporary local database access. The workflow of the agent becomes something like:
 
