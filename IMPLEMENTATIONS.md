@@ -47,3 +47,20 @@ Input Recipe Query --> Download recipe to temporary db as an sql table [Ingredie
 
     - What math tools can be added for Database (serving size calculator/multiplyer) and EER?
     
+    = What database would be ideal for LLMS to - add calculated coloumns to adjust serving size, pull recipe information (q: what to include?), DRI information, and nutrient information for recipes.
+
+## Plan
+
+1. Add Database functionality 
+    - Because majority of the following features for nutritional information depend on the LLM already having the data for recipe downloaded
+
+2. Add values Nutrient Value of Some Common Foods 
+    - Canandian Nutrient File could
+
+```mermaid
+graph TD;
+    A-->B;
+    A-->C;
+    B-->D;
+    C-->D;
+```    
