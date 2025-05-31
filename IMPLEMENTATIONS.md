@@ -68,25 +68,40 @@ Input Recipe Query --> Download recipe to temporary db as an sql table [Ingredie
 3. 
 
 ```mermaid
+%% PK - Primary Key: uniquely identifies each row in a table; in a data model, it identifies each instance of the entity
+%% Unique key: an attribute that could identify each row in a database or instance of an entity.
+%% FK - Foreign Key: an attribute that’s ‘borrowed’ from another entity. They are used to show the relationship between two entities
+
 ---
 title: Canada Food Guide MCP Server - Database Architecture v2.0
 ---
 erDiagram
     %% Core Recipe System
     RECIPES {
-        string recipe_id PK
-        string title
+        %% A unique Recipe ID
+        string recipe_id PK 
+        %% Recipe Title
+        string title 
+        %% A URL-friendly recipe identifier for referencing
         string slug
+        %%  Direct link to the full recipe on food-guide.canada.ca
         string url
+        %% NOTE: called servings in RecipeFetcher tool, this is the base serving size for the recipe online
         int base_servings
+        %% Prep time
         string prep_time
-        string cook_time
+        %% Cook time
+        string cook_time 
+        %% Categories
         json categories
+        %% Tips
         json tips
+        %% Recipe highglights
         json recipe_highlights
+        %% recipe imageurl
         string image_url
-        datetime created_at
-        datetime updated_at
+        %% datetime created_at
+        %% datetime updated_at
     }
     
     %% Recipe Components
@@ -172,7 +187,7 @@ erDiagram
         date analysis_date
         json total_nutrients
         json dri_comparison
-        json recommendations
+        %% json recommendations: Do not give medical advice!
         datetime calculated_at
     }
 
