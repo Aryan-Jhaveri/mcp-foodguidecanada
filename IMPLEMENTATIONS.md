@@ -4,7 +4,7 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
 ### May 30, 2025
 [] Add a temporary and/or permanent database system for LLMs to
 
-    - To input ingredients 
+    - To input ingredients (see 'access to Food nutrition Canada)
 
     - To use math tools to adjust serving size, 
 
@@ -20,3 +20,6 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
 
 [] Maybe create a tool to create .ics files (need to see how different LLM clients display artifacts)
 
+[] Add Access to Canadian Nutrient File  to convert and search for nutrition profiles for ingredients https://food-nutrition.canada.ca/cnf-fce/?lang=eng
+
+[] Add Access to Dietary Reference Intake tables https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes.html
