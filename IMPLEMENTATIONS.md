@@ -2,7 +2,7 @@
 A list future ideas, tasks, and ideas to improve/maintain the mcp server
 
 ### May 30, 2025
-[] Add a temporary and/or permanent database system for LLMs to
+[] Add a temporary and/or permanent database system for LLMs to:
 
 - To input ingredients (see 'access to Food nutrition Canada)
 
@@ -68,10 +68,121 @@ Input Recipe Query --> Download recipe to temporary db as an sql table [Ingredie
 3. 
 
 
-```mermaid
-graph TD;
-    A-->B;
-    A-->C;
-    B-->D;
-    C-->D;
-```    
+---
+title: Canada Food Guide MCP Server - Database Architecture v2.0
+---
+erDiagram
+    %% Core Recipe System
+    RECIPES {
+        string recipe_id PK
+        string title
+        string slug
+        string url
+        int base_servings
+        string prep_time
+        string cook_time
+        json categories
+        json tips
+        json recipe_highlights
+        string image_url
+        datetime created_at
+        datetime updated_at
+    }
+    
+    %% Recipe Components
+    RECIPE_INGREDIENTS {
+        string ingredient_id PK
+        string recipe_id FK
+        string ingredient_name
+        float amount
+        string unit
+        int ingredient_order
+        string cnf_food_code FK
+    }
+    
+    %% Canadian Nutrient File Integration
+    CNF_FOODS {
+        string cnf_food_code PK
+        string food_description
+        string food_group
+        string food_source
+        boolean refuse_flag
+        float refuse_amount
+    }
+    
+    CNF_NUTRIENTS {
+        string nutrient_id PK
+        string cnf_food_code FK
+        string nutrient_name
+        string nutrient_symbol
+        string nutrient_unit
+        float nutrient_value
+        string standard_error
+        int number_observations
+    }
+    
+    %% Dietary Reference Intakes
+    DRI_VALUES {
+        string dri_id PK
+        string nutrient_symbol FK
+        string life_stage_gender
+        int age_min
+        int age_max
+        string gender
+        float ear_value
+        float rda_value
+        float ai_value
+        float ul_value
+        string special_considerations
+    }
+    
+    %% User Customization & Calculations
+    RECIPE_CALCULATIONS {
+        string calc_id PK
+        string recipe_id FK
+        float serving_multiplier
+        int adjusted_servings
+        datetime calculated_at
+        json nutritional_totals
+    }
+    
+    USER_FAVORITES {
+        string favorite_id PK
+        string recipe_id FK
+        string user_session
+        datetime added_at
+        json custom_notes
+    }
+    
+    %% Meal Planning
+    MEAL_PLANS {
+        string plan_id PK
+        string user_session
+        date plan_date
+        string meal_type
+        string recipe_id FK
+        float serving_size
+        datetime created_at
+    }
+    
+    %% Nutritional Analysis
+    DAILY_NUTRITION_SUMMARY {
+        string summary_id PK
+        string user_session
+        date analysis_date
+        json total_nutrients
+        json dri_comparison
+        json recommendations
+        datetime calculated_at
+    }
+
+    %% Relationships
+    RECIPES ||--o{ RECIPE_INGREDIENTS : contains
+    RECIPE_INGREDIENTS }o--|| CNF_FOODS : references
+    CNF_FOODS ||--o{ CNF_NUTRIENTS : has
+    CNF_NUTRIENTS }o--|| DRI_VALUES : compared_against
+    RECIPES ||--o{ RECIPE_CALCULATIONS : can_be_scaled
+    RECIPES ||--o{ USER_FAVORITES : saved_by_users
+    RECIPES ||--o{ MEAL_PLANS : used_in
+    MEAL_PLANS }o--|| DAILY_NUTRITION_SUMMARY : contributes_to
+    USER_FAVORITES }o--|| RECIPES : references
