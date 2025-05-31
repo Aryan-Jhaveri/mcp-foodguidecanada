@@ -16,11 +16,15 @@ try:
     from src.api.recipe import RecipeFetcher
     from src.api.search import RecipeSearcher
     from src.models.filters import SearchFilters
+    from src.db.queries import register_db_tools
+    from src.config import DB_FILE
 except ImportError:
     try:
         from api.recipe import RecipeFetcher
         from api.search import RecipeSearcher
         from models.filters import SearchFilters
+        from db.queries import register_db_tools
+        from config import DB_FILE
     except ImportError as e:
         print(f"Error importing modules: {e}", file=sys.stderr)
         sys.exit(1)
@@ -279,6 +283,7 @@ def create_server() -> FastMCP:
     
     try:
         register_recipe_tools(mcp)
+        register_db_tools(mcp)
     except Exception as e:
         print(f"ERROR during tool registration: {e}", file=sys.stderr)
         raise
@@ -287,6 +292,7 @@ def create_server() -> FastMCP:
 
 if __name__ == "__main__":
     try:
+        print(f"Database file location: {os.path.abspath(DB_FILE)}", file=sys.stderr)
         mcp = create_server()
         mcp.run()
     except Exception as e:
