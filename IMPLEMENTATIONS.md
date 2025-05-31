@@ -67,7 +67,7 @@ Input Recipe Query --> Download recipe to temporary db as an sql table [Ingredie
 
 3. 
 
-
+```mermaid
 ---
 title: Canada Food Guide MCP Server - Database Architecture v2.0
 ---
@@ -186,3 +186,4 @@ erDiagram
     RECIPES ||--o{ MEAL_PLANS : used_in
     MEAL_PLANS }o--|| DAILY_NUTRITION_SUMMARY : contributes_to
     USER_FAVORITES }o--|| RECIPES : references
+```
