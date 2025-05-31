@@ -6,7 +6,7 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
 
     - To input ingredients (see 'access to Food nutrition Canada)
 
-    - To use math tools to adjust serving size, 
+    - To use *math tools* to adjust serving size, 
 
     - To store favorites in recipes
 
@@ -22,4 +22,21 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
 
 [] Add Access to Canadian Nutrient File  to convert and search for nutrition profiles for ingredients https://food-nutrition.canada.ca/cnf-fce/?lang=eng
 
+    - To fetch recipe ingredient nutrient profiles
+
 [] Add Access to Dietary Reference Intake tables https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes.html
+
+    - Also Consider references for tables and academic sources to be cited
+
+
+
+
+## Notes
+* In V2.0, The MCP server becomes and amalgam of access to reference intake values and Canadian Nutrient File, and a temporary local database access. The workflow of the agent becomes something like:
+
+Input Recipe Query --> Download recipe to temporary db as an sql table [Ingredients, serving size, units, and amount] --> When asked: Fetch recipe nutrient profile for different ingredients --|--> If asked: Compare values for recipes for a days worth, with DRI Table values to find if food the user is planning on consuming meets DRI requirments
+
+* Questions to Consider:
+
+    - What can be the most efficient template database design ready for the agent to go look like?
+
