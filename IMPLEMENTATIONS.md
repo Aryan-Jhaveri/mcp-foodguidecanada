@@ -41,6 +41,7 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
 <details>
 <summary> List of notes and questions to consider </summary>
 
+
 * In V2.0, The MCP server becomes and amalgam of access to reference intake values and Canadian Nutrient File, and a temporary local database access. The workflow of the agent becomes something like:
 
 Input Recipe Query --> Download recipe to temporary db as an sql table [Ingredients, serving size, units, and amount] --> When asked: Fetch recipe nutrient profile for different ingredients --|--> If asked: Compare values for recipes for a days worth, with DRI Table values to find if food the user is planning on consuming meets DRI requirments
