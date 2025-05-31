@@ -49,9 +49,9 @@ Input Recipe Query --> Download recipe to temporary db as an sql table [Ingredie
     
     = What database would be ideal for LLMS to - add calculated coloumns to adjust serving size, pull recipe information (q: what to include?), DRI information, and nutrient information for recipes.
 
-
-## Plan
 <details>
+<summary> ## Plan </summary>
+
 1. Add Database functionality 
     - Because majority of the following features for nutritional information depend on the LLM already having the data for recipe downloaded
 
