@@ -49,13 +49,17 @@ Input Recipe Query --> Download recipe to temporary db as an sql table [Ingredie
     
     = What database would be ideal for LLMS to - add calculated coloumns to adjust serving size, pull recipe information (q: what to include?), DRI information, and nutrient information for recipes.
 
-## Plan
 
+## Plan
+<details>
 1. Add Database functionality 
     - Because majority of the following features for nutritional information depend on the LLM already having the data for recipe downloaded
 
-2. Add values Nutrient Value of Some Common Foods 
-    - Canandian Nutrient File could
+2. Add values Nutrient Value of Some Common Foods as a default template 
+    - Canandian Nutrient File could be a 3.0 update
+
+3. 
+</details>
 
 ```mermaid
 graph TD;
