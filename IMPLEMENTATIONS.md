@@ -1,6 +1,9 @@
 # Implementations
 A list future ideas, tasks, and ideas to improve/maintain the mcp server
 
+### June 1, 2025
+[] Add a smithery installation package to automatically install the server instead of having to add working directories
+
 ### May 30, 2025
 [x] Add a temporary and/or permanent database system for LLMs to:
 
@@ -11,14 +14,6 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
 [x] To store favorites in recipes
 
 - To calculate calories and calories per serving 
-
-(look into creating embedding for recipe titles, and creating an automated pipe that pulls and updated recipe title db)
-
-[] Remove nutritional information tag for recipes
-
-[] Make windows version of setup and installation
-
-[] Maybe create a tool to create .ics files (need to see how different LLM clients display artifacts)
 
 [] Add Access to Canadian Nutrient File  to convert and search for nutrition profiles for ingredients https://food-nutrition.canada.ca/cnf-fce/?lang=eng (https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/nutrient-data.html)
 
@@ -33,6 +28,14 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
 - Also Consider references for tables and academic sources to be cited
 
 - Consider adding math support for equations for EER https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes/tables/equations-estimate-energy-requirement.html
+
+[] Remove nutritional information tag for recipes
+
+[] Make windows version of setup and installation
+
+[] Maybe create a tool to create .ics files (need to see how different LLM clients display artifacts)
+
+
 
 
 
