@@ -260,26 +260,8 @@ def register_recipe_tools(mcp: FastMCP):
 
 def create_server() -> FastMCP:
     """Create and configure the MCP server with all tools registered."""
-    mcp = FastMCP(
-        name="FoodGuideSousChef",
-        title="Canada's Food Guide Sous Chef",
-        description="""
-        Official recipe search and retrieval system for Health Canada's Food Guide. 
-        
-        This MCP server provides comprehensive access to thousands of government-verified, nutrition-focused recipes developed by registered dietitians and health professionals. All recipes align with Canada's official dietary guidelines and promote healthy eating patterns.
-        
-        Capabilities:
-        • Search through Canada's complete Food Guide recipe database with advanced filtering
-        • Retrieve detailed recipe information including ingredients, instructions, timing, and nutritional guidance
-        • Access professional cooking tips and dietary recommendations
-        • Discover available search filters organized by food categories and cooking methods
-        • Get visual instruction highlights and recipe photography
-        
-        All content is sourced from Health Canada's official Food Guide website (https://food-guide.canada.ca/) and includes proper attribution for transparency and reference.
-        
-        Perfect for meal planning, nutrition education, cooking instruction, and promoting healthy eating according to Canadian dietary guidelines.
-        """
-    )
+    # Remove all metadata from constructor
+    mcp = FastMCP()
     
     try:
         register_recipe_tools(mcp)
@@ -294,7 +276,10 @@ if __name__ == "__main__":
     try:
         print(f"Database file location: {os.path.abspath(DB_FILE)}", file=sys.stderr)
         mcp = create_server()
+        
+        # Call run() without any parameters
         mcp.run()
+        
     except Exception as e:
         print(f"Server error: {e}", file=sys.stderr)
         import traceback
