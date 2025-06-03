@@ -4,18 +4,21 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
 ### June 1, 2025
 [] Add a smithery installation package to automatically install the server instead of having to add working directories
 
+[] FIX!! The Temp db seems to create a new/multiple entry for the same recipe fetch. 
+
 ### May 30, 2025
 [x] Add a temporary and/or permanent database system for LLMs to:
 
 [x] To input ingredients (see 'access to Food nutrition Canada)
 
-[-] To use *math tools* to adjust serving size,  NOTE: I WOULD NOT COMPLETELY TRUST THESE MEASUREMENTS!!!
+[!!] To use *math tools* to adjust serving size,  NOTE: I WOULD NOT COMPLETELY TRUST THESE MEASUREMENTS!!!
 
 [x] To store favorites in recipes
 
-- To calculate calories and calories per serving 
+[!!]- To calculate calories and calories per serving 
+    - Maybe add table/webapi for unit conversions + cooking units
 
-[] Add Access to Canadian Nutrient File  to convert and search for nutrition profiles for ingredients https://food-nutrition.canada.ca/cnf-fce/?lang=eng (https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/nutrient-data.html)
+[] Add Access to Canadian Nutrient File to convert and search for nutrition profiles for ingredients https://food-nutrition.canada.ca/cnf-fce/?lang=eng (https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/nutrient-data.html)
 
 - To fetch recipe ingredient nutrient profiles
 
@@ -36,16 +39,13 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
 [] Maybe create a tool to create .ics files (need to see how different LLM clients display artifacts)
 
 
-
-
-
 ## Notes
 
 <details>
 <summary> List of notes and questions to consider </summary>
 
 
-* In V2.0, The MCP server becomes and amalgam of access to reference intake values and Canadian Nutrient File, and a temporary local database access. The workflow of the agent becomes something like:
+* In V2.0, The MCP server becomes and amalgam of access to dietary reference intake values + Canadian Nutrient File, and a temporary local database access. The workflow of the agent becomes something like:
 
 Input Recipe Query --> Download recipe to temporary db as an sql table [Ingredients, serving size, units, and amount] --> When asked: Fetch recipe nutrient profile for different ingredients --|--> If asked: Compare values for recipes for a days worth, with DRI Table values to find if food the user is planning on consuming meets DRI requirments
 
