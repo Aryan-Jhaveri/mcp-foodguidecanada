@@ -52,7 +52,7 @@ class RecipeFetcher:
             instructions = self._extract_instructions(soup)
             categories = self.extract_categories(soup)
             tips = self._extract_tips(soup)
-            recipe_highlights = self._extract_recipe_highlights(soup)  # Add this line
+            recipe_highlights = self._extract_recipe_highlights(soup)  
             
             # Extract metadata
             prep_time = self._extract_time(soup, 'prep')
@@ -197,24 +197,38 @@ class RecipeFetcher:
         return None
     
     def _extract_servings(self, soup: BeautifulSoup) -> Optional[int]:
-        """Extract number of servings."""
-        # Look for servings information
-        servings_patterns = [
-            re.compile(r'(?:serves?|servings?|yield[s]?).*?(\d+)', re.I),
-            re.compile(r'(\d+).*(?:servings?|portions?)', re.I),
-        ]
-        
-        for element in soup.find_all(['p', 'span', 'div', 'li']):
-            text = element.get_text(strip=True)
-            for pattern in servings_patterns:
-                match = pattern.search(text)
-                if match:
-                    try:
-                        return int(match.group(1))
-                    except:
-                        pass
-        
-        return None
+        """Extract number of servings.
+        """
+
+        try:
+            # Find all divs with class 'item col-xs-4' as they contain prep time, cook time, and servings
+            info_items = soup.find_all('div', class_='item col-xs-4')
+
+            for item in info_items:
+                text_div = item.find('div', class_='text')
+                if text_div:
+                    title_div = text_div.find('div', class_='title')
+                    if title_div and title_div.get_text(strip=True).lower() == 'servings':
+                        # The next sibling div to the title_div should contain the number of servings
+                        servings_value_div = title_div.find_next_sibling('div')
+                        if servings_value_div:
+                            servings_text = servings_value_div.get_text(strip=True)
+                            if servings_text.isdigit():
+                                return int(servings_text)
+                            else:
+                                # Handle cases like "4-6 servings" or "Approx. 4" if necessary,
+                                # or log/return None if only digits are expected.
+                                # For now, we strictly expect a digit.
+                                print(f"Servings text '{servings_text}' is not a simple digit.")
+                                return None 
+                        return None # Servings title found, but no value div
+            return None # No item with "Servings" title found
+
+        except Exception as e:
+            # Optionally log the error more specifically
+            print(f"Error extracting servings: {e}")
+            return None
+        return None # Fallback if no servings info found
     
     def _extract_image(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract recipe image URL."""
@@ -489,3 +503,5 @@ class RecipeFetcher:
                         return value
         
         return None
+    
+
