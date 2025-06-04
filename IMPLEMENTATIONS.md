@@ -1,40 +1,59 @@
 # Implementations
 A list future ideas, tasks, and ideas to improve/maintain the mcp server
 
-### May 30, 2025
-[] Add a temporary and/or permanent database system for LLMs to:
+### June 1, 2025
+## <-Bugs->
+[x] Edit prompt to always use search_filter simple text before adding additional filters
+[x] Edit recipe add prompt , and show recipes prompt to always ask user for feedback
+[x] 158 in server.py a empty text string for source which needs to be removed to be replace with the url being the source
 
-- To input ingredients (see 'access to Food nutrition Canada)
-
-- To use *math tools* to adjust serving size, 
-
-- To store favorites in recipes
-
-- To calculate calories and calories per serving 
-
-(look into creating embedding for recipe titles, and creating an automated pipe that pulls and updated recipe title db)
-
-[] Remove nutritional information tag for recipes
-
-[] Make windows version of setup and installation
-
-[] Maybe create a tool to create .ics files (need to see how different LLM clients display artifacts)
-
-[] Add Access to Canadian Nutrient File  to convert and search for nutrition profiles for ingredients https://food-nutrition.canada.ca/cnf-fce/?lang=eng (https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/nutrient-data.html)
-
-- To fetch recipe ingredient nutrient profiles
-
-- Consider instead https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/nutrient-data/nutrient-value-some-common-foods-2008.html#tbl_con_mat
-
-- There is search by food, but also search by nutrient https://food-nutrition.canada.ca/cnf-fce/newNutrientSearch
+## <-Features->
+[] Add Access to Canadian Nutrient File to convert and search for nutrition profiles for ingredients https://food-nutrition.canada.ca/cnf-fce/?lang=eng (https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/nutrient-data.html)
+    - Maybe this will be kept as a virtual table with fetched recipe ingredient nutrient profiles
+    - Consider instead https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/nutrient-data/nutrient-value-some-common-foods-2008.html#tbl_con_mat
+    - There is search by food, but also search by nutrient https://food-nutrition.canada.ca/cnf-fce/newNutrientSearch
 
 [] Add Access to Dietary Reference Intake tables https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes.html
+    - Also Consider references for tables and academic sources to be cited
+    - Consider adding math support for equations for EER https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes/tables/equations-estimate-energy-requirement.html
+        - Prompt the LLM to ask the user for the values required for the calculation
 
-- Also Consider references for tables and academic sources to be cited
+[] Remove nutritional information tag for recipes       
+ 
+## <-Installation->
+[] Make windows version of setup and installation
+[] Add a smithery installation package to automatically install the server instead of having to add working directories
 
-- Consider adding math support for equations for EER https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes/tables/equations-estimate-energy-requirement.html
+![] **Maybe** create a tool to create .ics files (need to see how different LLM clients display artifacts)
 
 
+### June 1, 2025
+[x] FIX!! The Temp db seems to create a new/multiple entry for the same recipe fetch. 
+    - editted to the prompt.
+
+[x] Math tools not using parsed ingredient data properly
+    - Issue: Scaling tools show "ingredients_scaled": 0 even after successful parsing
+    - Problem: _scale_ingredient_amount() function re-parses text instead of using parsed amount/unit fields
+    - Fix needed: Update scaling logic to use ingredient_data['amount'] and ingredient_data['unit'] directly
+    - Current workflow broken: parse_and_update_ingredients works → scaling tools ignore parsed data
+
+[x] LLM workflow guidance unclear for math tools
+    - Issue: LLMs don't know proper sequence after parsing ingredients  
+    - Problem: Tools don't clearly show how to use parsed vs original data
+    - Fix needed: Better tool prompts explaining when to use parsed_amount vs original text
+    - Current: LLMs manually calculate instead of using math tools
+
+### May 30, 2025
+[x] Add a temporary and/or permanent database system for LLMs to:
+
+[x] To input ingredients (see 'access to Food nutrition Canada)
+
+[!!] To use *math tools* to adjust serving size,  NOTE: I WOULD NOT COMPLETELY TRUST THESE MEASUREMENTS!!!
+
+[x] To store favorites in recipes
+
+[!!]- To calculate calories and calories per serving 
+    - Maybe add table/webapi for unit conversions + cooking units
 
 ## Notes
 
@@ -42,7 +61,7 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
 <summary> List of notes and questions to consider </summary>
 
 
-* In V2.0, The MCP server becomes and amalgam of access to reference intake values and Canadian Nutrient File, and a temporary local database access. The workflow of the agent becomes something like:
+* In V2.0, The MCP server becomes and amalgam of access to dietary reference intake values + Canadian Nutrient File, and a temporary local database access. The workflow of the agent becomes something like:
 
 Input Recipe Query --> Download recipe to temporary db as an sql table [Ingredients, serving size, units, and amount] --> When asked: Fetch recipe nutrient profile for different ingredients --|--> If asked: Compare values for recipes for a days worth, with DRI Table values to find if food the user is planning on consuming meets DRI requirments
 
@@ -151,7 +170,7 @@ erDiagram
         string special_considerations
     }
     
-    %% User Customization & Calculations
+    %% Recipe Customization & Calculations
     RECIPE_CALCULATIONS {
         string calc_id PK
         string recipe_id FK
@@ -169,7 +188,7 @@ erDiagram
         json custom_notes
     }
     
-    %% Meal Planning
+    %% Meal Planning -- Most probably not going to be added
     MEAL_PLANS {
         string plan_id PK
         string user_session
