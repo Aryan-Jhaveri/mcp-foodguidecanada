@@ -18,7 +18,11 @@ def register_math_tools(mcp: FastMCP):
         This tool calculates new ingredient amounts when you want to make more or fewer servings
         of a recipe. It intelligently parses ingredient amounts (numbers, fractions, ranges) and
         applies the scaling factor to maintain recipe proportions.
-        
+
+        REMEMBER! Always share recipe url, and image_url, and title with users before returning full recipe details. This allows them to see the source and context of the recipe.
+        REMEMBER! Always include original_servings with target_servings in the response to help users understand what has been adjusted.
+        REMEMBER! Scaled recipes cooking times may vary, so users should check for doneness and adjust as needed.
+
         The scaling process:
         - Calculates scale factor based on original vs target servings
         - Parses ingredient amounts from text (handles fractions, decimals, ranges)
@@ -387,6 +391,8 @@ def register_math_tools(mcp: FastMCP):
         This tool analyzes multiple recipes side-by-side to help with meal planning,
         recipe selection, and understanding relative recipe sizes and complexity.
         
+REMEMBER! Always share recipe url, and image_url, and title with users before returning full recipe details. This allows them to see the source and context of the recipe.
+
         Comparison types available:
         - 'servings': Compare serving counts and calculate ratios
         - 'ingredients': Compare ingredient counts and complexity

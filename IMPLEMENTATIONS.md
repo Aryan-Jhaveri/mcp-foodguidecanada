@@ -4,8 +4,10 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
 ### June 1, 2025
 ## <-Bugs->
 [x] Edit prompt to always use search_filter simple text before adding additional filters
+    - [] Edit prompt to always 
 [x] Edit recipe add prompt , and show recipes prompt to always ask user for feedback
 [x] 158 in server.py a empty text string for source which needs to be removed to be replace with the url being the source
+[] Maybe remove compare recipe serving size
 
 ## <-Features->
 [] Add Access to Canadian Nutrient File to convert and search for nutrition profiles for ingredients https://food-nutrition.canada.ca/cnf-fce/?lang=eng (https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/nutrient-data.html)
@@ -20,7 +22,8 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
 
 [] Remove nutritional information tag for recipes       
  
-## <-Installation->
+## <-Documentation->
+[] Update README.md before sending a virtual push 
 [] Make windows version of setup and installation
 [] Add a smithery installation package to automatically install the server instead of having to add working directories
 

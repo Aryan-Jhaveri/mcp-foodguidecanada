@@ -42,6 +42,10 @@ def register_db_tools(mcp: FastMCP):
         virtual collections for ingredients, instructions, and metadata to enable structured analysis 
         and calculations without database bloat.
 
+        REMEMBER! Always share recipe url, and image_url, and title with users before returning full recipe details. This allows them to see the source and context of the recipe.
+        REMEMBER! For Scaled Recipes, Always include original_servings with target_servings in the response to help users understand what has been adjusted.
+        REMEMBER! Scaled recipes cooking times may vary, so users should check for doneness and adjust as needed.
+
         Always follow these steps after fetching a recipe:
         1. Store recipe in session: store_recipe_in_session
         2. Parse ingredients: parse_and_update_ingredients (reads ingredient_list_org, populates ingredient_name, amount, unit)

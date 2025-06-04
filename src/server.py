@@ -47,8 +47,10 @@ def register_recipe_tools(mcp: FastMCP):
         """
         Search for Canadian recipes from Health Canada's official Food Guide website. This tool searches through thousands of government-verified, nutrition-focused recipes designed to help Canadians eat well according to official dietary guidelines.
 
+        REMEMBER! For non-specific queries: Always try to use minimal search_text first, then apply filters to refine results. This approach ensures you see the broadest range of recipes available before narrowing down to specific dietary needs or cooking methods
+
         Steps to efficient searching:
-        1. Use the search_text parameter to find recipes by keywords in titles, ingredients, or descriptions 
+        1. Use the only search_text parameter to find recipes by keywords in titles, ingredients, or descriptions 
         2. Apply specific filters to narrow results based on dietary preferences, available ingredients, cooking methods, and meal occasions
         3. Review the returned recipe metadata to find options that match your needs
 
@@ -128,6 +130,10 @@ def register_recipe_tools(mcp: FastMCP):
     def get_recipe(url: str) -> Dict[str, Any]:
         """
         Retrieve complete recipe details from Health Canada's Food Guide website. This tool extracts comprehensive recipe information from official government sources, providing nutrition-focused recipes developed by registered dietitians and health professionals.
+        
+        REMEMBER! Always share recipe url, and image_url, and title with users before returning full recipe details. This allows them to see the source and context of the recipe.
+        REMEMBER! For Scaled Reciped, Always include original_servings with target_servings in the response to help users understand what has been adjusted.
+        REMEMBER! Scaled recipes cooking times may vary, so users should check for doneness and adjust as needed.
 
         Each recipe includes:
         - Complete ingredient lists with measurements
@@ -141,7 +147,7 @@ def register_recipe_tools(mcp: FastMCP):
         
         All recipes are designed to support healthy eating according to Canadian dietary guidelines and promote food skills development.
 
-        REMEMEBER! Always share recipe url, and image_url, and title with users before returning full recipe details. This allows them to see the source and context of the recipe.
+        
 
         Args:
             url: Complete URL to a specific recipe on Canada's Food Guide website (must start with https://food-guide.canada.ca/)
