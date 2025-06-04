@@ -3,7 +3,9 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
 
 ### June 1, 2025
 ## <-Bugs->
-[] Edit recipe add prompt , and show recipes prompt to always ask user for feedback
+[x] Edit prompt to always use search_filter simple text before adding additional filters
+[x] Edit recipe add prompt , and show recipes prompt to always ask user for feedback
+[x] 158 in server.py a empty text string for source which needs to be removed to be replace with the url being the source
 
 ## <-Features->
 [] Add Access to Canadian Nutrient File to convert and search for nutrition profiles for ingredients https://food-nutrition.canada.ca/cnf-fce/?lang=eng (https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/nutrient-data.html)

@@ -47,6 +47,11 @@ def register_recipe_tools(mcp: FastMCP):
         """
         Search for Canadian recipes from Health Canada's official Food Guide website. This tool searches through thousands of government-verified, nutrition-focused recipes designed to help Canadians eat well according to official dietary guidelines.
 
+        Steps to efficient searching:
+        1. Use the search_text parameter to find recipes by keywords in titles, ingredients, or descriptions 
+        2. Apply specific filters to narrow results based on dietary preferences, available ingredients, cooking methods, and meal occasions
+        3. Review the returned recipe metadata to find options that match your needs
+
         The search covers recipes that emphasize:
         - Vegetables and fruits as the foundation of meals
         - Whole grain foods for sustained energy  
@@ -55,6 +60,8 @@ def register_recipe_tools(mcp: FastMCP):
         - Family-friendly and accessible cooking methods
 
         Each recipe returned includes complete nutritional guidance, cooking tips from registered dietitians, and visual instruction steps to ensure cooking success.
+
+        REMEMBER! Always share results of search_recipes before using get_recipe to fetch full details. This allows users to see available recipes and choose which ones they want to explore further.
 
         Args:
             search_text: Free-text search across recipe titles, ingredients, and descriptions (e.g., "quick breakfast", "salmon dinner", "vegetarian lunch")
@@ -134,6 +141,8 @@ def register_recipe_tools(mcp: FastMCP):
         
         All recipes are designed to support healthy eating according to Canadian dietary guidelines and promote food skills development.
 
+        REMEMEBER! Always share recipe url, and image_url, and title with users before returning full recipe details. This allows them to see the source and context of the recipe.
+
         Args:
             url: Complete URL to a specific recipe on Canada's Food Guide website (must start with https://food-guide.canada.ca/)
             
@@ -151,7 +160,6 @@ def register_recipe_tools(mcp: FastMCP):
             - tips: Professional cooking tips and dietary guidance
             - recipe_highlights: Visual instruction steps with images and descriptions
             - image_url: Main recipe photo URL
-            - source: "Health Canada's Food Guide" for proper attribution
             - website: "https://food-guide.canada.ca/" for reference
 
         Source: Health Canada's Food Guide - https://food-guide.canada.ca/ + the recipe slug URL builder
@@ -179,9 +187,7 @@ def register_recipe_tools(mcp: FastMCP):
                 "tips": getattr(recipe, 'tips', []),
                 "recipe_highlights": getattr(recipe, 'recipe_highlights', []),
                 "image_url": getattr(recipe, 'image_url', ''),
-                "source": "Health Canada's Food Guide",
                 "website": "https://food-guide.canada.ca/",
-                "attribution": "Recipe sourced from Canada's official Food Guide"
             }
             
             return recipe_data
