@@ -2,9 +2,44 @@
 A list future ideas, tasks, and ideas to improve/maintain the mcp server
 
 ### June 1, 2025
+## <-Bugs->
+[] Edit recipe add prompt , and show recipes prompt to always ask user for feedback
+
+## <-Features->
+[] Add Access to Canadian Nutrient File to convert and search for nutrition profiles for ingredients https://food-nutrition.canada.ca/cnf-fce/?lang=eng (https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/nutrient-data.html)
+    - Maybe this will be kept as a virtual table with fetched recipe ingredient nutrient profiles
+    - Consider instead https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/nutrient-data/nutrient-value-some-common-foods-2008.html#tbl_con_mat
+    - There is search by food, but also search by nutrient https://food-nutrition.canada.ca/cnf-fce/newNutrientSearch
+
+[] Add Access to Dietary Reference Intake tables https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes.html
+    - Also Consider references for tables and academic sources to be cited
+    - Consider adding math support for equations for EER https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes/tables/equations-estimate-energy-requirement.html
+        - Prompt the LLM to ask the user for the values required for the calculation
+
+[] Remove nutritional information tag for recipes       
+ 
+## <-Installation->
+[] Make windows version of setup and installation
 [] Add a smithery installation package to automatically install the server instead of having to add working directories
 
-[] FIX!! The Temp db seems to create a new/multiple entry for the same recipe fetch. 
+![] **Maybe** create a tool to create .ics files (need to see how different LLM clients display artifacts)
+
+
+### June 1, 2025
+[x] FIX!! The Temp db seems to create a new/multiple entry for the same recipe fetch. 
+    - editted to the prompt.
+
+[x] Math tools not using parsed ingredient data properly
+    - Issue: Scaling tools show "ingredients_scaled": 0 even after successful parsing
+    - Problem: _scale_ingredient_amount() function re-parses text instead of using parsed amount/unit fields
+    - Fix needed: Update scaling logic to use ingredient_data['amount'] and ingredient_data['unit'] directly
+    - Current workflow broken: parse_and_update_ingredients works → scaling tools ignore parsed data
+
+[x] LLM workflow guidance unclear for math tools
+    - Issue: LLMs don't know proper sequence after parsing ingredients  
+    - Problem: Tools don't clearly show how to use parsed vs original data
+    - Fix needed: Better tool prompts explaining when to use parsed_amount vs original text
+    - Current: LLMs manually calculate instead of using math tools
 
 ### May 30, 2025
 [x] Add a temporary and/or permanent database system for LLMs to:
@@ -17,23 +52,6 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
 
 [!!]- To calculate calories and calories per serving 
     - Maybe add table/webapi for unit conversions + cooking units
-
-[] Add Access to Canadian Nutrient File to convert and search for nutrition profiles for ingredients https://food-nutrition.canada.ca/cnf-fce/?lang=eng (https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/nutrient-data.html)
-    - Maybe this will be kept as a virtual table with fetched recipe ingredient nutrient profiles
-    - Consider instead https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/nutrient-data/nutrient-value-some-common-foods-2008.html#tbl_con_mat
-    - There is search by food, but also search by nutrient https://food-nutrition.canada.ca/cnf-fce/newNutrientSearch
-
-[] Add Access to Dietary Reference Intake tables https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes.html
-    - Also Consider references for tables and academic sources to be cited
-    - Consider adding math support for equations for EER https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes/tables/equations-estimate-energy-requirement.html
-        - Prompt the LLM to ask the user for the values required for the calculation
-
-[] Remove nutritional information tag for recipes
-
-[] Make windows version of setup and installation
-
-[] Maybe create a tool to create .ics files (need to see how different LLM clients display artifacts)
-
 
 ## Notes
 

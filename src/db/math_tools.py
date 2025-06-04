@@ -1,9 +1,7 @@
-import sqlite3
 import json
 import re
 from typing import Dict, Any, List, Optional
 from fastmcp import FastMCP
-from .connection import get_db_connection
 from ..models.math_models import (
     ServingSizeInput, IngredientScaleInput, BulkIngredientScaleInput, 
     RecipeComparisonInput, DRIComparisonInput, NutrientAnalysisInput
@@ -49,59 +47,87 @@ def register_math_tools(mcp: FastMCP):
         target_servings = serving_input.target_servings
         
         try:
-            with get_db_connection() as conn:
-                cursor = conn.cursor()
+            from .schema import get_virtual_session_data
+            
+            # Get virtual session data
+            session = get_virtual_session_data(session_id)
+            if not session:
+                return {"error": f"Virtual session {session_id} not found"}
+            
+            # Get original recipe data
+            if recipe_id not in session['recipes']:
+                return {"error": f"Recipe {recipe_id} not found in session {session_id}"}
+            
+            recipe_data = session['recipes'][recipe_id]
+            original_servings = recipe_data.get('base_servings') or 1
+            scale_factor = target_servings / original_servings
+            
+            # Get ingredients for this recipe
+            recipe_ingredients = [
+                (ing_id, ing_data) for ing_id, ing_data in session['ingredients'].items()
+                if ing_data['recipe_id'] == recipe_id
+            ]
+            
+            # Sort by ingredient order
+            recipe_ingredients.sort(key=lambda x: x[1]['ingredient_order'])
+            
+            scaled_ingredients = []
+            scaling_log = []
+            
+            for ingredient_id, ingredient_data in recipe_ingredients:
+                original_text = ingredient_data.get('ingredient_list_org', '')
+                ingredient_name = ingredient_data.get('ingredient_name', '')
+                parsed_amount = ingredient_data.get('amount')
+                parsed_unit = ingredient_data.get('unit')
                 
-                # Get original recipe data
-                cursor.execute(f"""
-                    SELECT base_servings FROM temp_recipes_{session_id} WHERE recipe_id = ?
-                """, (recipe_id,))
-                
-                recipe_row = cursor.fetchone()
-                if not recipe_row:
-                    return {"error": f"Recipe {recipe_id} not found in session {session_id}"}
-                
-                original_servings = recipe_row['base_servings'] or 1
-                scale_factor = target_servings / original_servings
-                
-                # Get ingredients
-                cursor.execute(f"""
-                    SELECT * FROM temp_recipe_ingredients_{session_id} 
-                    WHERE recipe_id = ? ORDER BY ingredient_order
-                """, (recipe_id,))
-                
-                ingredients = cursor.fetchall()
-                scaled_ingredients = []
-                scaling_log = []
-                
-                for ingredient in ingredients:
-                    original_name = ingredient['ingredient_name']
-                    scaled_amount, amount_info = _scale_ingredient_amount(original_name, scale_factor)
+                # Use parsed data if available, otherwise fall back to text parsing
+                scaled_amount_value = None
+                if parsed_amount is not None and parsed_unit is not None:
+                    # Direct calculation using parsed data
+                    scaled_amount_value = float(parsed_amount) * scale_factor
+                    scaled_text = f"{scaled_amount_value} {parsed_unit} {ingredient_name}"
                     
-                    scaled_ingredients.append({
-                        'ingredient_id': ingredient['ingredient_id'],
-                        'original_name': original_name,
-                        'scaled_name': scaled_amount,
-                        'scale_factor': scale_factor,
-                        'amount_info': amount_info
-                    })
+                    amount_info = {
+                        'found_amount': True,
+                        'original_amount': f"{parsed_amount} {parsed_unit}",
+                        'scaled_amount': f"{scaled_amount_value} {parsed_unit}",
+                        'ingredient_base': ingredient_name,
+                        'parsing_method': 'parsed_data'
+                    }
+                    
+                    scaling_log.append(f"{parsed_amount} {parsed_unit} → {scaled_amount_value} {parsed_unit}: {ingredient_name}")
+                else:
+                    # Fall back to text parsing
+                    scaled_text, amount_info = _scale_ingredient_amount(original_text, scale_factor)
+                    amount_info['parsing_method'] = 'text_parsing'
                     
                     if amount_info['found_amount']:
                         scaling_log.append(f"{amount_info['original_amount']} → {amount_info['scaled_amount']}: {amount_info['ingredient_base']}")
                 
-                return {
-                    "success": f"Recipe scaled from {original_servings} to {target_servings} servings",
-                    "recipe_id": recipe_id,
-                    "original_servings": original_servings,
-                    "target_servings": target_servings,
-                    "scale_factor": round(scale_factor, 3),
-                    "scaled_ingredients": scaled_ingredients,
-                    "scaling_summary": scaling_log,
-                    "ingredients_scaled": len([log for log in scaling_log if log])
-                }
+                scaled_ingredients.append({
+                    'ingredient_id': ingredient_id,
+                    'original_text': original_text,
+                    'ingredient_name': ingredient_name,
+                    'scaled_text': scaled_text,
+                    'scale_factor': scale_factor,
+                    'amount_info': amount_info,
+                    'parsed_amount': parsed_amount,
+                    'parsed_unit': parsed_unit,
+                    'scaled_amount': scaled_amount_value
+                })
+            
+            return {
+                "success": f"Recipe scaled from {original_servings} to {target_servings} servings",
+                "recipe_id": recipe_id,
+                "recipe_title": recipe_data.get('title', 'Unknown'),
+                "original_servings": original_servings,
+                "target_servings": target_servings,
+                "scale_factor": round(scale_factor, 3),
+                "scaled_ingredients": scaled_ingredients,
+                "scaling_summary": scaling_log,
+                "ingredients_scaled": len([log for log in scaling_log if log])
+            }
                 
-        except sqlite3.Error as e:
-            return {"error": f"Database error scaling recipe: {e}"}
         except Exception as e:
             return {"error": f"Unexpected error scaling recipe: {e}"}
 
@@ -143,45 +169,74 @@ def register_math_tools(mcp: FastMCP):
         scale_factor = ingredient_input.scale_factor
         
         try:
-            with get_db_connection() as conn:
-                cursor = conn.cursor()
-                
-                # Find matching ingredient (case-insensitive partial match)
-                cursor.execute(f"""
-                    SELECT * FROM temp_recipe_ingredients_{session_id} 
-                    WHERE recipe_id = ? AND LOWER(ingredient_name) LIKE ?
-                    ORDER BY ingredient_order
-                """, (recipe_id, f"%{ingredient_name}%"))
-                
-                matching_ingredients = cursor.fetchall()
-                
-                if not matching_ingredients:
-                    return {"error": f"No ingredient matching '{ingredient_name}' found in recipe"}
-                
-                if len(matching_ingredients) > 1:
-                    matches = [ing['ingredient_name'] for ing in matching_ingredients]
-                    return {
-                        "error": f"Multiple ingredients match '{ingredient_name}': {matches}",
-                        "suggestion": "Use a more specific ingredient name"
-                    }
-                
-                ingredient = matching_ingredients[0]
-                original_name = ingredient['ingredient_name']
-                
-                scaled_amount, amount_info = _scale_ingredient_amount(original_name, scale_factor)
-                
+            from .schema import get_virtual_session_data
+            
+            # Get virtual session data
+            session = get_virtual_session_data(session_id)
+            if not session:
+                return {"error": f"Virtual session {session_id} not found"}
+            
+            # Find matching ingredient (case-insensitive partial match)
+            matching_ingredients = []
+            for ing_id, ing_data in session['ingredients'].items():
+                if ing_data['recipe_id'] != recipe_id:
+                    continue
+                    
+                # Check both ingredient_name and ingredient_list_org for matches
+                search_text = (ing_data.get('ingredient_name') or ing_data.get('ingredient_list_org', '')).lower()
+                if ingredient_name in search_text:
+                    matching_ingredients.append((ing_id, ing_data))
+            
+            if not matching_ingredients:
+                return {"error": f"No ingredient matching '{ingredient_name}' found in recipe"}
+            
+            if len(matching_ingredients) > 1:
+                matches = [ing_data.get('ingredient_name') or ing_data.get('ingredient_list_org', '') 
+                          for _, ing_data in matching_ingredients]
                 return {
-                    "success": f"Ingredient scaled by factor {scale_factor}",
-                    "ingredient_id": ingredient['ingredient_id'],
-                    "original_ingredient": original_name,
-                    "scaled_ingredient": scaled_amount,
-                    "scale_factor": scale_factor,
-                    "amount_details": amount_info,
-                    "scaling_applied": amount_info['found_amount']
+                    "error": f"Multiple ingredients match '{ingredient_name}': {matches}",
+                    "suggestion": "Use a more specific ingredient name"
                 }
+            
+            ingredient_id, ingredient_data = matching_ingredients[0]
+            original_text = ingredient_data.get('ingredient_list_org', '')
+            ingredient_name = ingredient_data.get('ingredient_name', '')
+            parsed_amount = ingredient_data.get('amount')
+            parsed_unit = ingredient_data.get('unit')
+            
+            # Use parsed data if available, otherwise fall back to text parsing
+            if parsed_amount is not None and parsed_unit is not None:
+                # Direct calculation using parsed data
+                scaled_amount_value = float(parsed_amount) * scale_factor
+                scaled_text = f"{scaled_amount_value} {parsed_unit} {ingredient_name}"
                 
-        except sqlite3.Error as e:
-            return {"error": f"Database error scaling ingredient: {e}"}
+                amount_info = {
+                    'found_amount': True,
+                    'original_amount': f"{parsed_amount} {parsed_unit}",
+                    'scaled_amount': f"{scaled_amount_value} {parsed_unit}",
+                    'ingredient_base': ingredient_name,
+                    'parsing_method': 'parsed_data'
+                }
+            else:
+                # Fall back to text parsing
+                scaled_text, amount_info = _scale_ingredient_amount(original_text, scale_factor)
+                amount_info['parsing_method'] = 'text_parsing'
+                scaled_amount_value = None
+            
+            return {
+                "success": f"Ingredient scaled by factor {scale_factor}",
+                "ingredient_id": ingredient_id,
+                "original_ingredient": original_text,
+                "ingredient_name": ingredient_name,
+                "scaled_ingredient": scaled_text,
+                "scale_factor": scale_factor,
+                "amount_details": amount_info,
+                "scaling_applied": amount_info['found_amount'],
+                "parsed_amount": parsed_amount,
+                "parsed_unit": parsed_unit,
+                "scaled_amount": scaled_amount_value
+            }
+                
         except Exception as e:
             return {"error": f"Unexpected error scaling ingredient: {e}"}
 
@@ -222,57 +277,88 @@ def register_math_tools(mcp: FastMCP):
         ingredient_scales = bulk_input.ingredient_scales
         
         try:
-            with get_db_connection() as conn:
-                cursor = conn.cursor()
+            from .schema import get_virtual_session_data
+            
+            # Get virtual session data
+            session = get_virtual_session_data(session_id)
+            if not session:
+                return {"error": f"Virtual session {session_id} not found"}
                 
-                # Get all recipe ingredients
-                cursor.execute(f"""
-                    SELECT * FROM temp_recipe_ingredients_{session_id} 
-                    WHERE recipe_id = ? ORDER BY ingredient_order
-                """, (recipe_id,))
+            # Get all recipe ingredients
+            recipe_ingredients = [
+                (ing_id, ing_data) for ing_id, ing_data in session['ingredients'].items()
+                if ing_data['recipe_id'] == recipe_id
+            ]
+            
+            if not recipe_ingredients:
+                return {"error": f"No ingredients found for recipe {recipe_id} in session {session_id}"}
+            
+            scaling_results = []
+            successful_scales = 0
+            failed_matches = []
+            
+            for target_name, scale_factor in ingredient_scales.items():
+                # Find matching ingredient
+                target_lower = target_name.lower()
+                matching_ingredients = []
                 
-                all_ingredients = cursor.fetchall()
-                if not all_ingredients:
-                    return {"error": f"No ingredients found for recipe {recipe_id} in session {session_id}"}
+                for ing_id, ing_data in recipe_ingredients:
+                    search_text = (ing_data.get('ingredient_name') or ing_data.get('ingredient_list_org', '')).lower()
+                    if target_lower in search_text:
+                        matching_ingredients.append((ing_id, ing_data))
                 
-                scaling_results = []
-                successful_scales = 0
-                failed_matches = []
+                if not matching_ingredients:
+                    failed_matches.append(f"No match found for '{target_name}'")
+                    continue
                 
-                for target_name, scale_factor in ingredient_scales.items():
-                    # Find matching ingredient
-                    target_lower = target_name.lower()
-                    matching_ingredients = [
-                        ing for ing in all_ingredients 
-                        if target_lower in ing['ingredient_name'].lower()
-                    ]
+                if len(matching_ingredients) > 1:
+                    matches = [ing_data.get('ingredient_name') or ing_data.get('ingredient_list_org', '') 
+                              for _, ing_data in matching_ingredients]
+                    failed_matches.append(f"Multiple matches for '{target_name}': {matches}")
+                    continue
+                
+                # Scale the ingredient
+                ingredient_id, ingredient_data = matching_ingredients[0]
+                original_text = ingredient_data.get('ingredient_list_org', '')
+                ingredient_name = ingredient_data.get('ingredient_name', '')
+                parsed_amount = ingredient_data.get('amount')
+                parsed_unit = ingredient_data.get('unit')
+                
+                # Use parsed data if available, otherwise fall back to text parsing
+                if parsed_amount is not None and parsed_unit is not None:
+                    # Direct calculation using parsed data
+                    scaled_amount_value = float(parsed_amount) * scale_factor
+                    scaled_text = f"{scaled_amount_value} {parsed_unit} {ingredient_name}"
                     
-                    if not matching_ingredients:
-                        failed_matches.append(f"No match found for '{target_name}'")
-                        continue
-                    
-                    if len(matching_ingredients) > 1:
-                        matches = [ing['ingredient_name'] for ing in matching_ingredients]
-                        failed_matches.append(f"Multiple matches for '{target_name}': {matches}")
-                        continue
-                    
-                    # Scale the ingredient
-                    ingredient = matching_ingredients[0]
-                    original_name = ingredient['ingredient_name']
-                    scaled_amount, amount_info = _scale_ingredient_amount(original_name, scale_factor)
-                    
-                    scaling_results.append({
-                        'target_name': target_name,
-                        'matched_ingredient': original_name,
-                        'scale_factor': scale_factor,
-                        'original_amount': amount_info.get('original_amount', 'N/A'),
-                        'scaled_amount': amount_info.get('scaled_amount', 'N/A'),
-                        'scaled_ingredient': scaled_amount,
-                        'amount_found': amount_info['found_amount']
-                    })
-                    
-                    if amount_info['found_amount']:
-                        successful_scales += 1
+                    amount_info = {
+                        'found_amount': True,
+                        'original_amount': f"{parsed_amount} {parsed_unit}",
+                        'scaled_amount': f"{scaled_amount_value} {parsed_unit}",
+                        'ingredient_base': ingredient_name,
+                        'parsing_method': 'parsed_data'
+                    }
+                else:
+                    # Fall back to text parsing
+                    scaled_text, amount_info = _scale_ingredient_amount(original_text, scale_factor)
+                    amount_info['parsing_method'] = 'text_parsing'
+                    scaled_amount_value = None
+                
+                scaling_results.append({
+                    'target_name': target_name,
+                    'matched_ingredient': ingredient_name or original_text,
+                    'scale_factor': scale_factor,
+                    'original_amount': amount_info.get('original_amount', 'N/A'),
+                    'scaled_amount': amount_info.get('scaled_amount', 'N/A'),
+                    'scaled_ingredient': scaled_text,
+                    'amount_found': amount_info['found_amount'],
+                    'parsed_amount': parsed_amount,
+                    'parsed_unit': parsed_unit,
+                    'scaled_amount_value': scaled_amount_value,
+                    'parsing_method': amount_info.get('parsing_method', 'unknown')
+                })
+                
+                if amount_info['found_amount']:
+                    successful_scales += 1
                 
                 return {
                     "success": f"Bulk scaling completed: {successful_scales} ingredients scaled successfully",
@@ -327,49 +413,45 @@ def register_math_tools(mcp: FastMCP):
         comparison_type = comparison_input.comparison_type
         
         try:
-            with get_db_connection() as conn:
-                cursor = conn.cursor()
+            from .schema import get_virtual_session_data
+            
+            # Get virtual session data
+            session = get_virtual_session_data(session_id)
+            if not session:
+                return {"error": f"Virtual session {session_id} not found"}
                 
-                recipe_data = []
+            recipe_data = []
+            
+            for recipe_id in recipe_ids:
+                # Get recipe basic info
+                if recipe_id not in session['recipes']:
+                    return {"error": f"Recipe {recipe_id} not found in session {session_id}"}
                 
-                for recipe_id in recipe_ids:
-                    # Get recipe basic info
-                    cursor.execute(f"""
-                        SELECT title, base_servings FROM temp_recipes_{session_id} 
-                        WHERE recipe_id = ?
-                    """, (recipe_id,))
-                    
-                    recipe_row = cursor.fetchone()
-                    if not recipe_row:
-                        return {"error": f"Recipe {recipe_id} not found in session {session_id}"}
-                    
-                    # Get ingredient count
-                    cursor.execute(f"""
-                        SELECT COUNT(*) as ingredient_count FROM temp_recipe_ingredients_{session_id} 
-                        WHERE recipe_id = ?
-                    """, (recipe_id,))
-                    
-                    ingredient_count = cursor.fetchone()['ingredient_count']
-                    
-                    recipe_data.append({
-                        'recipe_id': recipe_id,
-                        'title': recipe_row['title'],
-                        'base_servings': recipe_row['base_servings'] or 1,
-                        'ingredient_count': ingredient_count
-                    })
+                recipe_info = session['recipes'][recipe_id]
                 
-                # Perform comparison based on type
-                if comparison_type == 'servings':
-                    return _compare_servings(recipe_data)
-                elif comparison_type == 'ingredients':
-                    return _compare_ingredients(recipe_data)
-                elif comparison_type == 'portions':
-                    return _compare_portions(recipe_data)
-                else:
-                    return {"error": f"Invalid comparison type: {comparison_type}. Use 'servings', 'ingredients', or 'portions'"}
+                # Count ingredients for this recipe
+                ingredient_count = len([
+                    ing for ing in session['ingredients'].values()
+                    if ing['recipe_id'] == recipe_id
+                ])
                 
-        except sqlite3.Error as e:
-            return {"error": f"Database error in recipe comparison: {e}"}
+                recipe_data.append({
+                    'recipe_id': recipe_id,
+                    'title': recipe_info.get('title', 'Unknown'),
+                    'base_servings': recipe_info.get('base_servings') or 1,
+                    'ingredient_count': ingredient_count
+                })
+            
+            # Perform comparison based on type
+            if comparison_type == 'servings':
+                return _compare_servings(recipe_data)
+            elif comparison_type == 'ingredients':
+                return _compare_ingredients(recipe_data)
+            elif comparison_type == 'portions':
+                return _compare_portions(recipe_data)
+            else:
+                return {"error": f"Invalid comparison type: {comparison_type}. Use 'servings', 'ingredients', or 'portions'"}
+                
         except Exception as e:
             return {"error": f"Unexpected error in recipe comparison: {e}"}
 

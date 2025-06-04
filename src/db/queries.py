@@ -4,7 +4,14 @@ import uuid
 from typing import List, Dict, Any
 from fastmcp import FastMCP
 from .connection import get_db_connection
-from .schema import initialize_database, create_recipe_session_tables, cleanup_session_tables, list_active_sessions
+from .schema import (
+    initialize_database, 
+    create_virtual_recipe_session, 
+    cleanup_virtual_session, 
+    list_active_virtual_sessions,
+    store_recipe_in_virtual_session,
+    get_virtual_session_recipes
+)
 from .math_tools import register_math_tools
 from .ingredient_parser import register_ingredient_tools
 from ..models.db_models import RecipeInput, FavoriteInput, SessionInput, RecipeQueryInput
@@ -15,9 +22,9 @@ def register_db_tools(mcp: FastMCP):
 
     # Register schema management functions
     mcp.tool()(initialize_database)
-    mcp.tool()(create_recipe_session_tables)
-    mcp.tool()(cleanup_session_tables)
-    mcp.tool()(list_active_sessions)
+    mcp.tool()(create_virtual_recipe_session)
+    mcp.tool()(cleanup_virtual_session)
+    mcp.tool()(list_active_virtual_sessions)
     
     # Register math and calculation tools
     register_math_tools(mcp)
@@ -28,16 +35,23 @@ def register_db_tools(mcp: FastMCP):
     @mcp.tool()
     def store_recipe_in_session(recipe_input: RecipeInput) -> Dict[str, Any]:
         """
-        Store a fetched recipe in temporary session tables for detailed analysis and manipulation.
+        Store a fetched recipe in virtual memory session for detailed analysis and manipulation.
         
         This tool takes complete recipe data from the Canada's Food Guide and stores it in normalized 
-        database tables for the current session. The recipe is broken down into separate tables for 
-        ingredients, instructions, and metadata to enable structured analysis and calculations.
+        in-memory data structures for the current session. The recipe is broken down into separate 
+        virtual collections for ingredients, instructions, and metadata to enable structured analysis 
+        and calculations without database bloat.
+
+        Always follow these steps after fetching a recipe:
+        1. Store recipe in session: store_recipe_in_session
+        2. Parse ingredients: parse_and_update_ingredients (reads ingredient_list_org, populates ingredient_name, amount, unit)
+        3. Check results: get_structured_ingredients
+        4. Use parsed data for scaling: scale_recipe_servings
         
         Use this tool after fetching a recipe with get_recipe() to enable:
         - Detailed recipe analysis and comparison
         - Ingredient-level manipulation and serving size calculations
-        - Persistent storage during the session for multiple recipe workflows
+        - Memory-based storage during the session for multiple recipe workflows
         - Structured access to recipe components for meal planning
         
         The stored data includes:
@@ -60,88 +74,16 @@ def register_db_tools(mcp: FastMCP):
         # Generate unique recipe ID
         recipe_id = str(uuid.uuid4())
         
-        try:
-            with get_db_connection() as conn:
-                cursor = conn.cursor()
-                
-                # Ensure session tables exist
-                result = create_recipe_session_tables(session_id)
-                if "error" in result:
-                    return result
-                
-                # Insert main recipe data
-                cursor.execute(f"""
-                    INSERT INTO temp_recipes_{session_id} 
-                    (recipe_id, title, slug, url, base_servings, prep_time, cook_time, 
-                     categories, tips, recipe_highlights, image_url)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    recipe_id,
-                    recipe_data.get('title', ''),
-                    recipe_data.get('slug', ''),
-                    recipe_data.get('url', ''),
-                    recipe_data.get('servings'),
-                    recipe_data.get('prep_time', ''),
-                    recipe_data.get('cook_time', ''),
-                    json.dumps(recipe_data.get('categories', [])),
-                    json.dumps(recipe_data.get('tips', [])),
-                    json.dumps(recipe_data.get('recipe_highlights', [])),
-                    recipe_data.get('image_url', '')
-                ))
-                
-                # Insert ingredients
-                ingredients = recipe_data.get('ingredients', [])
-                for i, ingredient in enumerate(ingredients):
-                    ingredient_id = str(uuid.uuid4())
-                    cursor.execute(f"""
-                        INSERT INTO temp_recipe_ingredients_{session_id}
-                        (ingredient_id, recipe_id, ingredient_name, amount, unit, ingredient_order)
-                        VALUES (?, ?, ?, ?, ?, ?)
-                    """, (
-                        ingredient_id,
-                        recipe_id,
-                        ingredient if isinstance(ingredient, str) else str(ingredient),
-                        None,  # Amount parsing could be added later
-                        None,  # Unit parsing could be added later  
-                        i + 1
-                    ))
-                
-                # Insert instructions
-                instructions = recipe_data.get('instructions', [])
-                for i, instruction in enumerate(instructions):
-                    instruction_id = str(uuid.uuid4())
-                    cursor.execute(f"""
-                        INSERT INTO temp_recipe_instructions_{session_id}
-                        (instruction_id, recipe_id, instruction_text, instruction_order)
-                        VALUES (?, ?, ?, ?)
-                    """, (
-                        instruction_id,
-                        recipe_id,
-                        instruction if isinstance(instruction, str) else str(instruction),
-                        i + 1
-                    ))
-                
-                conn.commit()
-                return {
-                    "success": f"Recipe stored in session {session_id}",
-                    "recipe_id": recipe_id,
-                    "title": recipe_data.get('title', ''),
-                    "ingredients_count": len(ingredients),
-                    "instructions_count": len(instructions)
-                }
-                
-        except sqlite3.Error as e:
-            return {"error": f"SQLite error storing recipe: {e}"}
-        except Exception as e:
-            return {"error": f"Unexpected error storing recipe: {e}"}
+        # Store in virtual session
+        return store_recipe_in_virtual_session(session_id, recipe_id, recipe_data)
 
     @mcp.tool()
     def get_session_recipes(query_input: RecipeQueryInput) -> Dict[str, Any]:
         """
-        Retrieve stored recipes from a session with complete normalized data including ingredients and instructions.
+        Retrieve stored recipes from a virtual session with complete normalized data including ingredients and instructions.
         
-        This tool fetches recipes that have been stored in the current session's temporary database tables.
-        It reconstructs the complete recipe data by joining the normalized tables (recipes, ingredients, instructions)
+        This tool fetches recipes that have been stored in the current session's in-memory storage.
+        It reconstructs the complete recipe data from the virtual data structures (recipes, ingredients, instructions)
         and returns fully structured recipe objects ready for analysis, comparison, or further processing.
         
         Use this tool to:
@@ -156,7 +98,7 @@ def register_db_tools(mcp: FastMCP):
         - Ordered ingredient lists with amounts and units (if parsed)
         - Sequential cooking instructions with step numbers
         - Recipe highlights, tips, and visual elements
-        - Database timestamps and unique identifiers
+        - Session timestamps and unique identifiers
         
         Args:
             query_input: Contains session_id (required - identifies which session's recipes to retrieve) and 
@@ -164,70 +106,21 @@ def register_db_tools(mcp: FastMCP):
             
         Returns:
             Dict containing 'recipes' array with complete recipe objects, session_id for reference, 
-            or error message if session not found or database issues occur
+            or error message if session not found
         """
         session_id = query_input.session_id
         recipe_id = query_input.recipe_id
         
-        try:
-            with get_db_connection() as conn:
-                cursor = conn.cursor()
-                
-                # Check if session tables exist
-                cursor.execute("""
-                    SELECT name FROM sqlite_master 
-                    WHERE type='table' AND name=?
-                """, (f"temp_recipes_{session_id}",))
-                
-                if not cursor.fetchone():
-                    return {"error": f"Session {session_id} not found"}
-                
-                # Query recipes
-                if recipe_id:
-                    cursor.execute(f"""
-                        SELECT * FROM temp_recipes_{session_id} WHERE recipe_id = ?
-                    """, (recipe_id,))
-                else:
-                    cursor.execute(f"""
-                        SELECT * FROM temp_recipes_{session_id} ORDER BY created_at DESC
-                    """)
-                
-                recipes = []
-                for recipe_row in cursor.fetchall():
-                    recipe = dict(recipe_row)
-                    
-                    # Parse JSON fields
-                    recipe['categories'] = json.loads(recipe.get('categories', '[]'))
-                    recipe['tips'] = json.loads(recipe.get('tips', '[]'))
-                    recipe['recipe_highlights'] = json.loads(recipe.get('recipe_highlights', '[]'))
-                    
-                    # Get ingredients
-                    cursor.execute(f"""
-                        SELECT * FROM temp_recipe_ingredients_{session_id} 
-                        WHERE recipe_id = ? ORDER BY ingredient_order
-                    """, (recipe['recipe_id'],))
-                    recipe['ingredients'] = [dict(row) for row in cursor.fetchall()]
-                    
-                    # Get instructions
-                    cursor.execute(f"""
-                        SELECT * FROM temp_recipe_instructions_{session_id}
-                        WHERE recipe_id = ? ORDER BY instruction_order  
-                    """, (recipe['recipe_id'],))
-                    recipe['instructions'] = [dict(row) for row in cursor.fetchall()]
-                    
-                    recipes.append(recipe)
-                
-                return {"recipes": recipes, "session_id": session_id}
-                
-        except sqlite3.Error as e:
-            return {"error": f"SQLite error retrieving recipes: {e}"}
-        except Exception as e:
-            return {"error": f"Unexpected error retrieving recipes: {e}"}
+        # Get from virtual session
+        return get_virtual_session_recipes(session_id, recipe_id)
 
     @mcp.tool()
     def add_to_favorites(favorite_input: FavoriteInput) -> Dict[str, str]:
         """
         Add a recipe to user favorites for persistent storage across sessions.
+
+        REMEMBER: To always use the `list_favorites` tool to check if a recipe is already favorited
+        before adding it, to avoid duplicates!
         
         This tool saves recipes to a permanent favorites database that persists between sessions.
         Use this to bookmark recipes you want to return to later. Each favorite can include
