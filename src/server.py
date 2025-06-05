@@ -30,6 +30,7 @@ except ImportError:
     except ImportError as e:
         print(f"Error importing modules: {e}", file=sys.stderr)
         sys.exit(1)
+        
 def create_server() -> FastMCP:
     """Create and configure the MCP server with all tools registered."""
     # Remove all metadata from constructor
