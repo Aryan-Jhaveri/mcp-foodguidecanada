@@ -1,13 +1,13 @@
 # Implementations
 A list future ideas, tasks, and ideas to improve/maintain the mcp server
 
-### June 5, 2025
+## June 5, 2025
 * REMEMBER! Use testcnf and testdri as starting points, and update the CLI as you go
-## <-Bugs->
+### <-Bugs->
 [] Clean up tool organization in downtime
 [] Maybe remove compare recipe serving size
 
-## <-Features->
+### <-Features->
 [] Add Calculate EER Functionality
 
 [] Add Access to Dietary Reference Intake tables https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes.html
@@ -22,22 +22,22 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
 
 [] Remove nutritional information tag for recipes       
 
-## <-Documentation->
+### <-Documentation->
 [] Update README.md for v2.0 before sending a virtual push 
 [] Make windows version of setup and installation
 [] Add a smithery installation package to automatically install the server instead of having to add working directories
 
 ![] **Maybe** create a tool to create .ics files (need to see how different LLM clients display artifacts)
 
-### June 4, 2025
+## June 4, 2025
 
-## <-Bugs->
+### <-Bugs->
 [x] Edit prompt to always use search_filter simple text before adding additional filters
     - [] Edit prompt to always 
 [x] Edit recipe add prompt , and show recipes prompt to always ask user for feedback
 [x] 158 in server.py a empty text string for source which needs to be removed to be replace with the url being the source
 
-### June 1, 2025
+## June 1, 2025
 [x] FIX!! The Temp db seems to create a new/multiple entry for the same recipe fetch. 
     - editted to the prompt.
 
@@ -53,13 +53,57 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
     - Fix needed: Better tool prompts explaining when to use parsed_amount vs original text
     - Current: LLMs manually calculate instead of using math tools
 
-### May 30, 2025
+## May 30, 2025
 [x] Add a temporary and/or permanent database system for LLMs to:
 [x] To input ingredients (see 'access to Food nutrition Canada)
 [!!] To use *math tools* to adjust serving size,  NOTE: I WOULD NOT COMPLETELY TRUST THESE MEASUREMENTS!!!
 [x] To store favorites in recipes
 [!!]- To calculate calories and calories per serving 
     - Maybe add table/webapi for unit conversions + cooking units
+
+## Next steps
+~~0. Add Database functionality ~~
+    - Because majority of the following features for nutritional information depend on the LLM already having the data for recipe downloaded
+
+1. Add EER calculations functionality,
+    
+    <<Steps for data retrieval>>
+    0) Ask for Age, Gender, Height (cm), Weight(kg)
+        - Here we can either use virtual storage, or add a tool to add the basic information to persistent storage as user-eer with userid
+
+    1) FIND Physical activity level category (PA CAT): (Inactive, Low active, Active, Very active) vs. (3 to <9 years, 9 to <14 years, 14 to <19 years, 19 years and older) 
+        - LLM selects a coloumn and values after asking from (Example of daily activities associated with physical activity level categories in adults for Inactive, Low active, Active, Very active)
+
+    2) If Gender is Female
+        Ask if pregnant or Breastfeeding
+            If Pregnant
+                Ask Trimester (First, Second, Third)
+                    If First
+                        use the appropriate non-pregnant equation.) 
+                    If Second and Third
+                        Ask for BMI
+                            Use Pal SCORE + BMI to find Table Response
+    Else if Male or No
+            If No to Pregnancy
+                use the appropriate non-pregnant equation.
+            If Male
+            use the appropriate equation. 
+                Use AGE, GENDER, PAL SCORE to find EER equation
+        
+    Use math tools class for EER to calculate EER required     
+    3) **RESPONSE** gives the required energy in kcal (check units j/kcal)
+
+2. Start with CNF workflow to extract only Energy coloumns in kCal for an ingredient
+    - Add SQLite tool to add kCal for all ingredients
+    - Add SQLite tool to calculate total kCal from ingredients in a dish
+    - Add a tool to compare the required kCal for a user or user profile, with that of a dish (or multiple dishes)
+        - Maybe create a new virtual table for total kCal output, 
+
+    <<Steps for Data Retrieval>>
+
+3. Then Move forward with DRI Macros Nutrients by Age and Gender (or other relevant information)
+4. CNF table for Other macros and Nurtients     
+
 
 ## Notes
 
@@ -81,17 +125,9 @@ Input Recipe Query --> Download recipe to temporary db as an sql table [Ingredie
 
 </details>
 
-## Plan
-
-~~1. Add Database functionality ~~
-    - Because majority of the following features for nutritional information depend on the LLM already having the data for recipe downloaded
-
-2. Add EER calculations functionality,
-    - Add personal user information persistent database tools, to add details for variables used in EER
 
 
-3. 
-
+## Chart
 ```mermaid
 %% PK - Primary Key: uniquely identifies each row in a table; in a data model, it identifies each instance of the entity
 %% Unique key: an attribute that could identify each row in a database or instance of an entity.
