@@ -6,6 +6,7 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
 ### <-Bugs->
 [] Clean up tool organization in downtime
 [] Maybe remove compare recipe serving size
+[] Create a clean [xxx]tools.py that contains mcp tools for respective functionality, this way all def -xxx-tools classes are in a separte file to be easily navigated and editted. 
 
 ### <-Features->
 [] Add Calculate EER Functionality
