@@ -1,12 +1,10 @@
 # Implementations
 A list future ideas, tasks, and ideas to improve/maintain the mcp server
 
-### June 1, 2025
+### June 5, 2025
+* REMEMBER! Use testcnf and testdri as starting points, and update the CLI as you go
 ## <-Bugs->
-[x] Edit prompt to always use search_filter simple text before adding additional filters
-    - [] Edit prompt to always 
-[x] Edit recipe add prompt , and show recipes prompt to always ask user for feedback
-[x] 158 in server.py a empty text string for source which needs to be removed to be replace with the url being the source
+[] Clean up tool organization in downtime
 [] Maybe remove compare recipe serving size
 
 ## <-Features->
@@ -21,7 +19,7 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
         - Prompt the LLM to ask the user for the values required for the calculation
 
 [] Remove nutritional information tag for recipes       
- 
+
 ## <-Documentation->
 [] Update README.md before sending a virtual push 
 [] Make windows version of setup and installation
@@ -29,6 +27,13 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
 
 ![] **Maybe** create a tool to create .ics files (need to see how different LLM clients display artifacts)
 
+### June 4, 2025
+
+## <-Bugs->
+[x] Edit prompt to always use search_filter simple text before adding additional filters
+    - [] Edit prompt to always 
+[x] Edit recipe add prompt , and show recipes prompt to always ask user for feedback
+[x] 158 in server.py a empty text string for source which needs to be removed to be replace with the url being the source
 
 ### June 1, 2025
 [x] FIX!! The Temp db seems to create a new/multiple entry for the same recipe fetch. 
@@ -48,13 +53,9 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
 
 ### May 30, 2025
 [x] Add a temporary and/or permanent database system for LLMs to:
-
 [x] To input ingredients (see 'access to Food nutrition Canada)
-
 [!!] To use *math tools* to adjust serving size,  NOTE: I WOULD NOT COMPLETELY TRUST THESE MEASUREMENTS!!!
-
 [x] To store favorites in recipes
-
 [!!]- To calculate calories and calories per serving 
     - Maybe add table/webapi for unit conversions + cooking units
 
@@ -62,7 +63,6 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
 
 <details>
 <summary> List of notes and questions to consider </summary>
-
 
 * In V2.0, The MCP server becomes and amalgam of access to dietary reference intake values + Canadian Nutrient File, and a temporary local database access. The workflow of the agent becomes something like:
 
@@ -79,7 +79,6 @@ Input Recipe Query --> Download recipe to temporary db as an sql table [Ingredie
 </details>
 
 ## Plan
-
 
 1. Add Database functionality 
     - Because majority of the following features for nutritional information depend on the LLM already having the data for recipe downloaded
