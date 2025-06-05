@@ -1,7 +1,7 @@
 # Implementations
 A list future ideas, tasks, and ideas to improve/maintain the mcp server
 
-### June 1, 2025
+### June 4, 2025
 ## <-Bugs->
 [] Edit recipe add prompt , and show recipes prompt to always ask user for feedback
 
