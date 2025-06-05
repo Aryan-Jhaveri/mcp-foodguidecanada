@@ -63,6 +63,7 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
 
 <details>
 <summary> List of notes and questions to consider </summary>
+* *What is the most efficient way to create a tool, that fetches relevant options from CNF, for the ingredients in a recipe?**
 
 * In V2.0, The MCP server becomes and amalgam of access to dietary reference intake values + Canadian Nutrient File, and a temporary local database access. The workflow of the agent becomes something like:
 
@@ -70,21 +71,22 @@ Input Recipe Query --> Download recipe to temporary db as an sql table [Ingredie
 
 * Questions to Consider:
 
-    - What can be the most efficient template database design ready for the agent to go look like?
+    - ~~What can be the most efficient template database design ready for the agent to go look like?~~ <- SQLite3 Virtual Tables for nonpersistent storage for sessions
 
     - What math tools can be added for Database (serving size calculator/multiplyer) and EER?
     
-    = What database would be ideal for LLMS to - add calculated coloumns to adjust serving size, pull recipe information (q: what to include?), DRI information, and nutrient information for recipes.
+    = What database would be ideal for LLMS to - ~~add calculated coloumns to adjust serving size,~~ ~~pull recipe information (q: what to include?),~~ DRI information, and nutrient information for recipes.
 
 </details>
 
 ## Plan
 
-1. Add Database functionality 
+~~1. Add Database functionality ~~
     - Because majority of the following features for nutritional information depend on the LLM already having the data for recipe downloaded
 
-2. Add values Nutrient Value of Some Common Foods as a default template 
-    - Canandian Nutrient File could be a 3.0 update
+2. Add EER calculations functionality,
+    - Add personal user information persistent database tools, to add details for variables used in EER
+
 
 3. 
 
