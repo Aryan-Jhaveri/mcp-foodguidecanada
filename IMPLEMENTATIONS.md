@@ -1,22 +1,79 @@
 # Implementations
 A list future ideas, tasks, and ideas to improve/maintain the mcp server
 
-## June 5, 2025
-* REMEMBER! Use testcnf and testdri as starting points, and update the CLI as you go
-### <-Bugs->
+## June 6, 2025
+
+#### Phase 1: EER Testing & Refinement (Priority: HIGH)
+[x] **Test EER functionality** with real user scenarios
+    - Test profile creation, calculation, and management
+        [] Add Persistent Storage for user profiles in class api.eer.EERProfileManager
+    - Verify equation accuracy against Health Canada references
+    [x] Test edge cases (pregnancy, lactation, different age groups)
+     Validate PAL coefficient application
+
+#### Phase 2: CNF Integration (Priority: HIGH)  
+[] **Create `src/api/cnf.py`** for Canadian Nutrient File integration
+    - Implement ingredient search by clean_name
+    - Add food code lookup functionality
+    - Create nutrient profile extraction
+    - Handle serving size conversions between recipe units and CNF data
+
+[] **Add CNF data models** in `src/models/cnf_models.py`
+    - Models for food search, nutrient profiles, serving sizes
+    - Validation for CNF food codes and nutrient values
+    - Integration models for recipe-CNF data linking
+
+[] **Create `src/db/cnf_tools.py`** for MCP tool registration
+    - `search_cnf_foods` - Find foods by ingredient name
+    - `get_food_nutrients` - Retrieve complete nutrient profile
+    - `link_ingredient_to_cnf` - Associate recipe ingredients with CNF codes
+    - `calculate_recipe_nutrition` - Sum nutritional values across all ingredients
+
+#### Phase 3: DRI Tables Integration (Priority: MEDIUM)
+[] **Create `src/api/dri.py`** for Dietary Reference Intake tables
+    - Scrape complete DRI tables by life stage and gender
+    - Extract EAR, RDA, AI, and UL values for all nutrients
+    - Handle special populations (pregnancy, lactation, aging)
+
+[] **Add DRI comparison tools** 
+    - Compare recipe nutrition against user's DRI requirements
+    - Calculate percentage of daily values (%DV)
+    - Identify nutrient gaps or excesses
+    - Generate nutritional recommendations
+
+#### Phase 4: Integrated Nutrition Analysis (Priority: MEDIUM)
+[] **Recipe-to-Nutrition Pipeline**
+    - Complete workflow: Recipe → Parse Ingredients → CNF Lookup → Nutrition Calculation → DRI Comparison
+    - Batch processing for multiple recipes (meal planning)
+    - Export capabilities for nutrition reports
+
+[] **Enhanced User Profiles**
+    - Add persistent storage for user profiles in SQLite
+    - Link profiles to nutrition history and preferences
+    - Support for multiple household members
+
+### <-Current Architecture Improvements->
 [] Clean up tool organization in downtime
-[] Maybe remove compare recipe serving size
-[] Create a clean [xxx]tools.py that contains mcp tools for respective functionality, this way all def -xxx-tools classes are in a separte file to be easily navigated and editted. 
+[] Maybe remove compare recipe serving size  
+[] Create a clean [xxx]tools.py that contains mcp tools for respective functionality, this way all def -xxx-tools classes are in a separate file to be easily navigated and edited
 
-### <-Features->
-[] Add Calculate EER Functionality
+### <-Bug Fixes->
+[] Test all new EER tools for proper error handling
+[] Validate input models work correctly with MCP framework
+[] Ensure proper fallback when web scraping fails
 
+### <-Documentation->
+[] Update README.md for v3.0 with EER capabilities
+[] Create user guide for EER profile creation and calculation
+[] Document CNF integration workflow when implemented
+[] Add API documentation for all new tools
+
+### <-Legacy Features->
 [] Add Access to Dietary Reference Intake tables https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes.html
     - Also Consider references for tables and academic sources to be cited
-    - Consider adding math support for equations for EER https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes/tables/equations-estimate-energy-requirement.html
-        - Prompt the LLM to ask the user for the values required for the calculation
+    - ✅ EER equations implemented and working
 
-[] Add Access to Canadian Nutrient File to convert and search for nutrition profiles for ingredients https://food-nutrition.canada.ca/cnf-fce/?lang=eng (https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/nutrient-data.html)
+[] Add Access to Canadian Nutrient File to convert and search for nutrition profiles for ingredients https://food-nutrition.canada.ca/cnf-fce/?lang=eng 
     - Maybe this will be kept as a virtual table with fetched recipe ingredient nutrient profiles
     - Consider instead https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/nutrient-data/nutrient-value-some-common-foods-2008.html#tbl_con_mat
     - There is search by food, but also search by nutrient https://food-nutrition.canada.ca/cnf-fce/newNutrientSearch
@@ -29,6 +86,22 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
 [] Add a smithery installation package to automatically install the server instead of having to add working directories
 
 ![] **Maybe** create a tool to create .ics files (need to see how different LLM clients display artifacts)
+
+
+## June 5, 2025
+* REMEMBER! Use testcnf and testdri as starting points, and update the CLI as you go
+
+### <-Recently Completed->
+[x] **EER Calculator Implementation** - Added comprehensive EER calculation functionality
+    - Created `src/api/eer.py` with EER calculations and user profile management
+    - Added `src/models/eer_models.py` with Pydantic models for validation
+    - Created `src/db/eer_tools.py` with MCP tool registration
+    - Integrated EER tools into main server (`src/server.py`)
+    - Supports both virtual session and persistent user profiles
+    - Implements Health Canada DRI equations for accurate calculations
+    - Includes PAL (Physical Activity Level) guidance and BMI calculations
+
+### <-Next Steps for v3.0 Implementation->
 
 ## June 4, 2025
 

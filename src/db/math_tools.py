@@ -1,14 +1,110 @@
 import json
 import re
+import ast
+import operator
 from typing import Dict, Any, List, Optional
 from fastmcp import FastMCP
 from ..models.math_models import (
-    ServingSizeInput, IngredientScaleInput, BulkIngredientScaleInput, 
+    SimpleMathInput, ServingSizeInput, IngredientScaleInput, BulkIngredientScaleInput, 
     RecipeComparisonInput, DRIComparisonInput, NutrientAnalysisInput
 )
 
 def register_math_tools(mcp: FastMCP):
     """Register recipe math and calculation tools with the MCP server."""
+
+    @mcp.tool()
+    def simple_math_calculator(math_input: SimpleMathInput) -> Dict[str, Any]:
+        """
+        Perform simple mathematical calculations with string variables.
+        
+        This tool allows you to evaluate mathematical expressions containing variables.
+        It supports basic arithmetic operations (+, -, *, /, **, %) and common math functions.
+        
+        Supported operations:
+        - Basic arithmetic: +, -, *, /, ** (power), % (modulo)
+        - Parentheses for grouping: (expression)
+        - Variables: any valid Python identifier (letters, numbers, underscores)
+        
+        Use this tool when:
+        - Calculating EER equations with specific values
+        - Performing nutrition calculations
+        - Scaling recipe quantities
+        - Converting units
+        - Any mathematical operation with known variables
+        
+        Args:
+            math_input: Contains expression string and variables dictionary
+            
+        Returns:
+            Dictionary with calculation result and details
+            
+        Example:
+            expression: "662 - (9.53 * age) + (15.91 * weight) + (539.6 * height)"
+            variables: {"age": 30, "weight": 70, "height": 1.75}
+            result: 2134.95
+        """
+        try:
+            expression = math_input.expression
+            variables = math_input.variables
+            
+            # Validate expression - only allow safe mathematical operations
+            if not _is_safe_expression(expression):
+                return {
+                    "status": "error",
+                    "error": "Expression contains unsafe operations. Only basic math operations are allowed.",
+                    "expression": expression
+                }
+            
+            # Replace variables in expression
+            substituted_expression = expression
+            for var_name, var_value in variables.items():
+                # Use word boundaries to avoid partial replacements
+                substituted_expression = re.sub(rf'\b{re.escape(var_name)}\b', str(var_value), substituted_expression)
+            
+            # Check if all variables were substituted
+            remaining_vars = re.findall(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', substituted_expression)
+            if remaining_vars:
+                return {
+                    "status": "error", 
+                    "error": f"Undefined variables in expression: {remaining_vars}",
+                    "expression": expression,
+                    "variables_provided": list(variables.keys())
+                }
+            
+            # Evaluate the expression safely
+            result = _safe_eval(substituted_expression)
+            
+            return {
+                "status": "success",
+                "result": round(result, 6),
+                "expression": expression,
+                "substituted_expression": substituted_expression,
+                "variables_used": variables,
+                "calculation_steps": {
+                    "original": expression,
+                    "substituted": substituted_expression,
+                    "result": result
+                }
+            }
+            
+        except ZeroDivisionError:
+            return {
+                "status": "error",
+                "error": "Division by zero",
+                "expression": expression
+            }
+        except ValueError as e:
+            return {
+                "status": "error",
+                "error": f"Invalid mathematical expression: {e}",
+                "expression": expression
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "error": f"Calculation failed: {e}",
+                "expression": expression
+            }
 
     @mcp.tool()
     def scale_recipe_servings(serving_input: ServingSizeInput) -> Dict[str, Any]:
@@ -806,3 +902,96 @@ def _compare_portions(recipe_data: List[Dict[str, Any]]) -> Dict[str, Any]:
             "average_ingredients_per_serving": round(sum(r['ingredients_per_serving'] for r in comparison_results) / len(comparison_results), 1)
         }
     }
+
+def _is_safe_expression(expression: str) -> bool:
+    """
+    Check if a mathematical expression is safe to evaluate.
+    
+    Args:
+        expression: Mathematical expression string
+        
+    Returns:
+        True if expression is safe, False otherwise
+    """
+    # List of allowed characters and patterns
+    allowed_chars = set('0123456789+-*/.()%** abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_')
+    
+    # Check if expression only contains allowed characters
+    if not all(c in allowed_chars for c in expression):
+        return False
+    
+    # Check for dangerous keywords/functions
+    dangerous_keywords = [
+        'import', 'exec', 'eval', 'open', 'file', 'input', 'raw_input',
+        'compile', '__', 'getattr', 'setattr', 'delattr', 'globals', 'locals',
+        'vars', 'dir', 'help', 'exit', 'quit', 'reload', 'execfile'
+    ]
+    
+    expression_lower = expression.lower()
+    for keyword in dangerous_keywords:
+        if keyword in expression_lower:
+            return False
+    
+    return True
+
+def _safe_eval(expression: str) -> float:
+    """
+    Safely evaluate a mathematical expression using ast.
+    
+    Args:
+        expression: Mathematical expression string (should be pre-validated)
+        
+    Returns:
+        Result of the mathematical expression
+        
+    Raises:
+        ValueError: If expression is invalid
+    """
+    # Allowed operators and functions
+    allowed_operators = {
+        ast.Add: operator.add,
+        ast.Sub: operator.sub, 
+        ast.Mult: operator.mul,
+        ast.Div: operator.truediv,
+        ast.Pow: operator.pow,
+        ast.Mod: operator.mod,
+        ast.USub: operator.neg,
+        ast.UAdd: operator.pos,
+    }
+    
+    def eval_node(node):
+        if isinstance(node, ast.Constant):  # Python 3.8+
+            return node.value
+        elif isinstance(node, ast.Num):  # Python < 3.8
+            return node.n
+        elif isinstance(node, ast.BinOp):
+            left = eval_node(node.left)
+            right = eval_node(node.right)
+            op = allowed_operators.get(type(node.op))
+            if op is None:
+                raise ValueError(f"Unsupported operation: {type(node.op)}")
+            return op(left, right)
+        elif isinstance(node, ast.UnaryOp):
+            operand = eval_node(node.operand)
+            op = allowed_operators.get(type(node.op))
+            if op is None:
+                raise ValueError(f"Unsupported unary operation: {type(node.op)}")
+            return op(operand)
+        else:
+            raise ValueError(f"Unsupported node type: {type(node)}")
+    
+    try:
+        # Parse the expression into an AST
+        tree = ast.parse(expression, mode='eval')
+        
+        # Evaluate the AST safely
+        result = eval_node(tree.body)
+        
+        return float(result)
+        
+    except (SyntaxError, ValueError) as e:
+        raise ValueError(f"Invalid expression: {e}")
+    except ZeroDivisionError:
+        raise ZeroDivisionError("Division by zero")
+    except Exception as e:
+        raise ValueError(f"Evaluation error: {e}")

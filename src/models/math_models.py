@@ -1,5 +1,11 @@
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
+
+# Simple math tool input
+class SimpleMathInput(BaseModel):
+    """Input model for simple mathematical calculations with variables"""
+    expression: str = Field(..., description="Mathematical expression with variables (e.g., '2 * x + 3 * y - 10')")
+    variables: Dict[str, float] = Field(..., description="Dictionary of variable names and their values (e.g., {'x': 5, 'y': 2})")
 
 class ServingSizeInput(BaseModel):
     """Input model for serving size calculations"""
