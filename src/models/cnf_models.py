@@ -94,19 +94,55 @@ class IngredientMatchInput(BaseModel):
             raise ValueError('Confidence score must be between 0.0 and 1.0')
         return v
 
+class IngredientNutritionData(BaseModel):
+    """Model for individual ingredient nutrition calculation data"""
+    ingredient_name: str = Field(..., description="Name of the ingredient")
+    amount: float = Field(..., description="Amount of ingredient in recipe")
+    unit: Optional[str] = Field(default="", description="Unit of measurement")
+    cnf_code: str = Field(..., description="CNF food code used")
+    calculation_method: str = Field(..., description="Method used for calculation (serving_match, 100g_baseline)")
+    serving_match_info: Optional[str] = Field(default="", description="Details about serving size matching")
+    calories: float = Field(..., description="Calculated calories for this ingredient")
+    protein: float = Field(..., description="Calculated protein (g) for this ingredient")
+    fat: float = Field(..., description="Calculated fat (g) for this ingredient")
+    carbohydrates: float = Field(..., description="Calculated carbohydrates (g) for this ingredient")
+
 class RecipeNutritionSummary(BaseModel):
-    """Model for aggregated nutrition data for a recipe"""
+    """Model for aggregated nutrition data for a recipe with calculated totals"""
     recipe_id: str = Field(..., description="Recipe identifier")
+    recipe_title: str = Field(..., description="Recipe title")
     session_id: str = Field(..., description="Session containing the recipe")
-    total_calories_per_recipe: float = Field(..., description="Total calories for entire recipe")
-    calories_per_serving: float = Field(..., description="Calories per serving")
     base_servings: int = Field(..., description="Number of servings recipe makes")
-    macronutrients: Dict[str, float] = Field(default_factory=dict, description="Protein, fat, carbs, etc.")
-    key_micronutrients: Dict[str, float] = Field(default_factory=dict, description="Important vitamins and minerals")
+    
+    # Total nutrition values (calculated directly, not formulas)
+    total_calories: float = Field(..., description="Total calories for entire recipe")
+    total_protein: float = Field(..., description="Total protein (g) for entire recipe")
+    total_fat: float = Field(..., description="Total fat (g) for entire recipe")
+    total_carbohydrates: float = Field(..., description="Total carbohydrates (g) for entire recipe")
+    
+    # Per-serving nutrition values
+    calories_per_serving: float = Field(..., description="Calories per serving")
+    protein_per_serving: float = Field(..., description="Protein (g) per serving")
+    fat_per_serving: float = Field(..., description="Fat (g) per serving")
+    carbohydrates_per_serving: float = Field(..., description="Carbohydrates (g) per serving")
+    
+    # Ingredient details
+    ingredient_nutrition: List[IngredientNutritionData] = Field(default_factory=list, description="Nutrition breakdown by ingredient")
+    
+    # Coverage and accuracy information
     matched_ingredients_count: int = Field(..., description="Number of ingredients with CNF matches")
     total_ingredients_count: int = Field(..., description="Total number of ingredients in recipe")
     coverage_percentage: float = Field(..., description="Percentage of ingredients with nutrition data")
+    
+    # Serving size matching analysis
+    serving_matches_found: int = Field(default=0, description="Number of nutrients calculated using CNF serving sizes")
+    total_nutrients_analyzed: int = Field(default=0, description="Total nutrients analyzed across all ingredients")
+    serving_match_percentage: float = Field(default=0.0, description="Percentage of nutrients using CNF serving matches")
+    calculation_accuracy: str = Field(default="baseline", description="Overall calculation accuracy level")
+    
+    # Metadata
     calculation_timestamp: datetime = Field(default_factory=datetime.now, description="When nutrition was calculated")
+    calculation_method: str = Field(default="serving_size_optimized", description="Method used for calculations")
 
 class NutritionCalculationInput(BaseModel):
     """Input model for calculating recipe nutrition"""
@@ -124,6 +160,46 @@ class NutritionCalculationInput(BaseModel):
     def validate_recipe_id(cls, v):
         if not v or not v.strip():
             raise ValueError('Recipe ID cannot be empty')
+        return v.strip()
+
+class NutritionSummaryInput(BaseModel):
+    """Input model for retrieving calculated nutrition summaries"""
+    session_id: str = Field(..., description="Session containing nutrition data")
+    recipe_id: Optional[str] = Field(default=None, description="Specific recipe to get summary for (None = all recipes)")
+    
+    @validator('session_id')
+    def validate_session_id(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Session ID cannot be empty')
+        return v.strip()
+    
+    @validator('recipe_id')
+    def validate_recipe_id(cls, v):
+        if v is not None and (not v or not v.strip()):
+            raise ValueError('Recipe ID cannot be empty string')
+        return v.strip() if v else None
+
+class SQLQueryInput(BaseModel):
+    """Input model for executing SQL queries on virtual nutrition tables"""
+    session_id: str = Field(..., description="Session containing virtual table data")
+    query: str = Field(..., description="SQL query to execute on virtual tables")
+    
+    @validator('session_id')
+    def validate_session_id(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Session ID cannot be empty')
+        return v.strip()
+    
+    @validator('query')
+    def validate_query(cls, v):
+        if not v or not v.strip():
+            raise ValueError('SQL query cannot be empty')
+        # Basic SQL injection prevention
+        dangerous_keywords = ['DROP', 'DELETE', 'UPDATE', 'INSERT', 'ALTER', 'CREATE', 'TRUNCATE']
+        query_upper = v.upper()
+        for keyword in dangerous_keywords:
+            if keyword in query_upper:
+                raise ValueError(f'Query contains prohibited keyword: {keyword}')
         return v.strip()
 
 class CNFSessionSummary(BaseModel):
@@ -146,3 +222,21 @@ class CNFCleanupInput(BaseModel):
         if v not in valid_types:
             raise ValueError(f'Cleanup type must be one of: {valid_types}')
         return v
+
+class AnalyzeRecipeNutritionInput(BaseModel):
+    """Input model for one-shot recipe nutrition analysis"""
+    session_id: str = Field(..., description="Session containing the recipe data")
+    recipe_id: str = Field(..., description="Recipe to analyze for nutrition")
+    auto_link_major_ingredients: bool = Field(default=True, description="Whether to automatically link obvious ingredient matches")
+    
+    @validator('session_id')
+    def validate_session_id(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Session ID cannot be empty')
+        return v.strip()
+    
+    @validator('recipe_id')
+    def validate_recipe_id(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Recipe ID cannot be empty')
+        return v.strip()

@@ -5,6 +5,8 @@ import re
 import json
 import os
 import sys
+import sqlite3
+from datetime import datetime
 from dataclasses import dataclass
 from enum import Enum
 
@@ -18,6 +20,12 @@ if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
+
+# Import database connection after path setup
+try:
+    from src.db.connection import get_db_connection
+except ImportError:
+    from db.connection import get_db_connection
 
 
 class Gender(Enum):
@@ -414,8 +422,8 @@ class EERProfileManager:
         )
         
         if self.use_persistent_storage:
-            # TODO: Implement persistent storage in database
-            pass
+            # Store profile in database
+            self._save_profile_to_database(profile_id, profile)
         else:
             self.virtual_profiles[profile_id] = profile
         
@@ -432,8 +440,8 @@ class EERProfileManager:
             UserProfile if found, None otherwise
         """
         if self.use_persistent_storage:
-            # TODO: Implement database retrieval
-            return None
+            # Retrieve profile from database
+            return self._load_profile_from_database(profile_id)
         else:
             return self.virtual_profiles.get(profile_id)
     
@@ -445,8 +453,8 @@ class EERProfileManager:
             List of profile identifiers
         """
         if self.use_persistent_storage:
-            # TODO: Implement database query
-            return []
+            # List profiles from database
+            return self._list_profiles_from_database()
         else:
             return list(self.virtual_profiles.keys())
     
@@ -461,13 +469,99 @@ class EERProfileManager:
             True if deleted, False if not found
         """
         if self.use_persistent_storage:
-            # TODO: Implement database deletion
-            return False
+            # Delete profile from database
+            return self._delete_profile_from_database(profile_id)
         else:
             if profile_id in self.virtual_profiles:
                 del self.virtual_profiles[profile_id]
                 return True
             return False
+    
+    def _save_profile_to_database(self, profile_id: str, profile: 'UserProfile') -> None:
+        """Save a user profile to the database."""
+        try:
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT OR REPLACE INTO user_profiles (
+                        profile_id, age, gender, height_cm, weight_kg, pal_category,
+                        pregnancy_status, lactation_status, gestation_weeks, pre_pregnancy_bmi
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    profile_id,
+                    profile.age,
+                    profile.gender.value,
+                    profile.height_cm,
+                    profile.weight_kg,
+                    profile.pal_category.value,
+                    profile.pregnancy_status.value,
+                    profile.lactation_status.value,
+                    getattr(profile, 'gestation_weeks', None),
+                    getattr(profile, 'pre_pregnancy_bmi', None)
+                ))
+                conn.commit()
+        except sqlite3.Error as e:
+            raise Exception(f"Database error saving profile: {e}")
+    
+    def _load_profile_from_database(self, profile_id: str) -> Optional['UserProfile']:
+        """Load a user profile from the database."""
+        try:
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT age, gender, height_cm, weight_kg, pal_category,
+                           pregnancy_status, lactation_status, gestation_weeks, pre_pregnancy_bmi
+                    FROM user_profiles WHERE profile_id = ?
+                """, (profile_id,))
+                
+                row = cursor.fetchone()
+                if row is None:
+                    return None
+                
+                age, gender, height_cm, weight_kg, pal_category, pregnancy_status, lactation_status, gestation_weeks, pre_pregnancy_bmi = row
+                
+                profile = UserProfile(
+                    age=age,
+                    gender=Gender(gender),
+                    height_cm=height_cm,
+                    weight_kg=weight_kg,
+                    pal_category=PALCategory(pal_category),
+                    pregnancy_status=PregnancyStatus(pregnancy_status),
+                    lactation_status=LactationStatus(lactation_status)
+                )
+                
+                # Add optional fields if they exist
+                if gestation_weeks is not None:
+                    setattr(profile, 'gestation_weeks', gestation_weeks)
+                if pre_pregnancy_bmi is not None:
+                    setattr(profile, 'pre_pregnancy_bmi', pre_pregnancy_bmi)
+                    
+                return profile
+                
+        except sqlite3.Error as e:
+            raise Exception(f"Database error loading profile: {e}")
+    
+    def _list_profiles_from_database(self) -> List[str]:
+        """List all profile IDs from the database."""
+        try:
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT profile_id FROM user_profiles ORDER BY created_at DESC")
+                rows = cursor.fetchall()
+                return [row[0] for row in rows]
+        except sqlite3.Error as e:
+            raise Exception(f"Database error listing profiles: {e}")
+    
+    def _delete_profile_from_database(self, profile_id: str) -> bool:
+        """Delete a profile from the database."""
+        try:
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM user_profiles WHERE profile_id = ?", (profile_id,))
+                conn.commit()
+                return cursor.rowcount > 0
+        except sqlite3.Error as e:
+            raise Exception(f"Database error deleting profile: {e}")
 
 def get_pal_activity_descriptions() -> Dict[str, Dict[str, str]]:
     """

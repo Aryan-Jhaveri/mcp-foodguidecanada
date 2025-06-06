@@ -3,12 +3,41 @@ import json
 import re
 import ast
 import operator
+import os
+import sys
 from typing import Dict, Any, List, Optional
 from fastmcp import FastMCP
-from ..models.math_models import (
-    SimpleMathInput, ServingSizeInput, IngredientScaleInput, BulkIngredientScaleInput, 
-    RecipeComparisonInput, DRIComparisonInput, NutrientAnalysisInput
-)
+
+# Handle imports using absolute path resolution
+script_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(script_dir)
+project_root = os.path.dirname(parent_dir)
+
+# Add paths to sys.path
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+try:
+    from src.models.math_models import (
+        SimpleMathInput, ServingSizeInput, IngredientScaleInput, BulkIngredientScaleInput, 
+        RecipeComparisonInput
+    )
+except ImportError:
+    try:
+        from models.math_models import (
+            SimpleMathInput, ServingSizeInput, IngredientScaleInput, BulkIngredientScaleInput, 
+            RecipeComparisonInput
+        )
+    except ImportError as e:
+        print(f"Error importing math_models: {e}", file=sys.stderr)
+        # Set to None - will cause issues but can't easily fallback for Pydantic models
+        SimpleMathInput = None
+        ServingSizeInput = None
+        IngredientScaleInput = None
+        BulkIngredientScaleInput = None
+        RecipeComparisonInput = None
 
 def register_math_tools(mcp: FastMCP):
     """Register recipe math and calculation tools with the MCP server."""
@@ -562,58 +591,6 @@ def register_math_tools(mcp: FastMCP):
         except Exception as e:
             return {"error": f"Unexpected error in recipe comparison: {e}"}
 
-    #----
-    # FUTURE: Placeholder tools for nutritional analysis
-    # These will be implemented when Canadian Nutrient File (CNF) integration is added
-    
-    # @mcp.tool() 
-    # def compare_daily_nutrition_to_dri(dri_input: DRIComparisonInput) -> Dict[str, Any]:
-    #     """
-    #     FUTURE TOOL: Compare recipe nutrition against Canadian Dietary Reference Intakes (DRI).
-    #     
-    #     This tool will analyze the nutritional content of recipes against official Canadian
-    #     DRI values based on age, gender, and activity level. It will help users understand
-    #     how recipes contribute to meeting daily nutritional requirements.
-    #     
-    #     Features to be implemented:
-    #     - Integration with Canadian Nutrient File (CNF) for ingredient nutrition data
-    #     - DRI table lookups based on demographics
-    #     - Percentage of daily value calculations
-    #     - Deficiency and excess warnings
-    #     - Meal planning recommendations for balanced nutrition
-    #     
-    #     Will require:
-    #     - CNF database integration for ingredient nutrition lookup
-    #     - DRI reference tables from Health Canada
-    #     - Ingredient amount parsing and unit conversion
-    #     - Nutritional calculation algorithms
-    #     """
-    #     return {"error": "DRI comparison tool not yet implemented. Requires CNF integration."}
-    
-    # @mcp.tool()
-    # def analyze_recipe_nutrients(nutrient_input: NutrientAnalysisInput) -> Dict[str, Any]:
-    #     """
-    #     FUTURE TOOL: Detailed nutritional analysis of recipe ingredients and totals.
-    #     
-    #     This tool will provide comprehensive nutritional breakdowns for recipes including
-    #     macro and micronutrients, calories, and specific nutrients of interest.
-    #     
-    #     Features to be implemented:
-    #     - Complete macro analysis (protein, carbs, fat, fiber)
-    #     - Micronutrient analysis (vitamins, minerals)
-    #     - Calorie calculations per serving and total
-    #     - Nutritional density scoring
-    #     - Allergen and dietary restriction flagging
-    #     - Recipe healthiness scoring based on Canadian guidelines
-    #     
-    #     Will require:
-    #     - CNF database for comprehensive nutrient data
-    #     - Ingredient parsing and standardization
-    #     - Unit conversion systems (cups to grams, etc.)
-    #     - Nutrition calculation algorithms
-    #     - Health Canada dietary guideline integration
-    #     """
-    #     return {"error": "Nutrient analysis tool not yet implemented. Requires CNF integration."}
 
 def _scale_ingredient_amount(ingredient_text: str, scale_factor: float) -> tuple[str, Dict[str, Any]]:
     """

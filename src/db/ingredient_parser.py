@@ -1,10 +1,32 @@
 import re
 import json
 import sqlite3
+import os
+import sys
 from typing import Dict, Any, Optional, Tuple
 from fastmcp import FastMCP
 from .connection import get_db_connection
-from ..models.db_models import RecipeQueryInput
+
+# Handle imports using absolute path resolution
+script_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(script_dir)
+project_root = os.path.dirname(parent_dir)
+
+# Add paths to sys.path
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+try:
+    from src.models.db_models import RecipeQueryInput
+except ImportError:
+    try:
+        from models.db_models import RecipeQueryInput
+    except ImportError as e:
+        print(f"Error importing db_models: {e}", file=sys.stderr)
+        # This will cause issues but we can't easily fallback for Pydantic models
+        RecipeQueryInput = None
 
 def register_ingredient_tools(mcp: FastMCP):
     """Register ingredient parsing and management tools with the MCP server."""
@@ -80,10 +102,20 @@ def register_ingredient_tools(mcp: FastMCP):
                     
                 parsed_data = _parse_ingredient_text(ingredient_text)
                 
-                # Update virtual session data with parsed components
+                # Update virtual session data with parsed components (legacy format)
                 ingredient_data['ingredient_name'] = parsed_data['clean_name']
                 ingredient_data['amount'] = parsed_data['amount']
                 ingredient_data['unit'] = parsed_data['unit']
+                
+                # UPDATE SQL table structure as well
+                if 'recipe_ingredients' in session:
+                    # Find and update the corresponding SQL table entry
+                    for sql_ingredient in session['recipe_ingredients']:
+                        if sql_ingredient['ingredient_id'] == ingredient_id:
+                            sql_ingredient['ingredient_name'] = parsed_data['clean_name']
+                            sql_ingredient['amount'] = parsed_data['amount']
+                            sql_ingredient['unit'] = parsed_data['unit']
+                            break
                 
                 parsing_results.append({
                     'ingredient_id': ingredient_id,
@@ -224,3 +256,82 @@ def _extract_clean_name(text: str) -> str:
     """Extract just the ingredient name without amounts or units."""
     parsed = _parse_ingredient_text(text)
     return parsed['clean_name']
+
+def parse_ingredients_for_temp_tables(session_id: str, recipe_id: str) -> Dict[str, Any]:
+    """
+    Parse ingredients and update them in temporary persistent storage tables.
+    
+    This function parses ingredient text from temp_recipe_ingredients table
+    and updates the ingredient_name, amount, and unit fields directly in SQLite.
+    
+    Args:
+        session_id: Session identifier
+        recipe_id: Recipe identifier
+        
+    Returns:
+        Dict with parsing results and success status
+    """
+    try:
+        parsed_count = 0
+        failed_count = 0
+        
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Get ingredients from temp storage
+            cursor.execute("""
+                SELECT ingredient_id, ingredient_list_org 
+                FROM temp_recipe_ingredients 
+                WHERE session_id = ? AND recipe_id = ?
+                ORDER BY ingredient_order
+            """, (session_id, recipe_id))
+            
+            ingredients = cursor.fetchall()
+            
+            if not ingredients:
+                return {"error": f"No ingredients found for recipe {recipe_id} in session {session_id}"}
+            
+            for ingredient_row in ingredients:
+                ingredient_id = ingredient_row[0]
+                ingredient_text = ingredient_row[1]
+                
+                if not ingredient_text or not ingredient_text.strip():
+                    continue
+                
+                # Parse the ingredient text
+                parsed = _parse_ingredient_text(ingredient_text)
+                
+                # Check if parsing was successful (has valid clean_name)
+                if parsed.get('clean_name') and parsed['clean_name'].strip():
+                    # Update the temp table with parsed data
+                    cursor.execute("""
+                        UPDATE temp_recipe_ingredients 
+                        SET ingredient_name = ?, amount = ?, unit = ?
+                        WHERE session_id = ? AND ingredient_id = ?
+                    """, (
+                        parsed['clean_name'],
+                        parsed.get('amount'),
+                        parsed.get('unit'),
+                        session_id,
+                        ingredient_id
+                    ))
+                    parsed_count += 1
+                else:
+                    failed_count += 1
+            
+            conn.commit()
+            
+            return {
+                "success": f"Parsed ingredients for recipe {recipe_id}",
+                "session_id": session_id,
+                "recipe_id": recipe_id,
+                "total_ingredients": len(ingredients),
+                "parsed_count": parsed_count,
+                "failed_count": failed_count,
+                "storage_type": "persistent_sqlite"
+            }
+            
+    except sqlite3.Error as e:
+        return {"error": f"SQLite error parsing ingredients: {e}"}
+    except Exception as e:
+        return {"error": f"Unexpected error parsing ingredients: {e}"}

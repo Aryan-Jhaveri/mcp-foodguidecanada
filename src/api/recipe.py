@@ -22,12 +22,14 @@ try:
     from src.models.filters import SearchFilters
     from src.db.queries import register_db_tools
     from src.config import DB_FILE
+    from src.utils.url_builder import FoodGuideURLBuilder
 except ImportError:
     try:
         from api.search import RecipeSearcher
         from models.filters import SearchFilters
         from db.queries import register_db_tools
         from config import DB_FILE
+        from utils.url_builder import FoodGuideURLBuilder
     except ImportError as e:
         print(f"Error importing modules: {e}", file=sys.stderr)
         sys.exit(1)
@@ -592,7 +594,8 @@ def register_recipe_tools(mcp: FastMCP):
             for result in results:
                 if 'url' in result and not result.get('source'):
                     result['source'] = 'Health Canada\'s Food Guide'
-                    result['website'] = 'https://food-guide.canada.ca/' ## <---  Update this to slug url + url builder (May 30,2025)
+                    # Use proper URL builder instead of hardcoded URL
+                    result['website'] = FoodGuideURLBuilder.BASE_URL
             
             return results
             
