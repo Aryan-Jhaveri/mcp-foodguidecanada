@@ -11,7 +11,7 @@ import pandas as pd
 from typing import Dict, List, Any, Optional
 import logging
 
-logger = logging.getLogger(__name__)
+#logger = logging.get#logger(__name__)
 
 class VirtualSQLEngine:
     """
@@ -86,7 +86,7 @@ class VirtualSQLEngine:
                 return {"error": "Query execution failed"}
                 
         except Exception as e:
-            logger.error(f"SQL query execution error: {e}")
+            #logger.error(f"SQL query execution error: {e}")
             return {"error": f"Query execution failed: {str(e)}"}
     
     def _execute_select(self, query: str) -> Optional[pd.DataFrame]:
@@ -124,7 +124,7 @@ class VirtualSQLEngine:
             return result_df
             
         except Exception as e:
-            logger.error(f"SELECT query processing error: {e}")
+            #logger.error(f"SELECT query processing error: {e}")
             raise
     
     def _process_joins(self, query: str, df: pd.DataFrame) -> pd.DataFrame:

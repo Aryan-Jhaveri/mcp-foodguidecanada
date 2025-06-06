@@ -194,12 +194,19 @@ class SQLQueryInput(BaseModel):
     def validate_query(cls, v):
         if not v or not v.strip():
             raise ValueError('SQL query cannot be empty')
-        # Basic SQL injection prevention
-        dangerous_keywords = ['DROP', 'DELETE', 'UPDATE', 'INSERT', 'ALTER', 'CREATE', 'TRUNCATE']
+        # Basic SQL injection prevention - allow UPDATE/INSERT for manual ingredient linking
+        dangerous_keywords = ['DROP', 'DELETE', 'TRUNCATE', 'ALTER', 'CREATE']
         query_upper = v.upper()
         for keyword in dangerous_keywords:
             if keyword in query_upper:
                 raise ValueError(f'Query contains prohibited keyword: {keyword}')
+        
+        # Additional safety for UPDATE/INSERT: require temp_ tables and session_id
+        if query_upper.startswith('UPDATE') or query_upper.startswith('INSERT'):
+            if 'temp_' not in v:
+                raise ValueError('UPDATE/INSERT operations are only allowed on temp_ tables')
+            # Note: session_id validation is handled in the execute_nutrition_sql function
+        
         return v.strip()
 
 class CNFSessionSummary(BaseModel):

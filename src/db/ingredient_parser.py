@@ -34,23 +34,33 @@ def register_ingredient_tools(mcp: FastMCP):
     @mcp.tool()
     def parse_and_update_ingredients(query_input: RecipeQueryInput) -> Dict[str, Any]:
         """
-        Parse ingredients text from ingredient_list_org to extract amounts, units, and ingredient names, then update virtual session data.
+        Parse ingredients text to extract amounts, units, and ingredient names - RUN ONCE PER RECIPE.
         
-        ⚠️ IMPORTANT: This tool reads from the 'ingredient_list_org' column which contains the original ingredient text,
-        and populates the separate 'ingredient_name', 'amount', and 'unit' columns. Always run this tool after 
-        storing recipes in a session to enable accurate serving size calculations.
+        **⚡ EFFICIENCY GUIDELINES:**
+        - ✅ **RUN ONCE**: Parse all ingredients for a recipe in a single call
+        - ❌ **AVOID**: Running this multiple times for the same recipe
+        - ✅ **FIRST STEP**: Always run this immediately after storing a recipe
+        - ❌ **AVOID**: Manual ingredient parsing - let this tool handle it
         
-        This tool analyzes ingredient text strings and extracts structured data including:
-        - Numeric amounts (whole numbers, decimals, fractions, Unicode fractions)
-        - Units of measurement (mL, cups, tsp, tbsp, kg, etc.)
-        - Clean ingredient names without amounts/units
-        - Ingredient categories (section headers like "Quick pickle:")
+        **🔧 WHAT THIS TOOL DOES:**
+        Converts messy ingredient text like "15 mL liquid honey" into structured data:
+        - `amount`: 15.0
+        - `unit`: "mL"
+        - `ingredient_name`: "liquid honey"
         
-        Use this tool to:
-        - Improve recipe scaling accuracy by having structured ingredient data
-        - Enable better ingredient analysis and substitution suggestions
-        - Prepare ingredient data for nutritional analysis (future CNF integration)
-        - Clean up ingredient lists for better display and searching
+        **📊 PARSING CAPABILITIES:**
+        - Unicode fractions (½, ⅓, ¼, ¾, etc.) → decimal values
+        - Mixed numbers (1½, 2¼) → accurate decimal conversion
+        - All measurement units (mL, cups, tsp, tbsp, kg, etc.)
+        - Ingredient preparation notes ("sliced", "chopped", "optional")
+        
+        **🎯 RECOMMENDED WORKFLOW:**
+        ```
+        1. store_recipe_in_session() ← Store raw recipe data
+        2. parse_and_update_ingredients() ← YOU ARE HERE (run once!)
+        3. search_cnf_foods() for each ingredient ← Find nutrition data
+        4. execute_nutrition_sql() ← Link and calculate
+        ```
         
         The parsing handles:
         - Unicode fractions (½, ⅓, ¼, ¾, etc.)
