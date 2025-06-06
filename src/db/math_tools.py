@@ -1,3 +1,4 @@
+"""Math tools for calculating recipe servings, scaling ingredients, and comparing recipes."""
 import json
 import re
 import ast
@@ -20,6 +21,9 @@ def register_math_tools(mcp: FastMCP):
         This tool allows you to evaluate mathematical expressions containing variables.
         It supports basic arithmetic operations (+, -, *, /, **, %) and common math functions.
         
+        **CRITICAL for CNF nutrition calculations**: This is the ONLY tool to use for 
+        calculating nutrition totals. Never manually sum values from JSON data.
+        
         Supported operations:
         - Basic arithmetic: +, -, *, /, ** (power), % (modulo)
         - Parentheses for grouping: (expression)
@@ -27,21 +31,28 @@ def register_math_tools(mcp: FastMCP):
         
         Use this tool when:
         - Calculating EER equations with specific values
-        - Performing nutrition calculations
+        - **CNF nutrition calculations - summing calories, macros across ingredients**
+        - **Recipe per-serving calculations - dividing totals by serving count**
         - Scaling recipe quantities
         - Converting units
         - Any mathematical operation with known variables
+        
+        **CNF Nutrition Examples:**
+        - Total calories: "(206 * 565 / 100) + (885 * 10 / 100) + (22 * 450 / 100)"
+        - Per serving: expression="total_calories / servings", variables={"total_calories": 1437, "servings": 5}
+        - Scaling: expression="original_amount * scale_factor", variables={"original_amount": 100, "scale_factor": 1.5}
+        - EER comparison: expression="recipe_calories - eer_requirement", variables={"recipe_calories": 287, "eer_requirement": 2000}
+        
+        **General Examples:**
+        - EER calculation: "662 - (9.53 * age) + (15.91 * weight) + (539.6 * height)"
+        - Unit conversion: "cups * 240" (cups to ml)
+        - Percentage: "part / total * 100"
         
         Args:
             math_input: Contains expression string and variables dictionary
             
         Returns:
             Dictionary with calculation result and details
-            
-        Example:
-            expression: "662 - (9.53 * age) + (15.91 * weight) + (539.6 * height)"
-            variables: {"age": 30, "weight": 70, "height": 1.75}
-            result: 2134.95
         """
         try:
             expression = math_input.expression

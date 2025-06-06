@@ -19,6 +19,7 @@ try:
     from src.models.filters import SearchFilters
     from src.db.queries import register_db_tools
     from src.db.eer_tools import register_eer_tools
+    from src.db.cnf_tools import register_cnf_tools
     from src.config import DB_FILE
 except ImportError:
     try:
@@ -28,6 +29,7 @@ except ImportError:
         from models.filters import SearchFilters
         from db.queries import register_db_tools
         from db.eer_tools import register_eer_tools
+        from db.cnf_tools import register_cnf_tools
         from config import DB_FILE
     except ImportError as e:
         print(f"Error importing modules: {e}", file=sys.stderr)
@@ -45,6 +47,10 @@ def create_server() -> FastMCP:
             register_eer_tools(mcp)
         except Exception as e:
             print(f"Warning: EER tools not available: {e}", file=sys.stderr)
+        try:
+            register_cnf_tools(mcp)
+        except Exception as e:
+            print(f"Warning: CNF tools not available: {e}", file=sys.stderr)
     except Exception as e:
         print(f"ERROR during tool registration: {e}", file=sys.stderr)
         raise

@@ -1,3 +1,6 @@
+"""
+Database interaction tools for managing recipes and user favorites in FastMCP.
+"""
 import sqlite3
 import json
 import uuid

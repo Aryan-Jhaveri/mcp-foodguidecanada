@@ -2,7 +2,6 @@
 A list future ideas, tasks, and ideas to improve/maintain the mcp server
 
 ## June 6, 2025
-
 #### Phase 1: EER Implementation COMPLETED ✅ 
 [x] **EER equation fetching** - Live fetching from Health Canada DRI website
     - [x] Simplified equation parsing from HTML structure
@@ -24,23 +23,143 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
 
 [] **Future Enhancement**: Add persistent storage for user profiles in EERProfileManager
 
-#### Phase 2: CNF Integration (Priority: HIGH)  
-[] **Create `src/api/cnf.py`** for Canadian Nutrient File integration
-    - Implement ingredient search by clean_name
-    - Add food code lookup functionality
-    - Create nutrient profile extraction
-    - Handle serving size conversions between recipe units and CNF data
+#### Phase 2: CNF Integration COMPLETED ✅ 
+[x] **Created `src/api/cnf.py`** for Canadian Nutrient File integration
+    - [x] Implemented NutrientFileScraper class with rate limiting and error handling
+    - [x] Added food search functionality with CSRF token handling
+    - [x] Created nutrient profile extraction with full category parsing
+    - [x] Implemented serving size option retrieval and refuse information
 
-[] **Add CNF data models** in `src/models/cnf_models.py`
-    - Models for food search, nutrient profiles, serving sizes
-    - Validation for CNF food codes and nutrient values
-    - Integration models for recipe-CNF data linking
+[x] **Added CNF data models** in `src/models/cnf_models.py`
+    - [x] Complete Pydantic models for food search, nutrient profiles, serving sizes
+    - [x] Validation for CNF food codes and nutrient values
+    - [x] Integration models for recipe-CNF data linking and nutrition summaries
 
-[] **Create `src/db/cnf_tools.py`** for MCP tool registration
-    - `search_cnf_foods` - Find foods by ingredient name
-    - `get_food_nutrients` - Retrieve complete nutrient profile
-    - `link_ingredient_to_cnf` - Associate recipe ingredients with CNF codes
-    - `calculate_recipe_nutrition` - Sum nutritional values across all ingredients
+[x] **Created `src/db/cnf_tools.py`** for MCP tool registration
+    - [x] `search_cnf_foods` - Find foods by ingredient name with session storage
+    - [x] `get_cnf_nutrient_profile` - Retrieve complete nutrient profile with all categories
+    - [x] `link_ingredient_to_cnf` - Associate recipe ingredients with CNF codes
+    - [x] `calculate_recipe_nutrition` - **FIXED**: Now prepares data for math tools instead of manual calculation
+    - [x] `get_ingredient_nutrition_matches` - View ingredient-CNF linkage status
+    - [x] `clear_cnf_session_data` - Clean up CNF data from virtual sessions
+
+[x] **Extended virtual session system** in `src/db/schema.py` for CNF data storage
+    - [x] Added nutrient_profiles, ingredient_cnf_matches, nutrition_summaries structures
+    - [x] Implemented CNF helper functions for session management
+    - [x] Integrated with existing virtual session cleanup system
+
+[x] **Registered CNF tools** in `src/server.py` following EER pattern
+    - [x] Added import statements and registration calls
+    - [x] Implemented graceful fallback if CNF tools unavailable
+
+#### Phase 2.1: CNF Math Tools Integration FIX COMPLETED ✅ 
+[x] **Fixed CNF calculation workflow** - resolved LLM manual JSON parsing issues
+    - [x] Updated `calculate_recipe_nutrition` to prepare data instead of calculating
+    - [x] Tool now returns structured formulas for `simple_math_calculator` to use
+    - [x] Removed manual JSON parsing and calculation logic from CNF tools
+    - [x] Added explicit math tool workflow guidance in all CNF tool docstrings
+
+[x] **Enhanced tool documentation** to guide LLMs toward math tools
+    - [x] Updated `simple_math_calculator` docstring with CNF nutrition examples
+    - [x] Added "DATA RETRIEVAL ONLY" guidance to `get_cnf_nutrient_profile`
+    - [x] Added complete workflow examples in `search_cnf_foods` docstring
+    - [x] Emphasized use of math tools in all CNF tool descriptions
+
+[x] **Updated project workflow documentation**
+    - [x] Updated CLAUDE.md CNF workflow to emphasize math tools usage
+    - [x] Added critical reminders about never manually calculating JSON values
+    - [x] Updated key points for LLMs to highlight math tools requirement
+
+#### Phase 2.2: CNF Serving Size Matching Enhancement (Priority: HIGH)
+[] **Problem**: LLM manually converts units instead of using CNF serving-specific columns
+    - Current: LLM uses "Value per 100g" + manual conversion (less accurate)
+    - Target: Use CNF serving columns that match recipe units directly (more accurate)
+    - Example: 10mL oil should use "5ml/5g" column × 2, not 100g conversion
+
+[x] **Enhance serving size extraction in `calculate_recipe_nutrition`** COMPLETED ✅
+    - [x] Parse ALL CNF serving size columns (5mL, 15mL, 100mL, etc.)
+    - [x] Extract serving amounts and units from column headers
+    - [x] Store serving-specific nutrient values for each ingredient
+    - [x] Identify which serving columns contain actual data vs empty values
+
+[x] **Implement intelligent unit matching logic** COMPLETED ✅
+    - [x] Create unit normalization function (ml→mL, tsp→teaspoon, etc.)
+    - [x] Match recipe ingredient units to CNF serving column units
+    - [x] Calculate scaling factors: recipe_amount ÷ cnf_serving_amount = multiplier
+    - [x] Rank calculation options by accuracy (direct match > unit conversion > 100g baseline)
+
+[x] **Update calculation formula generation** COMPLETED ✅
+    - [x] Provide multiple calculation options per ingredient (serving-based + 100g fallback)
+    - [x] Mark preferred calculation method based on unit matching accuracy
+    - [x] Include descriptive text explaining why each method is recommended
+    - [x] Generate specific formulas for `simple_math_calculator` usage
+
+[x] **Enhance tool output structure** COMPLETED ✅
+    - [x] Return ranked calculation options with accuracy indicators
+    - [x] Provide clear guidance on which calculation method to prefer
+    - [x] Include serving size matching explanations for transparency
+    - [x] Add serving size analysis showing optimization success rates
+
+[x] **Add helper functions for serving size processing** COMPLETED ✅
+    - [x] `_parse_cnf_serving_columns()` - extract serving data from nutrient profiles
+    - [x] `_match_recipe_units_to_servings()` - find best CNF serving matches
+    - [x] `_normalize_unit()` - standardize unit variations for matching
+    - [x] Enhanced accuracy ranking and preferred method selection
+
+[x] **Update tool documentation and examples** COMPLETED ✅
+    - [x] Add serving size preference guidance to `calculate_recipe_nutrition` docstring
+    - [x] Include examples showing serving-based calculation workflows
+    - [x] Update CLAUDE.md with serving size matching best practices
+    - [x] Enhanced workflow documentation with serving size optimization highlights
+
+[] **Test with real recipe examples**
+    - [] Test honey-grilled-salmon recipe with 10mL oil (should use 5mL serving × 2)
+    - [] Test recipes with tsp/tbsp measurements against CNF teaspoon servings
+    - [] Test weight-based ingredients (grams) against CNF weight servings
+    - [] Verify calculation accuracy improvements vs current 100g method
+
+[] **Handle edge cases and fallbacks**
+    - [] When no serving size matches recipe units, fall back to 100g conversion
+    - [] Handle missing serving size data in CNF profiles gracefully
+    - [] Support imperial to metric unit conversions when needed
+    - [] Provide clear error messages when serving size matching fails
+
+#### Phase 2.3: Code Cleanup and TODO Consolidation (Priority: MEDIUM)
+[] **Clean up scattered TODO comments in codebase** - Move project planning out of code files
+    - Current: TODO items scattered across multiple Python files
+    - Target: Centralized planning in IMPLEMENTATIONS.md, clean code comments
+
+[] **EER Profile Management TODOs** in `src/api/eer.py`
+    - [] Line 417: Implement persistent database storage for user profiles
+    - [] Line 435: Add database retrieval for saved profiles  
+    - [] Line 447: Implement database query for profile listing
+    - [] Line 463: Add database deletion for profile management
+    - [] Decision needed: Implement persistence or remove TODO comments
+
+[] **CNF Tools Enhancement Comments** in `src/db/cnf_tools.py`
+    - [] Line 309: Add proper CNF food name lookup instead of 'Unknown' placeholder
+    - [] Line 313: Enhance serving_conversion with unit conversion capabilities
+    - [] Consider adding CNF food search by code for reverse lookups
+
+[] **Remove Future Tool Placeholders** in `src/db/math_tools.py`
+    - [] Lines 566-617: Remove large commented-out section for future nutrition tools
+    - [] These are superseded by our current CNF integration implementation
+    - [] Move any useful concepts to this IMPLEMENTATIONS.md file instead
+
+[] **Fix Recipe Attribution** in `src/api/recipe.py`
+    - [] Line 595: Update hardcoded website URL to use proper URL builder
+    - [] Replace static 'https://food-guide.canada.ca/' with dynamic slug + URL builder
+
+[] **Clean Model Placeholders** in `src/models/math_models.py`
+    - [] Remove or implement placeholder DRI comparison model
+    - [] Remove or implement placeholder nutrient analysis model
+    - [] These should align with actual planned DRI integration work
+
+[] **Documentation Consolidation**
+    - [] Move all project planning comments from code files to IMPLEMENTATIONS.md
+    - [] Keep only implementation-specific comments in code
+    - [] Update code comments to be focused on technical details, not project plans
+    - [] Organize discovered todo items by priority and dependencies
 
 #### Phase 3: DRI Tables Integration (Priority: MEDIUM)
 [] **Create `src/api/dri.py`** for Dietary Reference Intake tables
@@ -130,10 +249,7 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
     - Implements Health Canada DRI equations for accurate calculations
     - Includes PAL (Physical Activity Level) guidance and BMI calculations
 
-### <-Next Steps for v3.0 Implementation->
-
 ## June 4, 2025
-
 ### <-Bugs->
 [x] Edit prompt to always use search_filter simple text before adding additional filters
     - [] Edit prompt to always 
@@ -283,7 +399,9 @@ erDiagram
     CNF_FOODS {
         string cnf_food_code PK
         string food_description
+        %% Might need to remove this
         string food_group
+        %% Might need to remove this
         string food_source
         boolean refuse_flag
         float refuse_amount

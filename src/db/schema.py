@@ -89,7 +89,12 @@ def create_virtual_recipe_session(session_id: str) -> Dict[str, str]:
                 'recipes': {},
                 'ingredients': {},
                 'instructions': {},
-                'created_at': None
+                'created_at': None,
+                # CNF (Canadian Nutrient File) data structures
+                'nutrient_profiles': {},           # CNF nutrient data by food_code
+                'ingredient_cnf_matches': {},      # Links ingredient_id to CNF food_code
+                'nutrition_summaries': {},         # Calculated recipe nutrition data
+                'cnf_search_results': {}           # Cached CNF search results
             }
         
         return {"success": f"Virtual recipe session created for session {session_id}"}
@@ -293,3 +298,118 @@ def get_virtual_session_recipes(session_id: str, recipe_id: str = None) -> Dict[
         
     except Exception as e:
         return {"error": f"Unexpected error retrieving virtual session recipes: {e}"}
+
+# CNF (Canadian Nutrient File) helper functions
+
+def ensure_cnf_session_structure(session_id: str) -> bool:
+    """
+    Ensure CNF data structures exist in a virtual session.
+    
+    Args:
+        session_id: Session to check/update
+        
+    Returns:
+        bool: True if session exists and CNF structures are ready, False otherwise
+    """
+    try:
+        if session_id not in _recipe_sessions:
+            create_virtual_recipe_session(session_id)
+        
+        session = _recipe_sessions[session_id]
+        
+        # Ensure all CNF structures exist
+        cnf_structures = [
+            'nutrient_profiles',
+            'ingredient_cnf_matches', 
+            'nutrition_summaries',
+            'cnf_search_results'
+        ]
+        
+        for structure in cnf_structures:
+            if structure not in session:
+                session[structure] = {}
+        
+        return True
+        
+    except Exception:
+        return False
+
+def get_cnf_session_summary(session_id: str) -> Dict[str, Any]:
+    """
+    Get summary of CNF data in a virtual session.
+    
+    Args:
+        session_id: Session to summarize
+        
+    Returns:
+        Dict with CNF data counts and status
+    """
+    try:
+        session_data = get_virtual_session_data(session_id)
+        if session_data is None:
+            return {"error": f"Session {session_id} not found"}
+        
+        return {
+            "session_id": session_id,
+            "nutrient_profiles_count": len(session_data.get('nutrient_profiles', {})),
+            "ingredient_matches_count": len(session_data.get('ingredient_cnf_matches', {})),
+            "nutrition_summaries_count": len(session_data.get('nutrition_summaries', {})),
+            "search_results_count": len(session_data.get('cnf_search_results', {})),
+            "recipes_count": len(session_data.get('recipes', {})),
+            "ingredients_count": len(session_data.get('ingredients', {}))
+        }
+        
+    except Exception as e:
+        return {"error": f"Error getting CNF session summary: {e}"}
+
+def clear_cnf_data_from_session(session_id: str, data_type: str = "all") -> Dict[str, Any]:
+    """
+    Clear specific CNF data from a virtual session.
+    
+    Args:
+        session_id: Session to clean
+        data_type: Type of data to clear ('profiles', 'matches', 'summaries', 'searches', 'all')
+        
+    Returns:
+        Dict with cleanup confirmation
+    """
+    try:
+        session_data = get_virtual_session_data(session_id)
+        if session_data is None:
+            return {"error": f"Session {session_id} not found"}
+        
+        cleared_items = []
+        
+        if data_type in ('all', 'profiles'):
+            if 'nutrient_profiles' in session_data:
+                count = len(session_data['nutrient_profiles'])
+                session_data['nutrient_profiles'] = {}
+                cleared_items.append(f"{count} nutrient profiles")
+        
+        if data_type in ('all', 'matches'):
+            if 'ingredient_cnf_matches' in session_data:
+                count = len(session_data['ingredient_cnf_matches'])
+                session_data['ingredient_cnf_matches'] = {}
+                cleared_items.append(f"{count} ingredient matches")
+        
+        if data_type in ('all', 'summaries'):
+            if 'nutrition_summaries' in session_data:
+                count = len(session_data['nutrition_summaries'])
+                session_data['nutrition_summaries'] = {}
+                cleared_items.append(f"{count} nutrition summaries")
+        
+        if data_type in ('all', 'searches'):
+            if 'cnf_search_results' in session_data:
+                count = len(session_data['cnf_search_results'])
+                session_data['cnf_search_results'] = {}
+                cleared_items.append(f"{count} search result sets")
+        
+        return {
+            "success": f"Cleared CNF data from session {session_id}",
+            "session_id": session_id,
+            "data_type": data_type,
+            "cleared_items": cleared_items
+        }
+        
+    except Exception as e:
+        return {"error": f"Error clearing CNF data: {e}"}
