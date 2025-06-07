@@ -18,8 +18,7 @@ from .schema import (
     create_temp_nutrition_session,
     store_recipe_in_temp_tables,
     get_temp_session_recipes,
-    cleanup_temp_session,
-    cleanup_old_temp_sessions,
+    cleanup_temp_sessions,  # Updated combined function
     list_temp_sessions
 )
 from .math_tools import register_math_tools
@@ -64,8 +63,7 @@ def register_db_tools(mcp: FastMCP):
     mcp.tool()(create_temp_nutrition_session)
     mcp.tool()(store_recipe_in_temp_tables)
     mcp.tool()(get_temp_session_recipes)
-    mcp.tool()(cleanup_temp_session)
-    mcp.tool()(cleanup_old_temp_sessions)
+    mcp.tool()(cleanup_temp_sessions)  # Combined cleanup function
     mcp.tool()(list_temp_sessions)
     
     # Register math and calculation tools

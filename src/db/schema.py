@@ -1,6 +1,6 @@
 import sqlite3
 import json
-from typing import Dict, Any, List
+from typing import Dict, Any
 from .connection import get_db_connection
 
 def initialize_database() -> Dict[str, str]:
@@ -116,7 +116,7 @@ def initialize_database() -> Dict[str, str]:
                     session_id TEXT NOT NULL,
                     cnf_food_code TEXT NOT NULL,
                     food_description TEXT,
-                    food_group TEXT,
+                    ingredient_name TEXT,
                     refuse_flag BOOLEAN,
                     refuse_amount REAL,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -134,10 +134,8 @@ def initialize_database() -> Dict[str, str]:
                     per_amount REAL,
                     unit TEXT,
                     nutrient_symbol TEXT,
-                    standard_error TEXT,
-                    number_observations INTEGER,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    PRIMARY KEY (session_id, cnf_food_code, nutrient_name),
+                    PRIMARY KEY (session_id, cnf_food_code, nutrient_name, per_amount, unit),
                     FOREIGN KEY (session_id, cnf_food_code) REFERENCES temp_cnf_foods(session_id, cnf_food_code)
                 )
             """)
@@ -149,8 +147,18 @@ def initialize_database() -> Dict[str, str]:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_temp_cnf_nutrients_food_code ON temp_cnf_nutrients(session_id, cnf_food_code)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_temp_cnf_nutrients_nutrient_name ON temp_cnf_nutrients(session_id, nutrient_name)")
             
+            # Schema migration logic for existing CNF tables
+            migration_results = migrate_cnf_schema(cursor)
+            
             conn.commit()
-            return {"success": "Database initialized successfully - persistent favorites, user profiles, and temporary nutrition analysis tables created"}
+            base_message = "Database initialized successfully - persistent favorites, user profiles, and temporary nutrition analysis tables created"
+            if migration_results.get("migrations_applied"):
+                return {
+                    "success": base_message,
+                    "schema_migration": migration_results
+                }
+            else:
+                return {"success": base_message}
             
     except sqlite3.Error as e:
         return {"error": f"SQLite error initializing database: {e}"}
@@ -436,6 +444,142 @@ def get_virtual_session_recipes(session_id: str, recipe_id: str = None) -> Dict[
 
 # CNF (Canadian Nutrient File) helper functions
 
+def migrate_cnf_schema(cursor) -> Dict[str, Any]:
+    """
+    Migrate existing CNF tables to new schema structure.
+    
+    This function detects existing CNF tables and updates them to the new schema:
+    - temp_cnf_foods: removes food_group column, adds ingredient_name column
+    - temp_cnf_nutrients: removes standard_error and number_observations columns
+    
+    Args:
+        cursor: SQLite cursor for database operations
+        
+    Returns:
+        Dict with migration results and applied changes
+    """
+    migration_results = {
+        "migrations_applied": 0,
+        "cnf_foods_migrated": False,
+        "cnf_nutrients_migrated": False,
+        "details": []
+    }
+    
+    try:
+        # Check temp_cnf_foods table structure
+        cursor.execute("PRAGMA table_info(temp_cnf_foods)")
+        cnf_foods_columns = [col[1] for col in cursor.fetchall()]
+        
+        # Check if migration is needed for temp_cnf_foods
+        needs_cnf_foods_migration = False
+        if "food_group" in cnf_foods_columns and "ingredient_name" not in cnf_foods_columns:
+            needs_cnf_foods_migration = True
+        elif "food_group" in cnf_foods_columns:
+            needs_cnf_foods_migration = True
+        elif "ingredient_name" not in cnf_foods_columns:
+            needs_cnf_foods_migration = True
+            
+        if needs_cnf_foods_migration:
+            # Backup existing data
+            cursor.execute("SELECT * FROM temp_cnf_foods")
+            existing_cnf_foods = cursor.fetchall()
+            
+            # Drop and recreate table with new schema
+            cursor.execute("DROP TABLE IF EXISTS temp_cnf_foods")
+            cursor.execute("""
+                CREATE TABLE temp_cnf_foods (
+                    session_id TEXT NOT NULL,
+                    cnf_food_code TEXT NOT NULL,
+                    food_description TEXT,
+                    ingredient_name TEXT,
+                    refuse_flag BOOLEAN,
+                    refuse_amount REAL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (session_id, cnf_food_code)
+                )
+            """)
+            
+            # Restore data (excluding food_group, adding placeholder ingredient_name)
+            for row in existing_cnf_foods:
+                cursor.execute("""
+                    INSERT INTO temp_cnf_foods 
+                    (session_id, cnf_food_code, food_description, ingredient_name, refuse_flag, refuse_amount, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    row[0],  # session_id
+                    row[1],  # cnf_food_code  
+                    row[2],  # food_description
+                    None,    # ingredient_name (new column)
+                    row[4] if len(row) > 4 else None,  # refuse_flag
+                    row[5] if len(row) > 5 else None,  # refuse_amount
+                    row[6] if len(row) > 6 else 'CURRENT_TIMESTAMP'  # created_at
+                ))
+            
+            migration_results["cnf_foods_migrated"] = True
+            migration_results["migrations_applied"] += 1
+            migration_results["details"].append(f"Migrated temp_cnf_foods: removed food_group, added ingredient_name, restored {len(existing_cnf_foods)} records")
+        
+        # Check temp_cnf_nutrients table structure
+        cursor.execute("PRAGMA table_info(temp_cnf_nutrients)")
+        cnf_nutrients_columns = [col[1] for col in cursor.fetchall()]
+        
+        # Check if migration is needed for temp_cnf_nutrients
+        needs_cnf_nutrients_migration = "standard_error" in cnf_nutrients_columns or "number_observations" in cnf_nutrients_columns
+        
+        if needs_cnf_nutrients_migration:
+            # Backup existing data
+            cursor.execute("SELECT * FROM temp_cnf_nutrients")
+            existing_cnf_nutrients = cursor.fetchall()
+            
+            # Drop and recreate table with new schema
+            cursor.execute("DROP TABLE IF EXISTS temp_cnf_nutrients")
+            cursor.execute("""
+                CREATE TABLE temp_cnf_nutrients (
+                    session_id TEXT NOT NULL,
+                    cnf_food_code TEXT NOT NULL,
+                    nutrient_name TEXT NOT NULL,
+                    nutrient_value REAL,
+                    per_amount REAL,
+                    unit TEXT,
+                    nutrient_symbol TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (session_id, cnf_food_code, nutrient_name, per_amount, unit),
+                    FOREIGN KEY (session_id, cnf_food_code) REFERENCES temp_cnf_foods(session_id, cnf_food_code)
+                )
+            """)
+            
+            # Restore data (excluding standard_error and number_observations)
+            for row in existing_cnf_nutrients:
+                cursor.execute("""
+                    INSERT OR REPLACE INTO temp_cnf_nutrients 
+                    (session_id, cnf_food_code, nutrient_name, nutrient_value, per_amount, unit, nutrient_symbol, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    row[0],  # session_id
+                    row[1],  # cnf_food_code
+                    row[2],  # nutrient_name
+                    row[3],  # nutrient_value
+                    row[4],  # per_amount
+                    row[5],  # unit
+                    row[6],  # nutrient_symbol
+                    row[9] if len(row) > 9 else 'CURRENT_TIMESTAMP'  # created_at (skip standard_error and number_observations)
+                ))
+            
+            migration_results["cnf_nutrients_migrated"] = True
+            migration_results["migrations_applied"] += 1
+            migration_results["details"].append(f"Migrated temp_cnf_nutrients: removed standard_error and number_observations, restored {len(existing_cnf_nutrients)} records")
+        
+        # Recreate indexes after migration
+        if migration_results["migrations_applied"] > 0:
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_temp_cnf_nutrients_food_code ON temp_cnf_nutrients(session_id, cnf_food_code)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_temp_cnf_nutrients_nutrient_name ON temp_cnf_nutrients(session_id, nutrient_name)")
+        
+        return migration_results
+        
+    except Exception as e:
+        migration_results["error"] = f"Migration failed: {str(e)}"
+        return migration_results
+
 def ensure_cnf_session_structure(session_id: str) -> bool:
     """
     Ensure CNF data structures exist in a virtual session.
@@ -693,6 +837,25 @@ def create_temp_nutrition_session(session_id: str) -> Dict[str, Any]:
     """
     Create a new temporary nutrition analysis session with persistent SQLite storage.
     
+    **⚠️ IMPORTANT: Always check existing sessions first with list_temp_sessions()!**
+    
+    **🎯 EFFICIENCY GUIDELINES:**
+    - ❌ **AVOID**: Creating new sessions without checking existing ones
+    - ✅ **PREFER**: Use list_temp_sessions() first to see if session already exists
+    - ❌ **AVOID**: Creating multiple sessions for the same work
+    - ✅ **PREFER**: Reuse existing sessions when possible
+    
+    **📋 RECOMMENDED WORKFLOW:**
+    ```
+    1. list_temp_sessions() ← Check what sessions already exist
+    2. If session exists and has your data → Reuse it
+    3. If session exists but empty/different → Clean it up first with cleanup_temp_sessions()
+    4. create_temp_nutrition_session() ← Only if really needed
+    ```
+    
+    **🔄 AUTO-CLEANUP**: This function automatically cleans sessions older than 24 hours
+    to prevent database bloat.
+    
     This replaces virtual in-memory sessions with persistent SQLite tables that provide
     better reliability and data integrity while maintaining the temporary nature.
     
@@ -706,15 +869,44 @@ def create_temp_nutrition_session(session_id: str) -> Dict[str, Any]:
         session_id: Unique identifier for the nutrition analysis session
         
     Returns:
-        Dict with success confirmation or error details
+        Dict with success confirmation, existing session info, and cleanup summary
     """
     try:
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
+            # EFFICIENCY FEATURE: Check if session already exists
+            cursor.execute("SELECT session_id, created_at, last_accessed FROM temp_sessions WHERE session_id = ?", (session_id,))
+            existing_session = cursor.fetchone()
+            
+            if existing_session:
+                # Update access time for existing session
+                cursor.execute("UPDATE temp_sessions SET last_accessed = CURRENT_TIMESTAMP WHERE session_id = ?", (session_id,))
+                conn.commit()
+                
+                # Get counts of existing data
+                data_counts = {}
+                for table in ['temp_recipes', 'temp_recipe_ingredients', 'temp_cnf_foods', 'temp_cnf_nutrients']:
+                    cursor.execute(f"SELECT COUNT(*) FROM {table} WHERE session_id = ?", (session_id,))
+                    data_counts[table] = cursor.fetchone()[0]
+                
+                return {
+                    "info": f"⚠️ Session '{session_id}' already exists - reusing existing session",
+                    "session_id": session_id,
+                    "storage_type": "persistent_sqlite",
+                    "existing_session": True,
+                    "created_at": existing_session[1],
+                    "last_accessed": existing_session[2],
+                    "existing_data": data_counts,
+                    "recommendation": "Consider using existing data or clean up with cleanup_temp_sessions() if needed"
+                }
+            
+            # AUTO-CLEANUP: Removed recursive call to prevent infinite loop
+            # old_cleanup_result = cleanup_temp_sessions(hours_old=24, auto_cleanup_old=True)
+            
             # Register this session for tracking and cleanup
             cursor.execute("""
-                INSERT OR REPLACE INTO temp_sessions (session_id, created_at, last_accessed)
+                INSERT INTO temp_sessions (session_id, created_at, last_accessed)
                 VALUES (?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """, (session_id,))
             
@@ -725,10 +917,17 @@ def create_temp_nutrition_session(session_id: str) -> Dict[str, Any]:
                 create_virtual_recipe_session(session_id)
             
             return {
-                "success": f"Temporary nutrition session created: {session_id}",
+                "success": f"✅ New temporary nutrition session created: {session_id}",
                 "session_id": session_id,
                 "storage_type": "persistent_sqlite",
-                "auto_cleanup": True
+                "existing_session": False,
+                "auto_cleanup_performed": 0,  # Disabled to prevent recursive loop
+                "auto_cleanup": True,
+                "next_steps": [
+                    "Use simple_recipe_setup() to add recipe data",
+                    "Use get_cnf_nutrient_profile() to add nutrition data",
+                    "Use execute_nutrition_sql() for analysis"
+                ]
             }
             
     except sqlite3.Error as e:
@@ -903,89 +1102,119 @@ def get_temp_session_recipes(session_id: str, recipe_id: str = None) -> Dict[str
     except Exception as e:
         return {"error": f"Unexpected error retrieving recipes: {e}"}
 
-def cleanup_temp_session(session_id: str) -> Dict[str, Any]:
+def cleanup_temp_sessions(session_id: str = None, hours_old: int = 24, auto_cleanup_old: bool = True) -> Dict[str, Any]:
     """
-    Clean up all temporary data for a session.
+    Clean up temporary session data - can target specific session or clean old sessions automatically.
+    
+    **🧹 UNIFIED CLEANUP TOOL** - Handles both specific session cleanup and automatic maintenance
+    
+    **Usage Modes:**
+    1. **Specific Session**: `cleanup_temp_sessions(session_id="my_session")` → Clean specific session
+    2. **Old Sessions Only**: `cleanup_temp_sessions(hours_old=48)` → Clean sessions older than 48 hours  
+    3. **Both**: `cleanup_temp_sessions(session_id="current", auto_cleanup_old=True)` → Clean current + old sessions
+    4. **Auto-maintenance**: `cleanup_temp_sessions()` → Clean sessions older than 24 hours (default)
+    
+    **What Gets Cleaned:**
+    - All temporary SQLite tables: temp_recipes, temp_recipe_ingredients, temp_cnf_foods, temp_cnf_nutrients
+    - Virtual session data from memory
+    - Session tracking records
+    
+    **Safety Features:**
+    - Only cleans session-scoped data
+    - Preserves user favorites and persistent data
+    - Reports exactly what was cleaned
     
     Args:
-        session_id: Session to clean up
+        session_id: Optional specific session to clean up
+        hours_old: Hours of inactivity before auto-cleanup (default 24)  
+        auto_cleanup_old: Whether to also clean old sessions (default True)
         
     Returns:
-        Dict with cleanup summary
+        Dict with comprehensive cleanup summary
     """
     try:
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
-            # Count records before cleanup
-            counts = {}
-            for table in ['temp_recipe_ingredients', 'temp_cnf_nutrients', 'temp_cnf_foods', 'temp_recipes']:
-                cursor.execute(f"SELECT COUNT(*) FROM {table} WHERE session_id = ?", (session_id,))
-                counts[table] = cursor.fetchone()[0]
+            cleaned_sessions = []
+            total_records_cleaned = {}
             
-            # Delete session data (cascading deletes will handle related records)
-            cursor.execute("DELETE FROM temp_recipe_ingredients WHERE session_id = ?", (session_id,))
-            cursor.execute("DELETE FROM temp_cnf_nutrients WHERE session_id = ?", (session_id,))
-            cursor.execute("DELETE FROM temp_cnf_foods WHERE session_id = ?", (session_id,))
-            cursor.execute("DELETE FROM temp_recipes WHERE session_id = ?", (session_id,))
-            cursor.execute("DELETE FROM temp_sessions WHERE session_id = ?", (session_id,))
+            # Initialize counters
+            for table in ['temp_recipe_ingredients', 'temp_cnf_nutrients', 'temp_cnf_foods', 'temp_recipes', 'temp_sessions']:
+                total_records_cleaned[table] = 0
+            
+            sessions_to_clean = []
+            
+            # Determine which sessions to clean
+            if session_id:
+                # Clean specific session
+                sessions_to_clean.append(session_id)
+            
+            if auto_cleanup_old or not session_id:
+                # Find old sessions for auto-cleanup
+                cursor.execute("""
+                    SELECT session_id FROM temp_sessions 
+                    WHERE last_accessed < datetime('now', '-{} hours')
+                """.format(hours_old))
+                
+                old_sessions = [row[0] for row in cursor.fetchall()]
+                sessions_to_clean.extend(old_sessions)
+                
+                # Remove duplicates
+                sessions_to_clean = list(set(sessions_to_clean))
+            
+            # Clean each session
+            for cleanup_session_id in sessions_to_clean:
+                session_counts = {}
+                
+                # Count records before cleanup for this session
+                for table in ['temp_recipe_ingredients', 'temp_cnf_nutrients', 'temp_cnf_foods', 'temp_recipes']:
+                    cursor.execute(f"SELECT COUNT(*) FROM {table} WHERE session_id = ?", (cleanup_session_id,))
+                    count = cursor.fetchone()[0]
+                    session_counts[table] = count
+                    total_records_cleaned[table] += count
+                
+                # Delete session data
+                cursor.execute("DELETE FROM temp_recipe_ingredients WHERE session_id = ?", (cleanup_session_id,))
+                cursor.execute("DELETE FROM temp_cnf_nutrients WHERE session_id = ?", (cleanup_session_id,))
+                cursor.execute("DELETE FROM temp_cnf_foods WHERE session_id = ?", (cleanup_session_id,))
+                cursor.execute("DELETE FROM temp_recipes WHERE session_id = ?", (cleanup_session_id,))
+                cursor.execute("DELETE FROM temp_sessions WHERE session_id = ?", (cleanup_session_id,))
+                
+                total_records_cleaned['temp_sessions'] += 1
+                
+                # Also cleanup virtual session
+                if cleanup_session_id in _recipe_sessions:
+                    del _recipe_sessions[cleanup_session_id]
+                
+                cleaned_sessions.append({
+                    "session_id": cleanup_session_id,
+                    "records_cleaned": session_counts
+                })
             
             conn.commit()
             
-            # Also cleanup virtual session
-            if session_id in _recipe_sessions:
-                del _recipe_sessions[session_id]
+            # Prepare summary
+            cleanup_type = []
+            if session_id:
+                cleanup_type.append(f"specific session '{session_id}'")
+            if auto_cleanup_old or not session_id:
+                cleanup_type.append(f"sessions older than {hours_old} hours")
             
             return {
-                "success": f"Temporary session cleaned up: {session_id}",
-                "session_id": session_id,
-                "cleaned_records": counts,
+                "success": f"Cleaned up {len(cleaned_sessions)} temporary sessions",
+                "cleanup_type": " and ".join(cleanup_type),
+                "sessions_cleaned": len(cleaned_sessions),
+                "session_details": cleaned_sessions,
+                "total_records_cleaned": total_records_cleaned,
+                "hours_threshold": hours_old if auto_cleanup_old or not session_id else None,
                 "storage_type": "persistent_sqlite"
             }
             
     except sqlite3.Error as e:
-        return {"error": f"SQLite error cleaning up session: {e}"}
+        return {"error": f"SQLite error during cleanup: {e}"}
     except Exception as e:
-        return {"error": f"Unexpected error cleaning up session: {e}"}
-
-def cleanup_old_temp_sessions(hours_old: int = 24) -> Dict[str, Any]:
-    """
-    Clean up temporary sessions that haven't been accessed recently.
-    
-    Args:
-        hours_old: Hours of inactivity before cleanup (default 24)
-        
-    Returns:
-        Dict with cleanup summary
-    """
-    try:
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            
-            # Find old sessions
-            cursor.execute("""
-                SELECT session_id FROM temp_sessions 
-                WHERE last_accessed < datetime('now', '-{} hours')
-            """.format(hours_old))
-            
-            old_sessions = [row[0] for row in cursor.fetchall()]
-            
-            cleaned_count = 0
-            for session_id in old_sessions:
-                result = cleanup_temp_session(session_id)
-                if "success" in result:
-                    cleaned_count += 1
-            
-            return {
-                "success": f"Cleaned up {cleaned_count} old temporary sessions",
-                "cleaned_sessions": old_sessions,
-                "hours_threshold": hours_old
-            }
-            
-    except sqlite3.Error as e:
-        return {"error": f"SQLite error cleaning old sessions: {e}"}
-    except Exception as e:
-        return {"error": f"Unexpected error cleaning old sessions: {e}"}
+        return {"error": f"Unexpected error during cleanup: {e}"}
 
 def list_temp_sessions() -> Dict[str, Any]:
     """
