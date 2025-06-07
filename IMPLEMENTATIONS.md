@@ -226,7 +226,45 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
     - [x] Eliminates tool complexity: Just SQL knowledge required
     - [x] Scalable analysis: Easy to extend for multiple recipes, nutrients, comparisons
 
-#### Phase 3.2: DRI Virtual Tables and Math Tool Integration PENDING 🚧
+#### Phase 3.2: CNF Tool Efficiency & Unit Conversion Enhancement (Priority: HIGH) 🚧
+[] **Combine redundant CNF tools to reduce LLM tool call overhead**
+    - [] Create `search_and_get_cnf_nutrition` combined tool to replace 2-step workflow
+    - [] Single tool: ingredient_name → CNF search → best match selection → nutrient profile retrieval
+    - [] Reduces tool calls from 2→1 per ingredient for nutrition analysis
+    - [] Maintains current SQL table population approach (auto-populates temp_cnf_foods, temp_cnf_nutrients)
+    - [] Include confidence scoring for automated food matching decisions
+    - [] Fallback option for manual CNF food code specification when auto-matching fails
+
+[] **Enhanced execute_nutrition_sql tool prompts with sophisticated unit conversion**
+    - [] Add comprehensive unit conversion SQL template examples to tool docstring
+    - [] Include sophisticated serving size matching SQL queries (beyond simple ÷100 approach)
+    - [] Provide unit normalization patterns for common conversions (ml↔mL, tsp↔teaspoon, etc.)
+    - [] Add SQL CASE statement examples for weight/volume/count unit matching
+    - [] Include best_unit_matches query pattern from previous CNF implementation
+    - [] Guide LLMs to use unit-aware calculations instead of naive 100g divisions
+
+[] **Updated CLAUDE.md workflow guidance for streamlined 4-step process**
+    - [] New simplified workflow: setup → search_and_get (bulk) → link → calculate
+    - [] Replace current 6-step manual process with optimized 4-step approach
+    - [] Emphasize unit conversion sophistication in SQL query examples
+    - [] Update workflow documentation to highlight reduced tool call overhead
+    - [] Maintain manual linking control while reducing search/retrieval redundancy
+
+[] **Optional temp_recipe_macros table for future optimization**
+    - [] Consider adding temp_recipe_macros virtual table for common nutrition summaries
+    - [] Pre-calculated columns: total_calories, total_protein, total_carbs, total_fat
+    - [] Enable faster nutrition overview queries without complex SQL aggregations
+    - [] Populate automatically when execute_nutrition_sql runs macro summary queries
+    - [] Design for future meal planning and daily nutrition tracking features
+
+[] **Tool prompt optimization focus areas**
+    - [] Enhance search_and_get_cnf_nutrition with comprehensive ingredient matching guidance
+    - [] Improve execute_nutrition_sql with unit conversion sophistication examples
+    - [] Update get_nutrition_tables_info with advanced SQL patterns and unit conversion templates
+    - [] Add serving size optimization guidance to all CNF tool docstrings
+    - [] Emphasize LLM should prefer unit-matched calculations over 100g fallbacks
+
+#### Phase 3.3: DRI Virtual Tables and Math Tool Integration PENDING 🚧
 [] **Fix parsing issues and enhance robustness**
     - [] Normalize non-breaking spaces (`\xa0`) to regular spaces in all parsed data
     - [] Improve age range matching with flexible text normalization

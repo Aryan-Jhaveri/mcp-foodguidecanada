@@ -549,9 +549,8 @@ def register_cnf_tools(mcp: FastMCP) -> None:
             ##logger.error(f"Error linking ingredient to CNF: {e}")
             return {"error": f"Failed to link ingredient to CNF: {str(e)}"}
 
-    # REMOVED: analyze_recipe_nutrition function was removed due to unreliable auto-matching
-    # Use the manual workflow instead: parse_and_update_ingredients → search_cnf_foods → 
-    # get_cnf_nutrient_profile → execute_nutrition_sql (UPDATE) → execute_nutrition_sql (SELECT)
+    # MANUAL WORKFLOW (recommended): simple_recipe_setup → search_cnf_foods → 
+    # get_cnf_nutrient_profile → execute_nutrition_sql (BULK UPDATE) → execute_nutrition_sql (SELECT)
     
     @mcp.tool() 
     def simple_recipe_setup(input_data: AnalyzeRecipeNutritionInput) -> Dict[str, Any]:
@@ -687,8 +686,8 @@ def register_cnf_tools(mcp: FastMCP) -> None:
                     "1. Check ingredients: execute_nutrition_sql() with ingredient CHECK query",
                     "2. Search CNF foods: search_cnf_foods() for each ingredient",
                     "3. Get profiles: get_cnf_nutrient_profile() for selected CNF foods",
-                    "4. Link ingredients: execute_nutrition_sql() with UPDATE queries",
-                    "5. Calculate nutrition: execute_nutrition_sql() with SELECT queries"
+                    "4. Link ingredients: execute_nutrition_sql() with BULK UPDATE queries (efficient!)",
+                    "5. Calculate nutrition: execute_nutrition_sql() with corrected CTE queries"
                 ],
                 
                 # Ready-to-use SQL templates
@@ -718,10 +717,17 @@ WHERE ri.session_id = '{session_id}' AND ri.recipe_id = '{recipe_id}'
                 
                 "workflow_status": {
                     "recipe_transfer": "✅ Complete",
-                    "ingredient_parsing": "✅ Complete",
-                    "cnf_linking": "⏳ Manual step required",
-                    "nutrition_analysis": "⏳ After CNF linking"
-                }
+                    "ingredient_parsing": "✅ Complete", 
+                    "cnf_linking": "⏳ Use BULK UPDATE queries (efficient!)",
+                    "nutrition_analysis": "⏳ Use corrected CTE queries (eliminates duplicates)"
+                },
+                
+                "efficiency_tips": [
+                    "🚀 Use CASE-based bulk UPDATE for linking multiple ingredients at once",
+                    "⚡ Use corrected CTE queries to eliminate duplicate nutrition calculations",
+                    "🎯 Always check existing sessions first with list_temp_sessions()",
+                    "💡 Use execute_nutrition_sql() for all database operations"
+                ]
             }
             
         except Exception as e:
@@ -739,12 +745,12 @@ WHERE ri.session_id = '{session_id}' AND ri.recipe_id = '{recipe_id}'
         
         **⚡ RECOMMENDED MANUAL WORKFLOW (EFFICIENT & RELIABLE):**
         ```
-        1. Parse ingredients: parse_and_update_ingredients(session_id, recipe_id)
+        1. Setup recipe: simple_recipe_setup(session_id, recipe_id) ← USE THIS INSTEAD!
         2. Check ingredients: SELECT * FROM temp_recipe_ingredients WHERE session_id = 'X'
-        3. Search CNF foods: search_cnf_foods(session_id, ingredient_name) for each ingredient
+        3. Search CNF foods: search_cnf_foods(session_id, ingredient_name) for each ingredient  
         4. Get profiles: get_cnf_nutrient_profile(session_id, food_code) for selected foods
-        5. Link ingredients: UPDATE temp_recipe_ingredients SET cnf_food_code = 'Y' WHERE ingredient_id = 'Z'
-        6. Calculate nutrition: Use SELECT templates below
+        5. Link ingredients: Use BULK UPDATE queries (see templates below)
+        6. Calculate nutrition: Use corrected CTE query (eliminates duplicates)
         ```
         
         **🛡️ SUPPORTED OPERATIONS:**
@@ -778,38 +784,163 @@ WHERE ri.session_id = '{session_id}' AND ri.recipe_id = '{recipe_id}'
         WHERE session_id = 'YOUR_SESSION_ID' AND ingredient_id = 'INGREDIENT_ID_HERE'
         ```
         
-        **0c. Bulk Link Multiple Ingredients (Enhanced Templates):**
+        **0c. BULK Link Multiple Ingredients (EFFICIENT - USE THIS!):**
         ```sql
-        -- APPROACH 1: Individual UPDATE statements (Most reliable)
-        UPDATE temp_recipe_ingredients SET cnf_food_code = '1234' WHERE session_id = 'X' AND ingredient_id = 'ing_1';
-        UPDATE temp_recipe_ingredients SET cnf_food_code = '5678' WHERE session_id = 'X' AND ingredient_id = 'ing_2';
-        UPDATE temp_recipe_ingredients SET cnf_food_code = '9012' WHERE session_id = 'X' AND ingredient_id = 'ing_3';
+        -- ⚡ SINGLE CASE-based bulk update (MUCH MORE EFFICIENT than individual UPDATEs):
+        UPDATE temp_recipe_ingredients SET cnf_food_code = 
+        CASE 
+            WHEN ingredient_id = 'honey_grilled_salmon_ingredient_2' THEN '3416'  -- soy sauce
+            WHEN ingredient_id = 'honey_grilled_salmon_ingredient_3' THEN '451'   -- vegetable oil
+            WHEN ingredient_id = 'honey_grilled_salmon_ingredient_4' THEN '4294'  -- honey
+            WHEN ingredient_id = 'honey_grilled_salmon_ingredient_5' THEN '4317'  -- brown sugar
+            WHEN ingredient_id = 'honey_grilled_salmon_ingredient_9' THEN '3183'  -- salmon
+            WHEN ingredient_id = 'honey_grilled_salmon_ingredient_10' THEN '1991' -- asparagus
+            ELSE cnf_food_code
+        END
+        WHERE session_id = 'YOUR_SESSION_ID' 
+          AND ingredient_id IN (
+            'honey_grilled_salmon_ingredient_2', 'honey_grilled_salmon_ingredient_3',
+            'honey_grilled_salmon_ingredient_4', 'honey_grilled_salmon_ingredient_5', 
+            'honey_grilled_salmon_ingredient_9', 'honey_grilled_salmon_ingredient_10'
+          );
         
-        -- APPROACH 2: Pattern-based bulk linking (Advanced users)
+        -- 🔄 Alternative: Pattern-based bulk linking (when ingredient IDs vary)
         UPDATE temp_recipe_ingredients 
         SET cnf_food_code = CASE 
-            WHEN ingredient_name LIKE '%honey%' THEN '1234'
-            WHEN ingredient_name LIKE '%salmon%' THEN '5678'
-            WHEN ingredient_name LIKE '%soy sauce%' THEN '9012'
+            WHEN ingredient_name LIKE '%honey%' THEN '4294'
+            WHEN ingredient_name LIKE '%salmon%' THEN '3183'
+            WHEN ingredient_name LIKE '%soy sauce%' THEN '3416'
+            WHEN ingredient_name LIKE '%vegetable oil%' THEN '451'
+            WHEN ingredient_name LIKE '%brown sugar%' THEN '4317'
+            WHEN ingredient_name LIKE '%asparagus%' THEN '1991'
             ELSE cnf_food_code
         END
         WHERE session_id = 'YOUR_SESSION_ID' AND recipe_id = 'YOUR_RECIPE_ID';
-        
-        -- APPROACH 3: Update CNF foods with ingredient names for tracking
-        UPDATE temp_cnf_foods 
-        SET ingredient_name = (
-            SELECT ri.ingredient_name 
-            FROM temp_recipe_ingredients ri 
-            WHERE ri.cnf_food_code = temp_cnf_foods.cnf_food_code 
-            AND ri.session_id = temp_cnf_foods.session_id 
-            LIMIT 1
-        )
-        WHERE session_id = 'YOUR_SESSION_ID';
         ```
         
         **🎯 NUTRITION ANALYSIS TEMPLATES (Use AFTER linking ingredients):**
         
-        **1. Complete Recipe Macronutrient Analysis (CORRECTED - Eliminates Duplicates):**
+        **🚨 CRITICAL: USE SOPHISTICATED UNIT CONVERSION - NEVER SIMPLE ÷100!**
+        **❌ WRONG**: `(ri.amount/100)*cn.nutrient_value` ← Ignores units completely
+        **✅ RIGHT**: Use templates below with proper unit matching and conversion priorities
+        
+        **1. SOPHISTICATED Unit Conversion Analysis (RECOMMENDED - Handles All Unit Types):**
+        ```sql
+        WITH unit_normalized AS (
+            SELECT 
+                ri.ingredient_id,
+                ri.ingredient_name,
+                ri.amount as recipe_amount,
+                CASE 
+                    WHEN LOWER(ri.unit) IN ('ml', 'millilitre', 'milliliter') THEN 'ml'
+                    WHEN LOWER(ri.unit) IN ('tsp', 'teaspoon') THEN 'tsp'
+                    WHEN LOWER(ri.unit) IN ('tbsp', 'tablespoon') THEN 'tbsp'
+                    WHEN LOWER(ri.unit) IN ('cup', 'cups') THEN 'cup'
+                    WHEN LOWER(ri.unit) IN ('g', 'gram', 'grams') THEN 'g'
+                    WHEN LOWER(ri.unit) IN ('kg', 'kilogram', 'kilograms') THEN 'kg'
+                    WHEN LOWER(ri.unit) IN ('lb', 'pound', 'pounds') THEN 'lb'
+                    WHEN LOWER(ri.unit) IN ('oz', 'ounce', 'ounces') THEN 'oz'
+                    ELSE LOWER(ri.unit)
+                END as normalized_unit,
+                cn.nutrient_name,
+                cn.nutrient_value,
+                cn.per_amount,
+                CASE 
+                    WHEN LOWER(cn.unit) IN ('ml', 'millilitre', 'milliliter') THEN 'ml'
+                    WHEN LOWER(cn.unit) IN ('g', 'gram', 'grams') THEN 'g'
+                    ELSE LOWER(cn.unit)
+                END as cnf_normalized_unit
+            FROM temp_recipe_ingredients ri
+            JOIN temp_cnf_nutrients cn ON ri.cnf_food_code = cn.cnf_food_code
+            WHERE ri.session_id = 'YOUR_SESSION_ID' AND cn.session_id = 'YOUR_SESSION_ID'
+            AND ri.recipe_id = 'YOUR_RECIPE_ID'
+            AND cn.nutrient_name IN ('Energy (kcal)', 'Protein', 'Total Fat', 'Carbohydrate')
+            AND ri.cnf_food_code IS NOT NULL
+        ), 
+        best_unit_matches AS (
+            SELECT 
+                ingredient_id, ingredient_name, recipe_amount, normalized_unit,
+                nutrient_name, nutrient_value, per_amount, cnf_normalized_unit,
+                -- Enhanced priority system with unit conversion factors
+                CASE 
+                    WHEN normalized_unit = cnf_normalized_unit THEN 1                    -- Exact match (BEST)
+                    WHEN normalized_unit = 'ml' AND cnf_normalized_unit = 'g' THEN 2    -- Volume to weight (liquid)
+                    WHEN normalized_unit = 'g' AND cnf_normalized_unit = 'ml' THEN 2    -- Weight to volume (liquid)
+                    WHEN normalized_unit IN ('tsp', 'tbsp', 'cup') AND cnf_normalized_unit = 'ml' THEN 2  -- Volume conversions
+                    WHEN cnf_normalized_unit = 'g' THEN 3                               -- Weight fallback
+                    WHEN cnf_normalized_unit = 'ml' THEN 4                              -- Volume fallback
+                    ELSE 5                                                               -- Per 100g baseline
+                END as conversion_priority,
+                -- Sophisticated conversion calculation
+                CASE 
+                    -- Exact unit matches
+                    WHEN normalized_unit = cnf_normalized_unit THEN (recipe_amount/per_amount)*nutrient_value
+                    
+                    -- Volume conversions to ml base
+                    WHEN normalized_unit = 'tsp' AND cnf_normalized_unit = 'ml' THEN ((recipe_amount * 5)/per_amount)*nutrient_value
+                    WHEN normalized_unit = 'tbsp' AND cnf_normalized_unit = 'ml' THEN ((recipe_amount * 15)/per_amount)*nutrient_value
+                    WHEN normalized_unit = 'cup' AND cnf_normalized_unit = 'ml' THEN ((recipe_amount * 250)/per_amount)*nutrient_value
+                    
+                    -- Weight conversions to gram base
+                    WHEN normalized_unit = 'kg' AND cnf_normalized_unit = 'g' THEN ((recipe_amount * 1000)/per_amount)*nutrient_value
+                    WHEN normalized_unit = 'lb' AND cnf_normalized_unit = 'g' THEN ((recipe_amount * 453.592)/per_amount)*nutrient_value
+                    WHEN normalized_unit = 'oz' AND cnf_normalized_unit = 'g' THEN ((recipe_amount * 28.3495)/per_amount)*nutrient_value
+                    
+                    -- Cross-conversion approximations (liquid density ~1g/ml)
+                    WHEN normalized_unit = 'ml' AND cnf_normalized_unit = 'g' AND per_amount = 100 THEN (recipe_amount/100)*nutrient_value
+                    WHEN normalized_unit = 'g' AND cnf_normalized_unit = 'ml' AND per_amount = 100 THEN (recipe_amount/100)*nutrient_value
+                    
+                    -- Fallback to per-100g baseline (least accurate)
+                    ELSE (recipe_amount/100)*nutrient_value 
+                END as calculated_value,
+                ROW_NUMBER() OVER (
+                    PARTITION BY ingredient_id, nutrient_name 
+                    ORDER BY conversion_priority
+                ) as rn
+            FROM unit_normalized
+        )
+        SELECT 
+            'TOTAL_SOPHISTICATED' as calculation_type,
+            ROUND(SUM(CASE WHEN nutrient_name = 'Energy (kcal)' THEN calculated_value ELSE 0 END), 1) as calories,
+            ROUND(SUM(CASE WHEN nutrient_name = 'Protein' THEN calculated_value ELSE 0 END), 1) as protein_g,
+            ROUND(SUM(CASE WHEN nutrient_name = 'Total Fat' THEN calculated_value ELSE 0 END), 1) as fat_g,
+            ROUND(SUM(CASE WHEN nutrient_name = 'Carbohydrate' THEN calculated_value ELSE 0 END), 1) as carbs_g
+        FROM best_unit_matches
+        WHERE rn = 1  -- Only use the best conversion for each ingredient-nutrient combination
+        ```
+        
+        **2. Unit Conversion Verification (Debug Your Calculations):**
+        ```sql
+        SELECT 
+            ri.ingredient_name,
+            ri.amount as recipe_amount,
+            ri.unit as recipe_unit,
+            cn.per_amount,
+            cn.unit as cnf_unit,
+            CASE 
+                WHEN LOWER(ri.unit) = LOWER(cn.unit) THEN 'EXACT_MATCH'
+                WHEN LOWER(ri.unit) IN ('tsp', 'tbsp', 'cup') AND LOWER(cn.unit) = 'ml' THEN 'VOLUME_CONVERSION'
+                WHEN LOWER(ri.unit) IN ('kg', 'lb', 'oz') AND LOWER(cn.unit) = 'g' THEN 'WEIGHT_CONVERSION'
+                WHEN LOWER(ri.unit) = 'ml' AND LOWER(cn.unit) = 'g' THEN 'VOLUME_TO_WEIGHT_APPROX'
+                WHEN LOWER(ri.unit) = 'g' AND LOWER(cn.unit) = 'ml' THEN 'WEIGHT_TO_VOLUME_APPROX'
+                ELSE 'FALLBACK_PER_100G'
+            END as conversion_method,
+            CASE 
+                WHEN LOWER(ri.unit) = LOWER(cn.unit) THEN ri.amount/cn.per_amount
+                WHEN LOWER(ri.unit) = 'tsp' AND LOWER(cn.unit) = 'ml' THEN (ri.amount * 5)/cn.per_amount
+                WHEN LOWER(ri.unit) = 'tbsp' AND LOWER(cn.unit) = 'ml' THEN (ri.amount * 15)/cn.per_amount
+                WHEN LOWER(ri.unit) = 'cup' AND LOWER(cn.unit) = 'ml' THEN (ri.amount * 250)/cn.per_amount
+                ELSE ri.amount/100
+            END as conversion_factor
+        FROM temp_recipe_ingredients ri
+        JOIN temp_cnf_nutrients cn ON ri.cnf_food_code = cn.cnf_food_code
+        WHERE ri.session_id = 'YOUR_SESSION_ID' AND cn.session_id = 'YOUR_SESSION_ID'
+        AND ri.recipe_id = 'YOUR_RECIPE_ID' AND cn.nutrient_name = 'Energy (kcal)'
+        GROUP BY ri.ingredient_id, ri.ingredient_name
+        ORDER BY conversion_method, ri.ingredient_name
+        ```
+        
+        **3. Simple Unit Matching (BASIC - Only Use When Sophisticated Method Fails):**
         ```sql
         WITH best_unit_matches AS (
             SELECT 
@@ -828,7 +959,7 @@ WHERE ri.session_id = '{session_id}' AND ri.recipe_id = '{recipe_id}'
                     WHEN cn.unit = 'ml' THEN 3
                     ELSE 4
                 END as match_priority,
-                -- Calculate nutrition value with proper unit conversion
+                -- Calculate nutrition value with basic unit conversion
                 CASE 
                     WHEN LOWER(ri.unit) = LOWER(cn.unit) THEN (ri.amount/cn.per_amount)*cn.nutrient_value
                     ELSE (ri.amount/100)*cn.nutrient_value 
@@ -850,11 +981,11 @@ WHERE ri.session_id = '{session_id}' AND ri.recipe_id = '{recipe_id}'
             AND cn.nutrient_name IN ('Energy (kcal)', 'Protein', 'Total Fat', 'Carbohydrate')
         )
         SELECT 
-            'TOTAL' as calculation_type,
-            SUM(CASE WHEN nutrient_name = 'Energy (kcal)' THEN calculated_value ELSE 0 END) as calories,
-            SUM(CASE WHEN nutrient_name = 'Protein' THEN calculated_value ELSE 0 END) as protein_g,
-            SUM(CASE WHEN nutrient_name = 'Total Fat' THEN calculated_value ELSE 0 END) as fat_g,
-            SUM(CASE WHEN nutrient_name = 'Carbohydrate' THEN calculated_value ELSE 0 END) as carbs_g
+            'TOTAL_BASIC' as calculation_type,
+            ROUND(SUM(CASE WHEN nutrient_name = 'Energy (kcal)' THEN calculated_value ELSE 0 END), 1) as calories,
+            ROUND(SUM(CASE WHEN nutrient_name = 'Protein' THEN calculated_value ELSE 0 END), 1) as protein_g,
+            ROUND(SUM(CASE WHEN nutrient_name = 'Total Fat' THEN calculated_value ELSE 0 END), 1) as fat_g,
+            ROUND(SUM(CASE WHEN nutrient_name = 'Carbohydrate' THEN calculated_value ELSE 0 END), 1) as carbs_g
         FROM best_unit_matches
         WHERE rn = 1  -- Only use the best match for each ingredient-nutrient combination
         ```
@@ -934,12 +1065,16 @@ WHERE ri.session_id = '{session_id}' AND ri.recipe_id = '{recipe_id}'
         ```
         
         **⚡ EFFICIENCY GUIDELINES:**
+        - 🚨 **CRITICAL**: ALWAYS use sophisticated unit conversion (Template 1) for nutrition calculations
+        - ❌ **NEVER**: Use simple `(ri.amount/100)*cn.nutrient_value` - this ignores units completely!
+        - ✅ **ALWAYS**: Use unit normalization and conversion priorities for accurate results
         - ❌ **AVOID**: Using complex auto-matching tools that can fail silently
-        - ✅ **PREFER**: Manual step-by-step workflow with full control
+        - ✅ **PREFER**: Manual step-by-step workflow with full control and transparency
         - ❌ **AVOID**: Individual tool calls for each ingredient
-        - ✅ **PREFER**: Batch operations where possible
+        - ✅ **PREFER**: Batch operations where possible (bulk UPDATE queries)
         - ❌ **AVOID**: Running nutrition analysis before linking ingredients
         - ✅ **PREFER**: Always check ingredient linkage first with SELECT queries
+        - 🎯 **BEST PRACTICE**: Use Template 2 to verify unit conversions before final calculations
         
         **Key Benefits:**
         - **Manual control**: You decide which CNF foods match which ingredients
