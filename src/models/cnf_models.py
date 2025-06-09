@@ -72,6 +72,233 @@ class CNFProfileInput(BaseModel):
             raise ValueError('Food code cannot be empty')
         return v.strip()
 
+class CNFSearchAndGetInput(BaseModel):
+    """Input model for combined search and macronutrient fetching (LLM-optimized efficiency)"""
+    food_name: str = Field(..., description="Name of food to search for in CNF database")
+    session_id: str = Field(..., description="Session ID for storing search and macronutrient data")
+    preferred_units: Optional[List[str]] = Field(
+        default=["100g", "ml", "tsp", "tbsp"], 
+        description="Preferred serving units to include (e.g. ['5ml', '15ml', '100g'])"
+    )
+    max_results: Optional[int] = Field(default=None, description="Maximum number of search results to return for LLM selection (None = all results)")
+    
+    @validator('food_name')
+    def validate_food_name(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Food name cannot be empty')
+        return v.strip()
+    
+    @validator('session_id')
+    def validate_session_id(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Session ID cannot be empty')
+        return v.strip()
+    
+    @validator('preferred_units')
+    def validate_preferred_units(cls, v):
+        if v is not None and len(v) == 0:
+            # If empty list provided, use default units
+            return ["100g", "ml", "tsp", "tbsp"]
+        return v
+
+class CNFMacronutrientsInput(BaseModel):
+    """Input model for streamlined macronutrient-only fetching (LLM-optimized)"""
+    food_code: str = Field(..., description="CNF food code to get macronutrients for")
+    session_id: str = Field(..., description="Session ID for storing macronutrient data")
+    preferred_units: Optional[List[str]] = Field(
+        default=["100g", "ml", "tsp", "tbsp"], 
+        description="Preferred serving units to include (e.g. ['5ml', '15ml', '100g'])"
+    )
+    ingredient_id: Optional[str] = Field(
+        default=None, 
+        description="Optional: ingredient_id to link this CNF food to a specific recipe ingredient"
+    )
+    recipe_id: Optional[str] = Field(
+        default=None, 
+        description="Optional: recipe_id to link this CNF food to (required if ingredient_id provided)"
+    )
+    
+    @validator('food_code')
+    def validate_food_code(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Food code cannot be empty')
+        return v.strip()
+    
+    @validator('session_id')
+    def validate_session_id(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Session ID cannot be empty')
+        return v.strip()
+    
+    @validator('preferred_units')
+    def validate_preferred_units(cls, v):
+        if v is not None and len(v) == 0:
+            # If empty list provided, use default units
+            return ["100g", "ml", "tsp", "tbsp"]
+        return v
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "food_code": "4294",
+                "session_id": "nutrition_analysis", 
+                "preferred_units": ["5ml", "15ml", "100g"]
+            }
+        }
+
+class CNFBulkMacronutrientsInput(BaseModel):
+    """Input model for bulk macronutrient fetching (multiple food codes at once)"""
+    food_codes: List[str] = Field(..., description="List of CNF food codes to fetch macronutrients for", min_items=1, max_items=20)
+    session_id: str = Field(..., description="Session ID for storing bulk macronutrient data")
+    preferred_units: Optional[List[str]] = Field(
+        default=["100g", "ml", "tsp", "tbsp"], 
+        description="Preferred serving units to include for all foods (e.g. ['5ml', '15ml', '100g'])"
+    )
+    continue_on_error: bool = Field(
+        default=True, 
+        description="Whether to continue processing other food codes if one fails"
+    )
+    ingredient_mappings: Optional[Dict[str, str]] = Field(
+        default=None, 
+        description="Optional mapping of food_code to ingredient_id for automatic linking (e.g. {'3183': 'salmon_001', '4294': 'honey_001'})"
+    )
+    recipe_id: Optional[str] = Field(
+        default=None, 
+        description="Recipe ID for linking ingredients (required if ingredient_mappings provided)"
+    )
+    
+    @validator('food_codes')
+    def validate_food_codes(cls, v):
+        if not v or len(v) == 0:
+            raise ValueError('At least one food code is required')
+        
+        # Remove empty codes and strip whitespace
+        cleaned_codes = [code.strip() for code in v if code and code.strip()]
+        
+        if len(cleaned_codes) == 0:
+            raise ValueError('At least one valid food code is required')
+        
+        if len(cleaned_codes) > 20:
+            raise ValueError('Maximum 20 food codes allowed per bulk request')
+            
+        return cleaned_codes
+    
+    @validator('session_id')
+    def validate_session_id(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Session ID cannot be empty')
+        return v.strip()
+    
+    @validator('preferred_units')
+    def validate_preferred_units(cls, v):
+        if v is not None and len(v) == 0:
+            # If empty list provided, use default units
+            return ["100g", "ml", "tsp", "tbsp"]
+        return v
+    
+    @validator('recipe_id')
+    def validate_recipe_id_with_mappings(cls, v, values):
+        ingredient_mappings = values.get('ingredient_mappings')
+        if ingredient_mappings and not v:
+            raise ValueError('recipe_id is required when ingredient_mappings is provided')
+        if v and not v.strip():
+            raise ValueError('recipe_id cannot be empty string')
+        return v.strip() if v else None
+    
+    @validator('ingredient_mappings')
+    def validate_ingredient_mappings(cls, v):
+        if v is not None and len(v) == 0:
+            # If empty dict provided, set to None
+            return None
+        return v
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "food_codes": ["4294", "3183", "5067"],
+                "session_id": "bulk_nutrition_analysis", 
+                "preferred_units": ["5ml", "15ml", "100g"],
+                "continue_on_error": True,
+                "ingredient_mappings": {"4294": "ingredient_001", "3183": "ingredient_002", "5067": "ingredient_003"},
+                "recipe_id": "recipe_001"
+            }
+        }
+
+class RecipeNutritionCalculationInput(BaseModel):
+    """Input model for simple recipe nutrition calculations (EER-style approach)"""
+    session_id: str = Field(..., description="Session ID containing recipe and CNF data")
+    recipe_id: str = Field(..., description="Recipe ID to calculate nutrition for")
+    
+    @validator('session_id')
+    def validate_session_id(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Session ID cannot be empty')
+        return v.strip()
+    
+    @validator('recipe_id')
+    def validate_recipe_id(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Recipe ID cannot be empty')
+        return v.strip()
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "session_id": "nutrition_analysis",
+                "recipe_id": "honey_salmon"
+            }
+        }
+
+class IngredientNutritionBreakdownInput(BaseModel):
+    """Input model for per-ingredient nutrition breakdown"""
+    session_id: str = Field(..., description="Session ID containing recipe and CNF data")
+    recipe_id: str = Field(..., description="Recipe ID to analyze")
+    include_per_serving: bool = Field(default=True, description="Include per-serving calculations")
+    
+    @validator('session_id')
+    def validate_session_id(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Session ID cannot be empty')
+        return v.strip()
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "session_id": "nutrition_analysis",
+                "recipe_id": "honey_salmon",
+                "include_per_serving": True
+            }
+        }
+
+class DailyNutritionComparisonInput(BaseModel):
+    """Input model for comparing recipe nutrition to daily requirements"""
+    session_id: str = Field(..., description="Session ID containing recipe and CNF data")
+    recipe_id: str = Field(..., description="Recipe ID to compare")
+    servings: int = Field(default=1, description="Number of servings to analyze")
+    target_calories: Optional[int] = Field(default=2000, description="Target daily calories for comparison")
+    
+    @validator('servings')
+    def validate_servings(cls, v):
+        if v <= 0:
+            raise ValueError('Servings must be greater than 0')
+        return v
+    
+    @validator('target_calories')
+    def validate_target_calories(cls, v):
+        if v is not None and v <= 0:
+            raise ValueError('Target calories must be greater than 0')
+        return v
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "session_id": "nutrition_analysis",
+                "recipe_id": "honey_salmon",
+                "servings": 1,
+                "target_calories": 2000
+            }
+        }
+
 class IngredientCNFMatch(BaseModel):
     """Model for linking recipe ingredients to CNF foods"""
     ingredient_id: str = Field(..., description="Recipe ingredient identifier")

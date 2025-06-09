@@ -13,7 +13,10 @@ import json
 import os
 import sys
 import sqlite3
-from typing import Dict, Any, List, Optional
+import time
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Dict, Any, List, Optional, Callable
 from fastmcp import FastMCP
 import logging
 
@@ -33,93 +36,234 @@ CNF_TOOLS_AVAILABLE = False
 
 try:
     from src.models.cnf_models import (
-        CNFSearchInput, CNFProfileInput, CNFCleanupInput,
+        CNFSearchInput, CNFProfileInput, CNFMacronutrientsInput, CNFBulkMacronutrientsInput, CNFSearchAndGetInput,
         SQLQueryInput, CNFFoodResult, CNFNutrientProfile, IngredientCNFMatch,
         RecipeNutritionSummary, CNFSessionSummary, IngredientNutritionData,
-        AnalyzeRecipeNutritionInput
+        AnalyzeRecipeNutritionInput, RecipeNutritionCalculationInput,
+        IngredientNutritionBreakdownInput, DailyNutritionComparisonInput
     )
-    from src.api.cnf import NutrientFileScraper
+    from src.api.cnf import NutrientFileScraper, CORE_MACRONUTRIENTS
     from src.db.schema import get_virtual_session_data, store_recipe_in_virtual_session
     from src.db.sql_engine import VirtualSQLEngine, get_available_tables_info
     from src.db.connection import get_db_connection
+    from src.config import CNF_RATE_LIMIT, CNF_MAX_CONCURRENT, CNF_CACHE_TTL, BULK_OPERATION_TIMEOUT, PROGRESS_REPORT_INTERVAL
     CNF_TOOLS_AVAILABLE = True
 except ImportError:
     try:
         from models.cnf_models import (
-            CNFSearchInput, CNFProfileInput, CNFCleanupInput,
+            CNFSearchInput, CNFProfileInput, CNFMacronutrientsInput, CNFBulkMacronutrientsInput, CNFSearchAndGetInput,
             SQLQueryInput, CNFFoodResult, CNFNutrientProfile, IngredientCNFMatch,
             RecipeNutritionSummary, CNFSessionSummary, IngredientNutritionData,
-            AnalyzeRecipeNutritionInput
+            AnalyzeRecipeNutritionInput, RecipeNutritionCalculationInput,
+            IngredientNutritionBreakdownInput, DailyNutritionComparisonInput
         )
-        from api.cnf import NutrientFileScraper
+        from api.cnf import NutrientFileScraper, CORE_MACRONUTRIENTS
         from db.schema import get_virtual_session_data, store_recipe_in_virtual_session
         from db.sql_engine import VirtualSQLEngine, get_available_tables_info
         from db.connection import get_db_connection
+        from config import CNF_RATE_LIMIT, CNF_MAX_CONCURRENT, CNF_CACHE_TTL, BULK_OPERATION_TIMEOUT, PROGRESS_REPORT_INTERVAL
         CNF_TOOLS_AVAILABLE = True
     except ImportError as e:
         print(f"Warning: CNF tools not available due to import error: {e}", file=sys.stderr)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
-##logger = logging.get##logger(__name__)
+#logger = logging.getLogger(__name__)
 
-# Global CNF scraper instance
+# Global CNF scraper instance and caching
 _cnf_scraper = None
+_cnf_cache = {}
+_cache_lock = threading.Lock()
+
+class CNFCache:
+    """Thread-safe cache for CNF API responses."""
+    
+    def __init__(self, ttl: int = CNF_CACHE_TTL):
+        self.cache = {}
+        self.timestamps = {}
+        self.ttl = ttl
+        self.lock = threading.Lock()
+    
+    def get(self, key: str) -> Optional[Any]:
+        """Get cached value if not expired."""
+        with self.lock:
+            if key in self.cache:
+                if time.time() - self.timestamps[key] < self.ttl:
+                    return self.cache[key]
+                else:
+                    # Remove expired entry
+                    del self.cache[key]
+                    del self.timestamps[key]
+            return None
+    
+    def set(self, key: str, value: Any) -> None:
+        """Cache a value with timestamp."""
+        with self.lock:
+            self.cache[key] = value
+            self.timestamps[key] = time.time()
+    
+    def clear_expired(self) -> None:
+        """Remove all expired entries."""
+        current_time = time.time()
+        with self.lock:
+            expired_keys = [
+                key for key, timestamp in self.timestamps.items()
+                if current_time - timestamp >= self.ttl
+            ]
+            for key in expired_keys:
+                del self.cache[key]
+                del self.timestamps[key]
+
+# Global cache instance
+_cnf_cache_instance = CNFCache()
 
 def get_cnf_scraper() -> NutrientFileScraper:
-    """Get or create the global CNF scraper instance."""
+    """Get or create the global CNF scraper instance with optimized rate limiting."""
     global _cnf_scraper
     if _cnf_scraper is None:
-        _cnf_scraper = NutrientFileScraper(rate_limit=1.0)
+        _cnf_scraper = NutrientFileScraper(rate_limit=CNF_RATE_LIMIT)
     return _cnf_scraper
+
+def process_single_food_code(
+    food_code: str, 
+    session_id: str, 
+    preferred_units: Optional[List[str]] = None,
+    progress_callback: Optional[Callable[[str, str], None]] = None
+) -> Dict[str, Any]:
+    """
+    Process a single food code with caching and error handling.
+    
+    Args:
+        food_code: CNF food code to process
+        session_id: Session identifier
+        preferred_units: Preferred serving units
+        progress_callback: Optional callback for progress updates
+        
+    Returns:
+        Dict with processing result including success/failure status
+    """
+    try:
+        if progress_callback:
+            progress_callback(food_code, "starting")
+            
+        # Check cache first
+        cache_key = f"{food_code}_{preferred_units or 'default'}"
+        cached_result = _cnf_cache_instance.get(cache_key)
+        
+        if cached_result:
+            #logger.debug(f"Using cached data for food code {food_code}")
+            if progress_callback:
+                progress_callback(food_code, "cached")
+            return {
+                "status": "success",
+                "food_code": food_code,
+                "cached": True,
+                "data": cached_result
+            }
+        
+        scraper = get_cnf_scraper()
+        
+        if progress_callback:
+            progress_callback(food_code, "fetching_serving_info")
+            
+        # Step 1: Get serving info
+        serving_options, refuse_info = scraper.get_serving_info(food_code)
+        
+        if not serving_options:
+            return {
+                "status": "failed",
+                "food_code": food_code,
+                "error": "Could not retrieve serving information",
+                "suggestion": "Verify food code is valid"
+            }
+        
+        if progress_callback:
+            progress_callback(food_code, "fetching_nutrients")
+            
+        # Step 2: Get nutrient profile
+        nutrient_profile = scraper.get_nutrient_profile(
+            food_code=food_code,
+            serving_options=serving_options,
+            nutrient_filter="macronutrients",
+            preferred_units=preferred_units
+        )
+        
+        if not nutrient_profile or nutrient_profile.get('error'):
+            return {
+                "status": "failed",
+                "food_code": food_code,
+                "error": "Could not retrieve nutrient profile",
+                "suggestion": "Food code may be invalid or CNF website temporarily unavailable"
+            }
+        
+        # Cache the successful result
+        result_data = {
+            "serving_options": serving_options,
+            "refuse_info": refuse_info,
+            "nutrient_profile": nutrient_profile
+        }
+        _cnf_cache_instance.set(cache_key, result_data)
+        
+        if progress_callback:
+            progress_callback(food_code, "completed")
+            
+        return {
+            "status": "success",
+            "food_code": food_code,
+            "cached": False,
+            "data": result_data
+        }
+        
+    except Exception as e:
+        #logger.error(f"Error processing food code {food_code}: {e}")
+        if progress_callback:
+            progress_callback(food_code, f"error: {str(e)}")
+        return {
+            "status": "failed",
+            "food_code": food_code,
+            "error": str(e),
+            "suggestion": "Check network connection and CNF website availability"
+        }
 
 def register_cnf_tools(mcp: FastMCP) -> None:
     """Register all CNF tools with the FastMCP server."""
     if not CNF_TOOLS_AVAILABLE:
-        ##logger.warning("CNF tools not available - skipping registration")
+        ###logger.warning("CNF tools not available - skipping registration")
         return
 
     @mcp.tool()
-    def search_cnf_foods(input_data: CNFSearchInput) -> Dict[str, Any]:
+    def search_and_get_cnf_macronutrients(input_data: CNFSearchAndGetInput) -> Dict[str, Any]:
         """
-        Search for foods in the Canadian Nutrient File database by name - SEARCH ONLY.
+        Search Canadian Nutrient File foods and retrieve core macronutrient data.
         
-        **⚡ EFFICIENCY GUIDELINES:**
-        - ❌ **AVOID**: Searching for every ingredient individually in separate tool calls
-        - ✅ **PREFER**: Group similar ingredients and search strategically 
-        - ❌ **AVOID**: Complex ingredient descriptions (e.g., "15 mL liquid honey")
-        - ✅ **PREFER**: Simple food names (e.g., "honey", "soy sauce", "salmon")
+        This tool searches Health Canada's CNF database for foods matching the provided name
+        and returns either complete macronutrient data for single matches or a list of
+        options for multiple matches. It focuses on 13 core macronutrients essential for
+        basic nutrition analysis while maintaining compatibility with session-based storage.
         
-        **🎯 SEARCH STRATEGY FOR BEST RESULTS:**
-        - **Pure ingredients**: Try simple terms like "honey", "chicken", "rice"
-        - **Focus on base foods**: Look for foods WITHOUT brand names or complex processing
-        - **Examples**:
-          - ✅ Search "honey" → Find "Honey, liquid" (food_code: 1234)
-          - ✅ Search "soy sauce" → Find "Soy sauce, reduced sodium" (food_code: 5678)
-          - ❌ Don't search "15 mL liquid honey from marinade"
+        Use this tool to:
+        - Discover CNF foods matching ingredient names from recipes
+        - Retrieve core macronutrient data for immediate nutrition analysis
+        - Identify available food options when multiple matches exist
+        - Prepare data for recipe nutrition calculations
         
-        **🔄 RECOMMENDED MANUAL WORKFLOW:**
-        ```
-        FOR EACH MAJOR INGREDIENT:
-        1. search_cnf_foods(food_name="honey") ← Simple name only
-        2. Review results, pick best match (food_code)
-        3. get_cnf_nutrient_profile(food_code="1234") ← Store nutrition data
-        4. execute_nutrition_sql(UPDATE query) ← Link ingredient to CNF food
-        THEN: Run nutrition analysis with SELECT queries
-        ```
-        
-        **✅ EFFICIENT PATTERN**: Search → Review → Profile → Link → Analyze
-        **❌ INEFFICIENT**: Auto-matching tools that fail silently
+        The tool returns different outputs based on search results:
+        - Single match: Complete macronutrient data stored in session tables
+        - Multiple matches: List of food options with codes for selection
+        - No matches: Error message with search suggestions
         
         Args:
-            input_data: CNFSearchInput with food_name and session_id
+            input_data: Contains food_name (search term), session_id (storage identifier),
+                       optional preferred_units (serving size filter), and max_results (limit)
             
         Returns:
-            Dict with search results, including list of matching foods with codes and names.
-            No calculations performed - use math tools after getting nutrient profiles.
+            Dict with search results, macronutrient data, or error message depending on
+            number of matches found
         """
         try:
             scraper = get_cnf_scraper()
+            
+            # Step 1: Search for foods
             search_results = scraper.search_food(input_data.food_name)
             
             if search_results is None:
@@ -127,105 +271,834 @@ def register_cnf_tools(mcp: FastMCP) -> None:
             
             if not search_results:
                 return {
-                    "message": f"No foods found matching: {input_data.food_name}",
+                    "message": f"No foods found matching: '{input_data.food_name}'",
                     "search_term": input_data.food_name,
-                    "results": []
+                    "suggestions": [
+                        "Try simpler terms (e.g., 'honey' instead of 'liquid honey')",
+                        "Check spelling and use common food names",
+                        "Search for base ingredients without brands or preparation methods"
+                    ]
                 }
             
-            # Store search results in virtual session
-            session_data = get_virtual_session_data(input_data.session_id)
-            if session_data is None:
-                # Create session if it doesn't exist
-                from src.db.schema import create_virtual_recipe_session
-                create_virtual_recipe_session(input_data.session_id)
-                session_data = get_virtual_session_data(input_data.session_id)
+            # Limit results for LLM efficiency
+            if input_data.max_results and len(search_results) > input_data.max_results:
+                search_results = search_results[:input_data.max_results]
             
-            # Ensure CNF data structures exist
-            if 'cnf_search_results' not in session_data:
-                session_data['cnf_search_results'] = {}
+            # Step 2: If single result, auto-fetch macronutrients
+            if len(search_results) == 1:
+                selected_food = search_results[0]
+                food_code = selected_food['food_code']
+                
+                # Get serving information
+                serving_options, refuse_info = scraper.get_serving_info(food_code)
+                
+                if serving_options is None:
+                    return {
+                        "error": f"Found food '{selected_food['food_name']}' but failed to get serving info",
+                        "food_code": food_code,
+                        "search_results": search_results
+                    }
+                
+                # Get macronutrient profile (filtered)
+                nutrient_profile = scraper.get_nutrient_profile(
+                    food_code, 
+                    serving_options,
+                    nutrient_filter="macronutrients",
+                    preferred_units=input_data.preferred_units
+                )
+                
+                if nutrient_profile is None:
+                    return {
+                        "error": f"Found food '{selected_food['food_name']}' but failed to get macronutrient profile",
+                        "food_code": food_code,
+                        "search_results": search_results
+                    }
+                
+                # Store in SQL tables (same logic as get_cnf_macronutrients_only)
+                from .schema import create_temp_nutrition_session, update_session_access_time
+                
+                create_temp_nutrition_session(input_data.session_id)
+                update_session_access_time(input_data.session_id)
+                
+                with get_db_connection() as conn:
+                    cursor = conn.cursor()
+                    
+                    # Get food description from first nutrient category
+                    food_description = selected_food['food_name']
+                    for category_data in nutrient_profile.values():
+                        if category_data and len(category_data) > 0:
+                            food_description = selected_food['food_name']
+                            break
+                    
+                    # Insert/update CNF food entry
+                    cursor.execute("""
+                        INSERT OR REPLACE INTO temp_cnf_foods 
+                        (session_id, food_code, food_description, food_group, food_source, refuse_flag, refuse_amount)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        input_data.session_id,
+                        food_code,
+                        food_description,
+                        "Unknown",  # Could be enhanced to extract from profile
+                        "CNF Database",
+                        False,
+                        0.0
+                    ))
+                    
+                    # Store macronutrients in temp_cnf_nutrients table
+                    nutrients_stored = 0
+                    
+                    for category_name, category_data in nutrient_profile.items():
+                        if not category_data:
+                            continue
+                            
+                        for nutrient_entry in category_data:
+                            if not nutrient_entry:
+                                continue
+                                
+                            nutrient_name = nutrient_entry.get('Nutrient name', '')
+                            
+                            # Only store core macronutrients for efficiency
+                            if nutrient_name in CORE_MACRONUTRIENTS:
+                                cursor.execute("""
+                                    INSERT OR REPLACE INTO temp_cnf_nutrients
+                                    (session_id, food_code, nutrient_name, nutrient_symbol, nutrient_unit, 
+                                     nutrient_value, standard_error, number_observations, serving_values)
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                """, (
+                                    input_data.session_id,
+                                    food_code,
+                                    nutrient_name,
+                                    nutrient_entry.get('Nutrient symbol', ''),
+                                    nutrient_entry.get('Unit', ''),
+                                    nutrient_entry.get('100 g edible portion', ''),
+                                    nutrient_entry.get('Standard Error', ''),
+                                    nutrient_entry.get('Number of Observations', ''),
+                                    json.dumps({k: v for k, v in nutrient_entry.items() 
+                                               if k not in ['Nutrient name', 'Nutrient symbol', 'Unit', 
+                                                          '100 g edible portion', 'Standard Error', 'Number of Observations']})
+                                ))
+                                nutrients_stored += 1
+                    
+                    conn.commit()
+                
+                return {
+                    "success": True,
+                    "action": "auto_fetched_macronutrients",
+                    "message": f"✅ Found single match and automatically fetched macronutrients",
+                    "food_selected": {
+                        "food_code": food_code,
+                        "food_name": selected_food['food_name']
+                    },
+                    "macronutrients_stored": nutrients_stored,
+                    "efficiency_stats": {
+                        "search_results_count": 1,
+                        "macronutrients_stored": nutrients_stored,
+                        "tool_calls_saved": "Saved 1-2 tool calls vs separate search + get_macronutrients"
+                    },
+                    "next_steps": [
+                        f"Use get_cnf_macronutrients_only() with ingredient_id to link ingredients to food_code '{food_code}'",
+                        "Run nutrition analysis queries with stored macronutrient data",
+                        "Calculate recipe totals using sophisticated unit conversion queries"
+                    ]
+                }
             
-            # Store search results
-            session_data['cnf_search_results'][input_data.food_name] = search_results
+            # Step 3: Multiple results - let LLM choose
+            else:
+                return {
+                    "action": "multiple_results_found", 
+                    "message": f"Found {len(search_results)} foods matching '{input_data.food_name}' - LLM should select best match",
+                    "search_term": input_data.food_name,
+                    "search_results": [
+                        {
+                            "food_code": result['food_code'],
+                            "food_name": result['food_name'],
+                            "selection_guidance": f"Use get_cnf_macronutrients_only(food_code='{result['food_code']}') to fetch this option"
+                        }
+                        for result in search_results
+                    ],
+                    "selection_instructions": [
+                        "Review the food options above",
+                        "Choose the food_code that best matches your ingredient",
+                        "RECOMMENDED: Use bulk_get_cnf_macronutrients(food_codes=['chosen_codes']) for multiple ingredients",
+                        "ALTERNATIVE: get_cnf_macronutrients_only(food_code='chosen_code') for single ingredient",
+                        "Or try a more specific search term to get fewer results"
+                    ],
+                    "efficiency_note": f"For maximum efficiency, collect multiple food codes and use bulk_get_cnf_macronutrients()"
+                }
+                
+        except Exception as e:
+            return {"error": f"Error in combined search and macronutrient fetch: {str(e)}"}
+    
+    @mcp.tool()
+    def get_cnf_macronutrients_only(input_data: CNFMacronutrientsInput) -> Dict[str, Any]:
+        """
+        Retrieve core macronutrients for a specific CNF food code with automatic ingredient linking.
+        
+        This tool fetches macronutrient data directly from Health Canada's CNF database using
+        a known food code and optionally links the data to recipe ingredients for nutrition
+        calculations. It stores only 13 essential macronutrients for efficient processing
+        while maintaining compatibility with session-based nutrition analysis tools.
+        
+        **TEMP_RECIPE_MACROS WORKFLOW GUIDANCE:**
+        After using this tool, you can populate the temp_recipe_macros table for cached calculations:
+        
+        1. **Check ingredient data quality first:**
+           Query: `SELECT ingredient_id, amount, unit FROM temp_recipe_ingredients WHERE amount IS NULL`
+           Fix missing data: `UPDATE temp_recipe_ingredients SET amount = 150, unit = 'g' WHERE ingredient_id = 'salmon_001'`
+        
+        2. **Review available serving sizes for matching:**
+           Query: `SELECT per_amount, unit, nutrient_value FROM temp_cnf_nutrients WHERE cnf_food_code = '4294' AND nutrient_name = 'Energy (kcal)'`
+           Example: honey 10.0 mL → CNF options: 5.0 ml (22 kcal), 15.0 ml (65 kcal), 100.0 ml (435 kcal)
+        
+        3. **Choose best serving match and populate temp_recipe_macros:**
+           ```sql
+           INSERT INTO temp_recipe_macros (
+               session_id, recipe_id, ingredient_id, cnf_food_code, 
+               matched_serving_amount, matched_serving_unit, conversion_factor,
+               calories_per_recipe_amount, protein_per_recipe_amount, fat_per_recipe_amount, 
+               carbs_per_recipe_amount, sodium_per_recipe_amount, fiber_per_recipe_amount
+           )
+           SELECT 
+               'session_id', 'recipe_id', 'honey_001', '4294',
+               5.0, 'ml', (10.0 / 5.0),  -- 2.0x conversion factor
+               22.0 * (10.0 / 5.0),     -- 44.0 calories for recipe amount
+               0.02 * (10.0 / 5.0),     -- scaled protein
+               0.0 * (10.0 / 5.0),      -- scaled fat
+               5.9 * (10.0 / 5.0),      -- scaled carbs
+               0.0 * (10.0 / 5.0),      -- scaled sodium (if available)
+               0.0 * (10.0 / 5.0)       -- scaled fiber (if available)
+           ```
+        
+        4. **Calculate recipe totals from cached data:**
+           Query: `SELECT SUM(calories_per_recipe_amount) as total_calories FROM temp_recipe_macros WHERE session_id = ? AND recipe_id = ?`
+        
+        Use this tool to:
+        - Fetch macronutrients when you have a specific CNF food code
+        - Link CNF data to recipe ingredients for nutrition calculations
+        - Store streamlined nutrient data for efficient analysis
+        - Prepare data for temp_recipe_macros population workflow
+        
+        When ingredient_id and recipe_id are provided, the tool automatically updates
+        the recipe ingredient with the CNF food code, enabling calculate_recipe_nutrition_summary
+        to work correctly. This eliminates the need for separate linking steps.
+        
+        Args:
+            input_data: Contains food_code (CNF identifier), session_id (storage location),
+                       optional ingredient_id and recipe_id (for automatic linking),
+                       and preferred_units (serving size filter)
             
-            # Limit results if requested (now defaults to showing all results)
-            limited_results = search_results[:input_data.max_results] if input_data.max_results else search_results
+        Returns:
+            Dict with macronutrient data, linking status, and guidance for next steps
+        """
+        try:
+            from .schema import update_session_access_time
             
+            # Update session access time
+            update_session_access_time(input_data.session_id)
+            
+            scraper = get_cnf_scraper()
+            
+            # Step 1: Get serving info for the food code
+            serving_options, refuse_info = scraper.get_serving_info(input_data.food_code)
+            
+            if not serving_options:
+                return {
+                    "error": f"Could not retrieve serving information for food code '{input_data.food_code}'",
+                    "food_code": input_data.food_code,
+                    "suggestion": "Verify the food code is valid - try searching with search_and_get_cnf_macronutrients first"
+                }
+            
+            # Step 2: Get nutrient profile with macronutrients filter
+            nutrient_profile = scraper.get_nutrient_profile(
+                food_code=input_data.food_code,
+                serving_options=serving_options,
+                nutrient_filter="macronutrients",  # Apply 91% data reduction filter
+                preferred_units=input_data.preferred_units
+            )
+            
+            if not nutrient_profile or nutrient_profile.get('error'):
+                return {
+                    "error": f"Could not retrieve nutrient profile for food code '{input_data.food_code}'",
+                    "food_code": input_data.food_code,
+                    "serving_options_found": len(serving_options) if serving_options else 0,
+                    "suggestion": "Food code may be invalid or CNF website may be temporarily unavailable"
+                }
+            
+            # Step 3: Store macronutrients in SQLite temp tables WITH CORRECT SCHEMA
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Extract food description from profile data
+                food_description = f"CNF Food {input_data.food_code}"
+                if isinstance(nutrient_profile, dict):
+                    for category_name, nutrients in nutrient_profile.items():
+                        if isinstance(nutrients, list) and nutrients:
+                            first_nutrient = nutrients[0]
+                            if isinstance(first_nutrient, dict):
+                                for key, value in first_nutrient.items():
+                                    if 'food' in key.lower() and isinstance(value, str) and len(value) > 10:
+                                        food_description = value[:100]
+                                        break
+                                break
+                
+                # Insert/update CNF food entry with CORRECT column names
+                cursor.execute("""
+                    INSERT OR REPLACE INTO temp_cnf_foods 
+                    (session_id, cnf_food_code, food_description, ingredient_name, refuse_flag, refuse_amount)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (
+                    input_data.session_id,
+                    input_data.food_code,
+                    food_description,
+                    None,  # ingredient_name - to be populated when linking ingredients
+                    bool(refuse_info),
+                    None  # refuse_amount
+                ))
+                
+                # Clear existing nutrients for this food code (in case of re-fetch)
+                cursor.execute("""
+                    DELETE FROM temp_cnf_nutrients 
+                    WHERE session_id = ? AND cnf_food_code = ?
+                """, (input_data.session_id, input_data.food_code))
+                
+                # Store macronutrients with CORRECT schema (matching get_cnf_nutrient_profile logic)
+                nutrients_stored = 0
+                
+                if isinstance(nutrient_profile, dict):
+                    for category_name, nutrients in nutrient_profile.items():
+                        if isinstance(nutrients, list):
+                            for nutrient_idx, nutrient in enumerate(nutrients):
+                                if not isinstance(nutrient, dict):
+                                    continue
+                                
+                                nutrient_name = nutrient.get('Nutrient name', '').strip()
+                                if not nutrient_name:
+                                    continue
+                                
+                                # Store 100g baseline value
+                                baseline_value = None
+                                for key in ['Value per 100 g of edible portion', 'Per 100 g', '100g', 'Value/100g']:
+                                    if key in nutrient:
+                                        baseline_value = nutrient[key]
+                                        break
+                                
+                                if baseline_value and str(baseline_value).strip():
+                                    try:
+                                        # Clean the value
+                                        clean_value = str(baseline_value).strip()
+                                        if clean_value.lower() in ['trace', 'tr', '']:
+                                            baseline_float = 0.0
+                                        elif clean_value.startswith('<'):
+                                            baseline_float = 0.0
+                                        else:
+                                            import re
+                                            numeric_value = re.sub(r'[^\d\.\-]', '', clean_value)
+                                            baseline_float = float(numeric_value) if numeric_value else 0.0
+                                        
+                                        cursor.execute("""
+                                            INSERT OR REPLACE INTO temp_cnf_nutrients 
+                                            (session_id, cnf_food_code, nutrient_name, nutrient_value, 
+                                             per_amount, unit, nutrient_symbol)
+                                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                                        """, (
+                                            input_data.session_id,
+                                            input_data.food_code,
+                                            nutrient_name,
+                                            baseline_float,
+                                            100.0,
+                                            'g',
+                                            nutrient.get('Unit see footnote1', '') or ''
+                                        ))
+                                        nutrients_stored += 1
+                                    except (ValueError, TypeError):
+                                        continue
+                                
+                                # Store serving size values - COPIED FROM get_cnf_nutrient_profile
+                                for key, value in nutrient.items():
+                                    # Look for serving size columns (e.g., "5ml / 5 g", "15ml / 14 g") 
+                                    # More robust serving size detection
+                                    if ('/' in key and any(unit in key.lower() for unit in ['ml', 'g', 'tsp', 'tbsp', 'cup', 'oz'])) or \
+                                       (any(unit in key.lower() for unit in ['ml', 'tsp', 'tbsp', 'cup', 'oz']) and any(char.isdigit() for char in key)):
+                                        
+                                        if value and str(value).strip() and str(value).strip() != '':
+                                            try:
+                                                # Clean and parse serving value
+                                                clean_serving_value = str(value).strip()
+                                                if clean_serving_value.lower() in ['trace', 'tr']:
+                                                    serving_value = 0.0
+                                                elif clean_serving_value.startswith('<'):
+                                                    serving_value = 0.0
+                                                else:
+                                                    import re
+                                                    numeric_serving = re.sub(r'[^\d\.\-]', '', clean_serving_value)
+                                                    serving_value = float(numeric_serving) if numeric_serving else 0.0
+                                                
+                                                # Extract serving amount and unit from key
+                                                import re
+                                                # Try to match patterns like "5ml", "15ml", "1 tsp", "1/2 cup", etc.
+                                                match = re.search(r'(\d+(?:\.\d+)?|\d+/\d+)\s*([a-zA-Z]+)', key)
+                                                if match:
+                                                    serving_amount_str = match.group(1)
+                                                    serving_unit = match.group(2).lower()
+                                                    
+                                                    # Handle fractions in serving amounts
+                                                    if '/' in serving_amount_str:
+                                                        parts = serving_amount_str.split('/')
+                                                        serving_amount = float(parts[0]) / float(parts[1])
+                                                    else:
+                                                        serving_amount = float(serving_amount_str)
+                                                    
+                                                    cursor.execute("""
+                                                        INSERT OR REPLACE INTO temp_cnf_nutrients 
+                                                        (session_id, cnf_food_code, nutrient_name, nutrient_value, 
+                                                         per_amount, unit, nutrient_symbol)
+                                                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                                                    """, (
+                                                        input_data.session_id,
+                                                        input_data.food_code,
+                                                        nutrient_name,
+                                                        serving_value,
+                                                        serving_amount,
+                                                        serving_unit or '',
+                                                        nutrient.get('Unit see footnote1', '') or ''
+                                                    ))
+                                                    nutrients_stored += 1
+                                            except (ValueError, TypeError) as e:
+                                                # Skip serving values that can't be parsed
+                                                continue
+                
+                # Step 4: CRITICAL FIX - Link ingredient if provided
+                linking_status = "no_linking_requested"
+                if input_data.ingredient_id and input_data.recipe_id:
+                    # Update the cnf_food_code in temp_recipe_ingredients
+                    cursor.execute("""
+                        UPDATE temp_recipe_ingredients 
+                        SET cnf_food_code = ?
+                        WHERE session_id = ? AND recipe_id = ? AND ingredient_id = ?
+                    """, (input_data.food_code, input_data.session_id, input_data.recipe_id, input_data.ingredient_id))
+                    
+                    rows_updated = cursor.rowcount
+                    if rows_updated > 0:
+                        linking_status = f"linked_ingredient_{input_data.ingredient_id}"
+                    else:
+                        linking_status = f"ingredient_not_found_{input_data.ingredient_id}"
+                
+                conn.commit()
+            
+            # Step 5: Return success with linking confirmation
             return {
-                "success": f"Found {len(search_results)} foods matching '{input_data.food_name}'",
-                "search_term": input_data.food_name,
-                "results": limited_results,
-                "total_found": len(search_results),
-                "showing": len(limited_results),
-                "session_id": input_data.session_id
+                "success": True,
+                "action": "macronutrients_fetched_and_linked",
+                "message": f"✅ Successfully fetched {nutrients_stored} core macronutrients for food code '{input_data.food_code}'",
+                "food_code": input_data.food_code,
+                "food_description": food_description,
+                "session_id": input_data.session_id,
+                "macronutrients_stored": nutrients_stored,
+                "serving_options_available": len(serving_options),
+                "ingredient_linking": {
+                    "status": linking_status,
+                    "ingredient_id": input_data.ingredient_id,
+                    "recipe_id": input_data.recipe_id,
+                    "cnf_food_code": input_data.food_code
+                },
+                "next_steps": [
+                    "calculate_recipe_nutrition_summary() should now work because ingredients are properly linked",
+                    "Or continue linking more ingredients before running nutrition calculations"
+                ],
+                "storage_location": "temp_cnf_foods and temp_cnf_nutrients tables in SQLite"
             }
             
         except Exception as e:
-            ##logger.error(f"Error searching CNF foods: {e}")
-            return {"error": f"Failed to search CNF foods: {str(e)}"}
+            return {
+                "error": f"Error fetching macronutrients for food code '{input_data.food_code}': {str(e)}",
+                "food_code": input_data.food_code,
+                "session_id": input_data.session_id,
+                "suggestion": "Verify food code is valid and try again, or use search_and_get_cnf_macronutrients() to find correct food code"
+            }
+
+    @mcp.tool()
+    def bulk_get_cnf_macronutrients(input_data: CNFBulkMacronutrientsInput) -> Dict[str, Any]:
+        """
+        Process multiple CNF food codes efficiently with automatic ingredient linking for streamlined recipe nutrition analysis.
+
+        This tool retrieves core macronutrient data for up to 20 food codes simultaneously from Health Canada's official Canadian Nutrient File database. It provides massive efficiency gains for multi-ingredient recipes by processing all nutrition data in a single operation while optionally linking each food to specific recipe ingredients automatically.
+
+        The tool fetches 13 essential macronutrients for each food code:
+        - Energy (kcal), Protein, Total Fat, Carbohydrate
+        - Saturated Fat, Monounsaturated Fat, Polyunsaturated Fat, Trans Fat  
+        - Dietary Fiber, Sugars, Sodium, Cholesterol, Energy (kJ)
+
+        Advanced features include automatic ingredient linking when ingredient_mappings are provided, allowing the tool to connect CNF nutrition data directly to recipe ingredients in one operation. This eliminates the need for separate linking steps and enables immediate nutrition calculations.
+
+        Use this tool for:
+        - Multi-ingredient recipe nutrition analysis with automatic linking
+        - Bulk processing of known CNF food codes for maximum efficiency
+        - Recipe preparation workflows where ingredient-CNF relationships are known
+        - Large-scale nutrition data preparation with minimal tool call overhead
+
+        Args:
+        input_data: Contains food_codes (list of up to 20 CNF identifiers), session_id (data storage location),
+                optional preferred_units (serving size preferences), continue_on_error (error handling mode),
+                optional ingredient_mappings (food_code to ingredient_id mapping), and optional recipe_id 
+                (required for automatic ingredient linking)
+
+        Returns:
+        Dict with bulk processing results, success/failure counts for each food, ingredient linking status,
+        efficiency metrics, and guidance for next steps in nutrition analysis workflow
+        """
+        try:
+            from .schema import update_session_access_time
+            
+            # Update session access time
+            update_session_access_time(input_data.session_id)
+            
+            # Initialize tracking variables
+            total_foods = len(input_data.food_codes)
+            successful_foods = []
+            failed_foods = []
+            total_nutrients_stored = 0
+            
+            # Setup progress tracking
+            progress_data = {"completed": 0, "total": total_foods, "current": None}
+            start_time = time.time()
+            
+            def progress_callback(food_code: str, status: str):
+                """Progress callback for concurrent processing."""
+                if status == "completed":
+                    progress_data["completed"] += 1
+                progress_data["current"] = f"{food_code}: {status}"
+                elapsed = time.time() - start_time
+                if elapsed > PROGRESS_REPORT_INTERVAL:
+                    raise
+                    #logger.info(f"Bulk CNF Progress: {progress_data['completed']}/{progress_data['total']} completed. Current: {progress_data['current']}")
+                    
+            # Process food codes concurrently
+            #logger.info(f"Starting concurrent processing of {total_foods} food codes with max {CNF_MAX_CONCURRENT} workers")
+            
+            fetch_results = []
+            with ThreadPoolExecutor(max_workers=min(CNF_MAX_CONCURRENT, total_foods)) as executor:
+                # Submit all tasks
+                future_to_food_code = {
+                    executor.submit(
+                        process_single_food_code, 
+                        food_code, 
+                        input_data.session_id, 
+                        input_data.preferred_units,
+                        progress_callback
+                    ): food_code 
+                    for food_code in input_data.food_codes
+                }
+                
+                # Collect results as they complete
+                for future in as_completed(future_to_food_code, timeout=BULK_OPERATION_TIMEOUT):
+                    try:
+                        result = future.result()
+                        fetch_results.append(result)
+                    except Exception as e:
+                        food_code = future_to_food_code[future]
+                        #logger.error(f"Failed to process food code {food_code}: {e}")
+                        fetch_results.append({
+                            "status": "failed",
+                            "food_code": food_code,
+                            "error": str(e),
+                            "suggestion": "Check network connectivity and try again"
+                        })
+                        if not input_data.continue_on_error:
+                            break
+            
+            #logger.info(f"Concurrent fetching completed in {time.time() - start_time:.2f} seconds")
+            
+            # Now process results and store in database
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                
+                for result in fetch_results:
+                    if result["status"] == "failed":
+                        failed_foods.append({
+                            "food_code": result["food_code"],
+                            "error": result["error"],
+                            "suggestion": result["suggestion"]
+                        })
+                        if not input_data.continue_on_error:
+                            break
+                        continue
+                    
+                    try:
+                        food_code = result["food_code"]
+                        result_data = result["data"]
+                        serving_options = result_data["serving_options"]
+                        refuse_info = result_data["refuse_info"]
+                        nutrient_profile = result_data["nutrient_profile"]
+                        
+                        # Step 3: Store this food's data in SQLite
+                        food_description = f"CNF Food {food_code}"
+                        
+                        # Extract food description from the correct data structure
+                        description_data = nutrient_profile
+                        if isinstance(nutrient_profile, dict) and "nutrient_data" in nutrient_profile:
+                            description_data = nutrient_profile["nutrient_data"]
+                        
+                        if isinstance(description_data, dict):
+                            for category_name, nutrients in description_data.items():
+                                if isinstance(nutrients, list) and nutrients:
+                                    first_nutrient = nutrients[0]
+                                    if isinstance(first_nutrient, dict):
+                                        for key, value in first_nutrient.items():
+                                            if 'food' in key.lower() and isinstance(value, str) and len(value) > 10:
+                                                food_description = value[:100]
+                                                break
+                                        break
+                        
+                        # Insert/update CNF food entry
+                        cursor.execute("""
+                            INSERT OR REPLACE INTO temp_cnf_foods 
+                            (session_id, cnf_food_code, food_description, ingredient_name, refuse_flag, refuse_amount)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        """, (
+                            input_data.session_id,
+                            food_code,
+                            food_description,
+                            None,
+                            bool(refuse_info),
+                            None
+                        ))
+                        
+                        # Clear existing nutrients for this food code
+                        cursor.execute("""
+                            DELETE FROM temp_cnf_nutrients 
+                            WHERE session_id = ? AND cnf_food_code = ?
+                        """, (input_data.session_id, food_code))
+                        
+                        nutrients_stored_this_food = 0
+                        
+                        # Extract the actual nutrient data from the response structure
+                        actual_nutrient_data = nutrient_profile
+                        if isinstance(nutrient_profile, dict) and "nutrient_data" in nutrient_profile:
+                            actual_nutrient_data = nutrient_profile["nutrient_data"]
+                        
+                        if isinstance(actual_nutrient_data, dict):
+                            for category_name, nutrients in actual_nutrient_data.items():
+                                if isinstance(nutrients, list):
+                                    for nutrient_idx, nutrient in enumerate(nutrients):
+                                        if not isinstance(nutrient, dict):
+                                            continue
+                                        
+                                        nutrient_name = nutrient.get('Nutrient name', '').strip()
+                                        if not nutrient_name:
+                                            continue
+                                        
+                                        # More resilient: checks multiple possible keys for the nutrient value
+                                        baseline_value = None
+                                        for key in ['Value per 100 g of edible portion', 'Per 100 g', '100g', 'Value/100g']:
+                                            if key in nutrient:
+                                                baseline_value = nutrient[key]
+                                                break
+                                        
+                                        if baseline_value and str(baseline_value).strip():
+                                            try:
+                                                # More resilient: handles 'trace', '<' values, and other non-numeric strings
+                                                clean_value = str(baseline_value).strip()
+                                                if clean_value.lower() in ['trace', 'tr', '']:
+                                                    baseline_float = 0.0
+                                                elif clean_value.startswith('<'):
+                                                    baseline_float = 0.0
+                                                else:
+                                                    import re
+                                                    numeric_value = re.sub(r'[^\d\.\-]', '', clean_value)
+                                                    baseline_float = float(numeric_value) if numeric_value else 0.0
+                                                
+                                                cursor.execute("""
+                                                    INSERT OR REPLACE INTO temp_cnf_nutrients 
+                                                    (session_id, cnf_food_code, nutrient_name, nutrient_value, 
+                                                    per_amount, unit, nutrient_symbol)
+                                                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                                                """, (
+                                                    input_data.session_id,
+                                                    food_code,  # Use the loop variable 'food_code'
+                                                    nutrient_name,
+                                                    baseline_float,
+                                                    100.0,
+                                                    'g',
+                                                    nutrient.get('Unit see footnote1', '') or ''
+                                                ))
+                                                nutrients_stored_this_food += 1
+                                            except (ValueError, TypeError):
+                                                continue
+                                        
+                                        # Store serving size values - COPIED FROM get_cnf_nutrient_profile
+                                        for key, value in nutrient.items():
+                                            # Look for serving size columns (e.g., "5ml / 5 g", "15ml / 14 g") 
+                                            # More robust serving size detection
+                                            if ('/' in key and any(unit in key.lower() for unit in ['ml', 'g', 'tsp', 'tbsp', 'cup', 'oz'])) or \
+                                               (any(unit in key.lower() for unit in ['ml', 'tsp', 'tbsp', 'cup', 'oz']) and any(char.isdigit() for char in key)):
+                                                
+                                                if value and str(value).strip() and str(value).strip() != '':
+                                                    try:
+                                                        # Clean and parse serving value
+                                                        clean_serving_value = str(value).strip()
+                                                        if clean_serving_value.lower() in ['trace', 'tr']:
+                                                            serving_value = 0.0
+                                                        elif clean_serving_value.startswith('<'):
+                                                            serving_value = 0.0
+                                                        else:
+                                                            import re
+                                                            numeric_serving = re.sub(r'[^\d\.\-]', '', clean_serving_value)
+                                                            serving_value = float(numeric_serving) if numeric_serving else 0.0
+                                                        
+                                                        # Extract serving amount and unit from key
+                                                        import re
+                                                        # Try to match patterns like "5ml", "15ml", "1 tsp", "1/2 cup", etc.
+                                                        match = re.search(r'(\d+(?:\.\d+)?|\d+/\d+)\s*([a-zA-Z]+)', key)
+                                                        if match:
+                                                            serving_amount_str = match.group(1)
+                                                            serving_unit = match.group(2).lower()
+                                                            
+                                                            # Handle fractions in serving amounts
+                                                            if '/' in serving_amount_str:
+                                                                parts = serving_amount_str.split('/')
+                                                                serving_amount = float(parts[0]) / float(parts[1])
+                                                            else:
+                                                                serving_amount = float(serving_amount_str)
+                                                            
+                                                            cursor.execute("""
+                                                                INSERT OR REPLACE INTO temp_cnf_nutrients 
+                                                                (session_id, cnf_food_code, nutrient_name, nutrient_value, 
+                                                                 per_amount, unit, nutrient_symbol)
+                                                                VALUES (?, ?, ?, ?, ?, ?, ?)
+                                                            """, (
+                                                                input_data.session_id,
+                                                                food_code,  # Use the loop variable 'food_code'
+                                                                nutrient_name,
+                                                                serving_value,
+                                                                serving_amount,
+                                                                serving_unit or '',
+                                                                nutrient.get('Unit see footnote1', '') or ''
+                                                            ))
+                                                            nutrients_stored_this_food += 1
+                                                    except (ValueError, TypeError) as e:
+                                                        # Skip serving values that can't be parsed
+                                                        continue
+                        
+                        # Step 4: ENHANCED - Link ingredient if mapping provided
+                        linking_status = "no_linking_requested"
+                        if hasattr(input_data, 'ingredient_mappings') and input_data.ingredient_mappings and input_data.recipe_id:
+                            ingredient_id = input_data.ingredient_mappings.get(food_code)
+                            if ingredient_id:
+                                cursor.execute("""
+                                    UPDATE temp_recipe_ingredients 
+                                    SET cnf_food_code = ?
+                                    WHERE session_id = ? AND recipe_id = ? AND ingredient_id = ?
+                                """, (food_code, input_data.session_id, input_data.recipe_id, ingredient_id))
+                                
+                                rows_updated = cursor.rowcount
+                                if rows_updated > 0:
+                                    linking_status = f"linked_to_{ingredient_id}"
+                                else:
+                                    linking_status = f"ingredient_not_found_{ingredient_id}"
+                        
+                        # Record success
+                        successful_foods.append({
+                            "food_code": food_code,
+                            "food_description": food_description,
+                            "nutrients_stored": nutrients_stored_this_food,
+                            "serving_options": len(serving_options),
+                            "ingredient_linking": linking_status
+                        })
+                        total_nutrients_stored += nutrients_stored_this_food
+                        
+                    except Exception as e:
+                        #logger.error(f"Database storage error for food code {food_code}: {e}")
+                        failed_foods.append({
+                            "food_code": food_code,
+                            "error": f"Database storage error: {str(e)}",
+                            "suggestion": "Check database connectivity and try again"
+                        })
+                        if not input_data.continue_on_error:
+                            break
+                
+                conn.commit()
+                
+            # Calculate efficiency metrics
+            success_rate = (len(successful_foods) / total_foods) * 100 if total_foods > 0 else 0
+            avg_nutrients_per_food = total_nutrients_stored / len(successful_foods) if successful_foods else 0
+            
+            # Calculate ingredient linking statistics
+            linked_ingredients = sum(1 for food in successful_foods if food["ingredient_linking"].startswith("linked_to_"))
+            linking_requested = bool(hasattr(input_data, 'ingredient_mappings') and input_data.ingredient_mappings and input_data.recipe_id)
+            
+            return {
+                "success": True,
+                "action": "bulk_macronutrients_processed_with_linking" if linking_requested else "bulk_macronutrients_processed",
+                "message": f"✅ Concurrently processed {len(successful_foods)}/{total_foods} food codes successfully in {time.time() - start_time:.2f}s" + (f" with {linked_ingredients} ingredients linked" if linking_requested else ""),
+                "session_id": input_data.session_id,
+                "processing_summary": {
+                    "total_foods_requested": total_foods,
+                    "successful_foods": len(successful_foods),
+                    "failed_foods": len(failed_foods),
+                    "success_rate_percent": round(success_rate, 1),
+                    "total_nutrients_stored": total_nutrients_stored,
+                    "avg_nutrients_per_food": round(avg_nutrients_per_food, 1)
+                },
+                "ingredient_linking": {
+                    "linking_requested": linking_requested,
+                    "recipe_id": input_data.recipe_id if linking_requested else None,
+                    "ingredients_linked": linked_ingredients,
+                    "total_mappings_provided": len(input_data.ingredient_mappings) if linking_requested else 0,
+                    "linking_success_rate": round((linked_ingredients / len(input_data.ingredient_mappings) * 100), 1) if linking_requested and input_data.ingredient_mappings else 0
+                },
+                "efficiency_gains": {
+                    "tool_calls_saved": f"Processed {total_foods} foods in 1 call vs {total_foods} individual calls",
+                    "efficiency_improvement": f"{max(0, total_foods - 1)} fewer tool calls ({round((total_foods - 1) / total_foods * 100, 1)}% reduction)" if total_foods > 1 else "No efficiency gain for single food",
+                    "concurrent_processing": f"Used {min(CNF_MAX_CONCURRENT, total_foods)} concurrent workers with {CNF_RATE_LIMIT}s rate limiting",
+                    "performance_improvement": f"Concurrent processing vs sequential (estimated {total_foods * CNF_RATE_LIMIT:.1f}s sequential time)",
+                    "caching_efficiency": f"Cache hits: {sum(1 for r in fetch_results if r.get('cached', False))}/{total_foods}",
+                    "linking_efficiency": f"Linked {linked_ingredients} ingredients automatically vs separate linking steps" if linking_requested else "No ingredient linking requested"
+                },
+                "successful_foods": successful_foods,
+                "failed_foods": failed_foods,
+                "next_steps": [
+                    "calculate_recipe_nutrition_summary() should now work for linked ingredients" if linking_requested and linked_ingredients > 0 else "Use calculate_recipe_nutrition_summary() for nutrition analysis",
+                    "Continue linking remaining ingredients if needed" if linking_requested and linked_ingredients < (len(input_data.ingredient_mappings) if linking_requested else 0) else "Or link individual foods to recipe ingredients using get_cnf_macronutrients_only() with ingredient_id",
+                    "Failed foods can be retried individually if needed"
+                ],
+                "storage_location": "temp_cnf_foods and temp_cnf_nutrients tables in SQLite"
+            }
+        
+        except Exception as e:
+                return {
+                    "error": f"Bulk processing error: {str(e)}",
+                    "session_id": input_data.session_id,
+                    "food_codes_attempted": input_data.food_codes,
+                    "suggestion": "Try processing smaller batches or individual food codes"
+                }   
 
     @mcp.tool()
     def get_cnf_nutrient_profile(input_data: CNFProfileInput) -> Dict[str, Any]:
         """
-        Get detailed nutrient profile for a specific CNF food code and auto-populate PERSISTENT SQLite tables.
+        Retrieve complete nutrient profile with all available nutrients for research-grade analysis.
         
-        **🚀 REVOLUTIONIZED: DIRECT SQLITE STORAGE** - Fixes CNF linking issues!
-        This tool now populates persistent SQLite tables directly, eliminating dual-architecture problems.
-        CNF data goes straight to the same tables that execute_nutrition_sql() queries.
+        This tool fetches comprehensive nutrient data from Health Canada's CNF database,
+        including all vitamins, minerals, fatty acids, and other micronutrients. It stores
+        significantly more data than the streamlined macronutrient tools and should be
+        used only when detailed micronutrient analysis is specifically required.
         
-        **⚡ EFFICIENCY GUIDELINES:**
-        - ❌ **AVOID**: Getting profiles one-by-one for every ingredient
-        - ✅ **PREFER**: Batch collect food_codes first, then get all profiles
-        - ❌ **AVOID**: Manual nutrition calculations after this
-        - ✅ **PREFER**: Use execute_nutrition_sql() with ready SQL templates
+        Use this tool for:
+        - Detailed vitamin and mineral analysis
+        - Research-grade nutritional studies
+        - Micronutrient deficiency assessment
+        - Academic or professional nutrition work requiring complete profiles
         
-        **🔧 PERSISTENT SQLITE TABLES AUTO-POPULATED:**
-        When you call this tool, it automatically stores nutrition data in:
-        - `temp_cnf_foods`: food descriptions (session-scoped)
-        - `temp_cnf_nutrients`: all nutrient values for SQL calculations (session-scoped)
-        
-        **🎯 STREAMLINED WORKFLOW (FIXED):**
-        ```
-        1. search_cnf_foods("honey") → Get food_code options
-        2. get_cnf_nutrient_profile(food_code="1234") ← Auto-stores in PERSISTENT SQLite
-        3. execute_nutrition_sql(UPDATE) ← Link ingredient to food_code  
-        4. execute_nutrition_sql(SELECT) ← Calculate nutrition totals ✅ WORKS NOW!
-        ```
-        
-        **✅ GUARANTEED DATA LINKAGE**: CNF data and ingredient updates now use the SAME SQLite tables
-        
-        **Ready-to-Use SQL Examples (Now Work Correctly):**
-        ```sql
-        -- Get all calories for a food (NOW WORKS!)
-        SELECT nutrient_value FROM temp_cnf_nutrients 
-        WHERE session_id = 'SESSION' AND cnf_food_code = 'FOOD_CODE' 
-        AND nutrient_name = 'Energy (kcal)' AND per_amount = 100
-        
-        -- Get serving size options (NOW WORKS!)
-        SELECT DISTINCT per_amount, unit FROM temp_cnf_nutrients 
-        WHERE session_id = 'SESSION' AND cnf_food_code = 'FOOD_CODE'
-        ```
-        
-        **Enhanced serving size handling**: Now captures ALL available serving options,
-        including volume measures (ml, tsp, tbsp) and weight conversions for liquid foods.
-        
-        Use this tool when:
-        - Getting detailed nutrition data for a matched ingredient
-        - Preparing data for math tool calculations
-        - Exploring nutritional content of specific CNF foods
-        - Building ingredient-nutrition databases
-        
-        **Next steps after getting profile:**
-        1. Use execute_nutrition_sql(UPDATE) to link ingredients to CNF food codes
-        2. Use execute_nutrition_sql(SELECT) for nutrition calculations (NOW WORKS!)
-        3. SQL handles all unit conversions and calculations transparently
-        4. Compare results with EER using simple_math_calculator if needed
+        For basic recipe nutrition analysis, consider using get_cnf_macronutrients_only
+        which provides 13 core nutrients with significantly reduced data complexity.
+        This tool processes all available nutrients (146+) and may impact performance.
         
         Args:
-            input_data: CNFProfileInput with food_code and session_id
+            input_data: Contains food_code (CNF identifier), session_id (storage location),
+                       and optional preferred_units (serving size preferences)
             
         Returns:
-            Dict with complete nutrient profile and confirmation of SQLite storage.
-            Use execute_nutrition_sql() for all subsequent calculations.
+            Dict with complete nutrient profile data and storage confirmation
         """
         try:
             scraper = get_cnf_scraper()
@@ -472,126 +1345,43 @@ def register_cnf_tools(mcp: FastMCP) -> None:
                     "category_count": len(nutrient_profile) if isinstance(nutrient_profile, dict) else 0,
                     "first_few_errors": errors_encountered[:3] if errors_encountered else []
                 },
-                "next_step": "Use execute_nutrition_sql() with UPDATE queries to link ingredients",
+                "next_step": "Use get_cnf_macronutrients_only() with ingredient_id to link ingredients",
                 "workflow_status": "✅ Ready for nutrition analysis" if nutrient_count > 0 else "❌ No nutrients stored - check debug info"
             }
             
         except Exception as e:
-            ##logger.error(f"Error getting CNF nutrient profile: {e}")
+            ###logger.error(f"Error getting CNF nutrient profile: {e}")
             return {"error": f"Failed to get CNF nutrient profile: {str(e)}"}
 
-    @mcp.tool()
-    def link_ingredient_to_cnf_simple(session_id: str, ingredient_id: str, cnf_food_code: str) -> Dict[str, Any]:
-        """
-        **MODERN APPROACH**: Direct SQL table linking for fast nutrition analysis.
-        
-        This tool directly updates the cnf_food_code field in the recipe_ingredients SQL table,
-        making nutrition data immediately available for execute_nutrition_sql queries.
-        
-        **Key Benefits:**
-        - ⚡ **Fast**: Direct SQL table update, no complex matching logic
-        - 🔄 **Immediate**: Data ready for SQL queries instantly
-        - 🎯 **Simple**: One call links ingredient to nutrition data
-        - 🔍 **Transparent**: All data visible in SQL tables
-        
-        **After linking, you can immediately run SQL like:**
-        ```sql
-        SELECT ri.ingredient_name, cn.nutrient_name, cn.nutrient_value
-        FROM recipe_ingredients ri
-        JOIN cnf_nutrients cn ON ri.cnf_food_code = cn.cnf_food_code
-        WHERE ri.ingredient_id = 'INGREDIENT_ID'
-        ```
-        
-        Use this tool to:
-        - Connect parsed ingredients to CNF food codes
-        - Enable immediate SQL-based nutrition calculations
-        - Set up data for execute_nutrition_sql queries
-        
-        Args:
-            session_id: Session containing the ingredient data
-            ingredient_id: ID of the ingredient to link  
-            cnf_food_code: CNF food code to link to
-            
-        Returns:
-            Dict confirming the linkage was created with SQL query suggestions
-        """
-        try:
-            session_data = get_virtual_session_data(session_id)
-            if session_data is None:
-                return {"error": f"Session {session_id} not found"}
-            
-            # Update the SQL table structure
-            if 'recipe_ingredients' not in session_data:
-                return {"error": "No recipe_ingredients table found in session"}
-            
-            # Find and update the ingredient
-            ingredient_found = False
-            for ingredient in session_data['recipe_ingredients']:
-                if ingredient['ingredient_id'] == ingredient_id:
-                    ingredient['cnf_food_code'] = cnf_food_code
-                    ingredient_found = True
-                    break
-            
-            if not ingredient_found:
-                return {"error": f"Ingredient {ingredient_id} not found in recipe_ingredients table"}
-            
-            return {
-                "success": f"Linked ingredient {ingredient_id} to CNF food {cnf_food_code}",
-                "ingredient_id": ingredient_id,
-                "cnf_food_code": cnf_food_code,
-                "session_id": session_id,
-                "ready_for_sql": True,
-                "next_step": "Use execute_nutrition_sql() for nutrition calculations",
-                "example_sql": f"SELECT ri.ingredient_name, cn.nutrient_name, cn.nutrient_value FROM recipe_ingredients ri JOIN cnf_nutrients cn ON ri.cnf_food_code = cn.cnf_food_code WHERE ri.ingredient_id = '{ingredient_id}'"
-            }
-            
-        except Exception as e:
-            ##logger.error(f"Error linking ingredient to CNF: {e}")
-            return {"error": f"Failed to link ingredient to CNF: {str(e)}"}
-
-    # MANUAL WORKFLOW (recommended): simple_recipe_setup → search_cnf_foods → 
-    # get_cnf_nutrient_profile → execute_nutrition_sql (BULK UPDATE) → execute_nutrition_sql (SELECT)
-    
     @mcp.tool() 
     def simple_recipe_setup(input_data: AnalyzeRecipeNutritionInput) -> Dict[str, Any]:
         """
-        🛠️ **SIMPLE RECIPE SETUP FOR MANUAL NUTRITION ANALYSIS** 🛠️
+        Transfer recipe data to analysis tables with comprehensive ingredient parsing for streamlined nutrition analysis preparation.
         
-        This tool handles basic recipe data transfer and ingredient parsing, then guides you 
-        through the RELIABLE MANUAL WORKFLOW for nutrition analysis.
+        This tool prepares complete recipe data for CNF nutrition analysis by transferring stored recipe information from virtual session storage to temporary database tables and automatically parsing ingredient text into structured components. It provides the essential foundation for linking ingredients to CNF foods and calculating detailed nutrition summaries.
         
-        **❌ NO MORE AUTO-MATCHING**: The old auto-matching was unreliable and error-prone.
-        **✅ MANUAL CONTROL**: You control which CNF foods match which ingredients.
+        The tool performs comprehensive ingredient parsing that handles complex measurement formats including:
+        - Unicode fractions (½, ⅓, ¼, ¾, etc.) converted to precise decimal values
+        - Mixed numbers (1½, 2¼) with accurate decimal conversion
+        - Regular fractions (1/2, 3/4) and measurement ranges (2-3 cups)
+        - All standard units (mL, cups, tsp, tbsp, kg, g, lbs, oz)
+        - Ingredient preparation notes (sliced, chopped, optional)
         
-        **What This Tool Does:**
-        - ✅ Transfers recipe data from virtual session to temp SQLite tables
-        - ✅ Parses ingredient text to extract amounts, units, and names
-        - ✅ Provides step-by-step guidance for manual CNF linking
-        - ✅ Returns SQL templates for manual ingredient linking and nutrition analysis
+        Use this tool for:
+        - Complete recipe data transfer from session storage to analysis tables
+        - Automatic ingredient parsing into structured amount, unit, and name components
+        - Foundation preparation for CNF food linking and nutrition calculations
+        - Streamlined setup for multi-step recipe nutrition analysis workflows
         
-        **⚡ RECOMMENDED WORKFLOW AFTER USING THIS TOOL:**
-        ```
-        1. simple_recipe_setup() ← You are here
-        2. execute_nutrition_sql() with ingredient CHECK query
-        3. search_cnf_foods() for each ingredient individually
-        4. get_cnf_nutrient_profile() for selected CNF foods
-        5. execute_nutrition_sql() with UPDATE queries to link ingredients
-        6. execute_nutrition_sql() with SELECT queries for nutrition analysis
-        ```
-        
-        **Benefits of Manual Workflow:**
-        - 🔍 **Transparent**: See exactly what's happening at each step
-        - 🛡️ **Reliable**: No complex auto-matching to break down
-        - 🎯 **Accurate**: You control ingredient-CNF food matching decisions
-        - 🐛 **Debuggable**: Each step can be verified independently
+        The processed data includes recipe metadata, fully parsed ingredients with structured amounts/units, and step-by-step instructions, all stored in temporary database tables optimized for nutrition analysis tools.
         
         Args:
-            session_id: Session containing the recipe data
-            recipe_id: Recipe to analyze for nutrition
-            auto_link_major_ingredients: Ignored (manual linking only)
+            input_data: Contains session_id (source virtual session location) and recipe_id
+                       (specific recipe identifier to process and parse)
             
         Returns:
-            Dict with setup confirmation and next-step guidance
+            Dict with setup status, ingredient parsing statistics, structured data counts,
+            and comprehensive guidance for next steps in nutrition analysis workflow
         """
         try:
             # Extract parameters from input_data
@@ -659,935 +1449,404 @@ def register_cnf_tools(mcp: FastMCP) -> None:
                 
                 conn.commit()
             
-            # Step 3: Parse ingredients 
-            from .ingredient_parser import parse_ingredients_for_temp_tables
-            parse_result = parse_ingredients_for_temp_tables(session_id, recipe_id)
-            if "error" in parse_result:
-                return {"error": f"Failed to parse ingredients: {parse_result['error']}"}
+            # Step 3: ENHANCED - Parse ingredients using comprehensive parser
+            from .math_tools import _parse_ingredient_comprehensive
             
-            # Get ingredient count for summary
+            parsed_count = 0
+            failed_count = 0
+            parsing_details = []
+            
             with get_db_connection() as conn:
                 cursor = conn.cursor()
+                
+                # Get all ingredients for parsing
+                cursor.execute("""
+                    SELECT ingredient_id, ingredient_list_org 
+                    FROM temp_recipe_ingredients 
+                    WHERE session_id = ? AND recipe_id = ?
+                    ORDER BY ingredient_order
+                """, (session_id, recipe_id))
+                
+                ingredients_to_parse = cursor.fetchall()
+                
+                for ingredient_id, ingredient_text in ingredients_to_parse:
+                    if not ingredient_text or not ingredient_text.strip():
+                        failed_count += 1
+                        continue
+                    
+                    # Parse the ingredient text using comprehensive parser
+                    parsed_data = _parse_ingredient_comprehensive(ingredient_text)
+                    
+                    # Update the temp table with parsed data
+                    cursor.execute("""
+                        UPDATE temp_recipe_ingredients 
+                        SET ingredient_name = ?, amount = ?, unit = ?
+                        WHERE session_id = ? AND ingredient_id = ?
+                    """, (
+                        parsed_data['clean_name'],
+                        parsed_data.get('amount'),
+                        parsed_data.get('unit'),
+                        session_id,
+                        ingredient_id
+                    ))
+                    
+                    parsing_details.append({
+                        'ingredient_id': ingredient_id,
+                        'original_text': ingredient_text,
+                        'parsed_amount': parsed_data.get('amount'),
+                        'parsed_unit': parsed_data.get('unit'),
+                        'clean_name': parsed_data['clean_name'],
+                        'parsing_notes': parsed_data.get('parsing_notes', '')
+                    })
+                    
+                    if parsed_data.get('amount') is not None:
+                        parsed_count += 1
+                    else:
+                        failed_count += 1
+                
+                # Get final ingredient count
                 cursor.execute("""
                     SELECT COUNT(*) FROM temp_recipe_ingredients 
                     WHERE session_id = ? AND recipe_id = ?
                 """, (session_id, recipe_id))
                 ingredient_count = cursor.fetchone()[0]
+                
+                conn.commit()
             
             return {
-                "success": f"✅ Recipe setup complete for: {recipe_title}",
+                "success": f"Recipe setup and parsing complete for: {recipe_title}",
                 "recipe_id": recipe_id,
                 "recipe_title": recipe_title,
                 "session_id": session_id,
                 "ingredient_count": ingredient_count,
-                
-                # Next steps for manual workflow
-                "next_steps": [
-                    "1. Check ingredients: execute_nutrition_sql() with ingredient CHECK query",
-                    "2. Search CNF foods: search_cnf_foods() for each ingredient",
-                    "3. Get profiles: get_cnf_nutrient_profile() for selected CNF foods",
-                    "4. Link ingredients: execute_nutrition_sql() with BULK UPDATE queries (efficient!)",
-                    "5. Calculate nutrition: execute_nutrition_sql() with corrected CTE queries"
-                ],
-                
-                # Ready-to-use SQL templates
-                "sql_templates": {
-                    "check_ingredients": f"""
-SELECT ingredient_id, ingredient_name, amount, unit, cnf_food_code 
-FROM temp_recipe_ingredients 
-WHERE session_id = '{session_id}' AND recipe_id = '{recipe_id}'
-ORDER BY ingredient_order""",
-                    
-                    "link_ingredient_example": f"""
-UPDATE temp_recipe_ingredients 
-SET cnf_food_code = 'CNF_FOOD_CODE_HERE'
-WHERE session_id = '{session_id}' AND ingredient_id = 'INGREDIENT_ID_HERE'""",
-                    
-                    "nutrition_analysis_example": f"""
-SELECT 
-    'TOTAL' as calculation_type,
-    SUM(CASE WHEN cn.nutrient_name = 'Energy (kcal)' THEN 
-        CASE WHEN ri.unit = cn.unit THEN (ri.amount/cn.per_amount)*cn.nutrient_value 
-             ELSE (ri.amount/100)*cn.nutrient_value END ELSE 0 END) as calories
-FROM temp_recipe_ingredients ri
-JOIN temp_cnf_nutrients cn ON ri.cnf_food_code = cn.cnf_food_code AND ri.session_id = cn.session_id
-WHERE ri.session_id = '{session_id}' AND ri.recipe_id = '{recipe_id}' 
-  AND cn.per_amount = 100"""
+                "parsing_summary": {
+                    "total_ingredients": len(ingredients_to_parse),
+                    "successfully_parsed": parsed_count,
+                    "failed_to_parse": failed_count,
+                    "parse_success_rate": f"{(parsed_count/len(ingredients_to_parse)*100):.1f}%" if ingredients_to_parse else "0%",
+                    "ingredients_with_amounts": parsed_count,
+                    "section_headers_detected": len([p for p in parsing_details if p['parsed_amount'] is None and p['original_text'].strip().endswith(':')])
                 },
-                
+                "parsing_details": parsing_details[:5],  # Show first 5 for LLM review
                 "workflow_status": {
                     "recipe_transfer": "✅ Complete",
-                    "ingredient_parsing": "✅ Complete", 
-                    "cnf_linking": "⏳ Use BULK UPDATE queries (efficient!)",
-                    "nutrition_analysis": "⏳ Use corrected CTE queries (eliminates duplicates)"
+                    "ingredient_parsing": f"✅ Complete - {parsed_count}/{len(ingredients_to_parse)} parsed successfully", 
+                    "cnf_linking": "⏳ Ready for bulk_get_cnf_macronutrients with ingredient_mappings",
+                    "nutrition_analysis": "⏳ Ready after CNF linking"
                 },
-                
-                "efficiency_tips": [
-                    "🚀 Use CASE-based bulk UPDATE for linking multiple ingredients at once",
-                    "⚡ Use corrected CTE queries to eliminate duplicate nutrition calculations",
-                    "🎯 Always check existing sessions first with list_temp_sessions()",
-                    "💡 Use execute_nutrition_sql() for all database operations"
-                ]
+                "next_steps": [
+                    "Use search_and_get_cnf_macronutrients() to find CNF food codes for ingredients",
+                    "Use bulk_get_cnf_macronutrients() with ingredient_mappings for efficient linking",
+                    "OR use get_cnf_macronutrients_only() with ingredient_id for individual linking",
+                    "Then use calculate_recipe_nutrition_summary() for complete nutrition analysis"
+                ],
+                "storage_location": "temp_recipe_ingredients table with parsed amount, unit, and ingredient_name columns"
             }
             
         except Exception as e:
-            ##logger.error(f"Error in simple_recipe_setup: {e}")
+            ###logger.error(f"Error in simple_recipe_setup: {e}")
             return {"error": f"Failed to setup recipe: {str(e)}"}
-    
+
+
+
+    # ========================================
+    # 🚀 SIMPLE CALCULATION TOOLS (EER-STYLE)
+    # ========================================
+
     @mcp.tool()
-    def execute_nutrition_sql(input_data: SQLQueryInput) -> Dict[str, Any]:
+    def calculate_recipe_nutrition_summary(input_data: RecipeNutritionCalculationInput) -> Dict[str, Any]:
         """
-        Execute SQL queries (SELECT/UPDATE/INSERT) on persistent temporary nutrition tables for reliable nutrition analysis.
+        Analyze unit matching for recipe ingredients and populate temp_recipe_macros table.
         
-        **🚀 ENHANCED SQL TOOL WITH UPDATE SUPPORT!** 
-        This tool provides direct SQL access to nutrition data stored in persistent temporary SQLite 
-        tables, enabling reliable nutrition calculations AND manual ingredient linking.
+        This tool performs unit matching analysis between recipe ingredients and CNF nutrition data,
+        identifying which conversions are possible and which need manual LLM decisions. It populates
+        the temp_recipe_macros table with detailed unit matching information for LLM review.
         
-        **⚡ RECOMMENDED MANUAL WORKFLOW (EFFICIENT & RELIABLE):**
-        ```
-        1. Setup recipe: simple_recipe_setup(session_id, recipe_id) ← USE THIS INSTEAD!
-        2. Check ingredients: SELECT * FROM temp_recipe_ingredients WHERE session_id = 'X'
-        3. Search CNF foods: search_cnf_foods(session_id, ingredient_name) for each ingredient  
-        4. Get profiles: get_cnf_nutrient_profile(session_id, food_code) for selected foods
-        5. Link ingredients: Use BULK UPDATE queries (see templates below)
-        6. Calculate nutrition: Use corrected CTE query (eliminates duplicates)
-        ```
+        NEW BEHAVIOR (Unit Matching Analysis):
+        - Analyzes each ingredient's unit compatibility with available CNF serving sizes
+        - Identifies exact matches, possible conversions, and manual decision needs
+        - Populates temp_recipe_macros with unit matching status and recommendations
+        - Returns analysis summary for LLM to make conversion decisions
         
-        **🛡️ SUPPORTED OPERATIONS:**
-        - ✅ **SELECT**: All nutrition analysis queries
-        - ✅ **UPDATE**: Link ingredients to CNF foods (safe, session-scoped)
-        - ✅ **INSERT**: Add manual ingredient data (safe, session-scoped)
-        - ❌ **DELETE/DROP**: Blocked for safety
+        Use this tool to:
+        - Set up unit matching analysis for recipe nutrition calculations
+        - Identify which ingredients need manual conversion decisions
+        - Prepare data for LLM-driven nutrition calculations
+        - Get transparent view of unit conversion challenges
         
-        **Available Temporary Tables (session-scoped - UPDATED SCHEMA):**
-        - `temp_recipe_ingredients`: ingredient_id, recipe_id, ingredient_name, amount, unit, cnf_food_code
-        - `temp_cnf_foods`: cnf_food_code, food_description, ingredient_name (NEW: tracks which ingredient this CNF food is linked to)
-        - `temp_cnf_nutrients`: cnf_food_code, nutrient_name, nutrient_value, per_amount, unit, nutrient_symbol (STREAMLINED: removed sparse data columns)
-        - `temp_recipes`: recipe_id, title, base_servings, prep_time, cook_time
-        
-        **IMPORTANT: All tables are session-scoped. Always include session_id in WHERE clauses.**
-        
-        **🎯 MANUAL LINKING TEMPLATES (ESSENTIAL FOR NUTRITION ANALYSIS):**
-        
-        **0a. Check Current Ingredients:**
-        ```sql
-        SELECT ingredient_id, ingredient_name, amount, unit, cnf_food_code 
-        FROM temp_recipe_ingredients 
-        WHERE session_id = 'YOUR_SESSION_ID' AND recipe_id = 'YOUR_RECIPE_ID'
-        ORDER BY ingredient_order
-        ```
-        
-        **0b. Link Ingredient to CNF Food (REQUIRED BEFORE NUTRITION ANALYSIS):**
-        ```sql
-        UPDATE temp_recipe_ingredients 
-        SET cnf_food_code = 'CNF_FOOD_CODE_HERE'
-        WHERE session_id = 'YOUR_SESSION_ID' AND ingredient_id = 'INGREDIENT_ID_HERE'
-        ```
-        
-        **0c. BULK Link Multiple Ingredients (EFFICIENT - USE THIS!):**
-        ```sql
-        -- ⚡ SINGLE CASE-based bulk update (MUCH MORE EFFICIENT than individual UPDATEs):
-        UPDATE temp_recipe_ingredients SET cnf_food_code = 
-        CASE 
-            WHEN ingredient_id = 'honey_grilled_salmon_ingredient_2' THEN '3416'  -- soy sauce
-            WHEN ingredient_id = 'honey_grilled_salmon_ingredient_3' THEN '451'   -- vegetable oil
-            WHEN ingredient_id = 'honey_grilled_salmon_ingredient_4' THEN '4294'  -- honey
-            WHEN ingredient_id = 'honey_grilled_salmon_ingredient_5' THEN '4317'  -- brown sugar
-            WHEN ingredient_id = 'honey_grilled_salmon_ingredient_9' THEN '3183'  -- salmon
-            WHEN ingredient_id = 'honey_grilled_salmon_ingredient_10' THEN '1991' -- asparagus
-            ELSE cnf_food_code
-        END
-        WHERE session_id = 'YOUR_SESSION_ID' 
-          AND ingredient_id IN (
-            'honey_grilled_salmon_ingredient_2', 'honey_grilled_salmon_ingredient_3',
-            'honey_grilled_salmon_ingredient_4', 'honey_grilled_salmon_ingredient_5', 
-            'honey_grilled_salmon_ingredient_9', 'honey_grilled_salmon_ingredient_10'
-          );
-        
-        -- 🔄 Alternative: Pattern-based bulk linking (when ingredient IDs vary)
-        UPDATE temp_recipe_ingredients 
-        SET cnf_food_code = CASE 
-            WHEN ingredient_name LIKE '%honey%' THEN '4294'
-            WHEN ingredient_name LIKE '%salmon%' THEN '3183'
-            WHEN ingredient_name LIKE '%soy sauce%' THEN '3416'
-            WHEN ingredient_name LIKE '%vegetable oil%' THEN '451'
-            WHEN ingredient_name LIKE '%brown sugar%' THEN '4317'
-            WHEN ingredient_name LIKE '%asparagus%' THEN '1991'
-            ELSE cnf_food_code
-        END
-        WHERE session_id = 'YOUR_SESSION_ID' AND recipe_id = 'YOUR_RECIPE_ID';
-        ```
-        
-        **🎯 NUTRITION ANALYSIS TEMPLATES (Use AFTER linking ingredients):**
-        
-        **🚨 CRITICAL: USE SOPHISTICATED UNIT CONVERSION - NEVER SIMPLE ÷100!**
-        **❌ WRONG**: `(ri.amount/100)*cn.nutrient_value` ← Ignores units completely
-        **✅ RIGHT**: Use templates below with proper unit matching and conversion priorities
-        
-        **1. SOPHISTICATED Unit Conversion Analysis (RECOMMENDED - Handles All Unit Types):**
-        ```sql
-        WITH unit_normalized AS (
-            SELECT 
-                ri.ingredient_id,
-                ri.ingredient_name,
-                ri.amount as recipe_amount,
-                CASE 
-                    WHEN LOWER(ri.unit) IN ('ml', 'millilitre', 'milliliter') THEN 'ml'
-                    WHEN LOWER(ri.unit) IN ('tsp', 'teaspoon') THEN 'tsp'
-                    WHEN LOWER(ri.unit) IN ('tbsp', 'tablespoon') THEN 'tbsp'
-                    WHEN LOWER(ri.unit) IN ('cup', 'cups') THEN 'cup'
-                    WHEN LOWER(ri.unit) IN ('g', 'gram', 'grams') THEN 'g'
-                    WHEN LOWER(ri.unit) IN ('kg', 'kilogram', 'kilograms') THEN 'kg'
-                    WHEN LOWER(ri.unit) IN ('lb', 'pound', 'pounds') THEN 'lb'
-                    WHEN LOWER(ri.unit) IN ('oz', 'ounce', 'ounces') THEN 'oz'
-                    ELSE LOWER(ri.unit)
-                END as normalized_unit,
-                cn.nutrient_name,
-                cn.nutrient_value,
-                cn.per_amount,
-                CASE 
-                    WHEN LOWER(cn.unit) IN ('ml', 'millilitre', 'milliliter') THEN 'ml'
-                    WHEN LOWER(cn.unit) IN ('g', 'gram', 'grams') THEN 'g'
-                    ELSE LOWER(cn.unit)
-                END as cnf_normalized_unit
-            FROM temp_recipe_ingredients ri
-            JOIN temp_cnf_nutrients cn ON ri.cnf_food_code = cn.cnf_food_code
-            WHERE ri.session_id = 'YOUR_SESSION_ID' AND cn.session_id = 'YOUR_SESSION_ID'
-            AND ri.recipe_id = 'YOUR_RECIPE_ID'
-            AND cn.nutrient_name IN ('Energy (kcal)', 'Protein', 'Total Fat', 'Carbohydrate')
-            AND ri.cnf_food_code IS NOT NULL
-        ), 
-        best_unit_matches AS (
-            SELECT 
-                ingredient_id, ingredient_name, recipe_amount, normalized_unit,
-                nutrient_name, nutrient_value, per_amount, cnf_normalized_unit,
-                -- Enhanced priority system with unit conversion factors
-                CASE 
-                    WHEN normalized_unit = cnf_normalized_unit THEN 1                    -- Exact match (BEST)
-                    WHEN normalized_unit = 'ml' AND cnf_normalized_unit = 'g' THEN 2    -- Volume to weight (liquid)
-                    WHEN normalized_unit = 'g' AND cnf_normalized_unit = 'ml' THEN 2    -- Weight to volume (liquid)
-                    WHEN normalized_unit IN ('tsp', 'tbsp', 'cup') AND cnf_normalized_unit = 'ml' THEN 2  -- Volume conversions
-                    WHEN cnf_normalized_unit = 'g' THEN 3                               -- Weight fallback
-                    WHEN cnf_normalized_unit = 'ml' THEN 4                              -- Volume fallback
-                    ELSE 5                                                               -- Per 100g baseline
-                END as conversion_priority,
-                -- Sophisticated conversion calculation
-                CASE 
-                    -- Exact unit matches
-                    WHEN normalized_unit = cnf_normalized_unit THEN (recipe_amount/per_amount)*nutrient_value
-                    
-                    -- Volume conversions to ml base
-                    WHEN normalized_unit = 'tsp' AND cnf_normalized_unit = 'ml' THEN ((recipe_amount * 5)/per_amount)*nutrient_value
-                    WHEN normalized_unit = 'tbsp' AND cnf_normalized_unit = 'ml' THEN ((recipe_amount * 15)/per_amount)*nutrient_value
-                    WHEN normalized_unit = 'cup' AND cnf_normalized_unit = 'ml' THEN ((recipe_amount * 250)/per_amount)*nutrient_value
-                    
-                    -- Weight conversions to gram base
-                    WHEN normalized_unit = 'kg' AND cnf_normalized_unit = 'g' THEN ((recipe_amount * 1000)/per_amount)*nutrient_value
-                    WHEN normalized_unit = 'lb' AND cnf_normalized_unit = 'g' THEN ((recipe_amount * 453.592)/per_amount)*nutrient_value
-                    WHEN normalized_unit = 'oz' AND cnf_normalized_unit = 'g' THEN ((recipe_amount * 28.3495)/per_amount)*nutrient_value
-                    
-                    -- Cross-conversion approximations (liquid density ~1g/ml)
-                    WHEN normalized_unit = 'ml' AND cnf_normalized_unit = 'g' AND per_amount = 100 THEN (recipe_amount/100)*nutrient_value
-                    WHEN normalized_unit = 'g' AND cnf_normalized_unit = 'ml' AND per_amount = 100 THEN (recipe_amount/100)*nutrient_value
-                    
-                    -- Fallback to per-100g baseline (least accurate)
-                    ELSE (recipe_amount/100)*nutrient_value 
-                END as calculated_value,
-                ROW_NUMBER() OVER (
-                    PARTITION BY ingredient_id, nutrient_name 
-                    ORDER BY conversion_priority
-                ) as rn
-            FROM unit_normalized
-        )
-        SELECT 
-            'TOTAL_SOPHISTICATED' as calculation_type,
-            ROUND(SUM(CASE WHEN nutrient_name = 'Energy (kcal)' THEN calculated_value ELSE 0 END), 1) as calories,
-            ROUND(SUM(CASE WHEN nutrient_name = 'Protein' THEN calculated_value ELSE 0 END), 1) as protein_g,
-            ROUND(SUM(CASE WHEN nutrient_name = 'Total Fat' THEN calculated_value ELSE 0 END), 1) as fat_g,
-            ROUND(SUM(CASE WHEN nutrient_name = 'Carbohydrate' THEN calculated_value ELSE 0 END), 1) as carbs_g
-        FROM best_unit_matches
-        WHERE rn = 1  -- Only use the best conversion for each ingredient-nutrient combination
-        ```
-        
-        **2. Unit Conversion Verification (Debug Your Calculations):**
-        ```sql
-        SELECT 
-            ri.ingredient_name,
-            ri.amount as recipe_amount,
-            ri.unit as recipe_unit,
-            cn.per_amount,
-            cn.unit as cnf_unit,
-            CASE 
-                WHEN LOWER(ri.unit) = LOWER(cn.unit) THEN 'EXACT_MATCH'
-                WHEN LOWER(ri.unit) IN ('tsp', 'tbsp', 'cup') AND LOWER(cn.unit) = 'ml' THEN 'VOLUME_CONVERSION'
-                WHEN LOWER(ri.unit) IN ('kg', 'lb', 'oz') AND LOWER(cn.unit) = 'g' THEN 'WEIGHT_CONVERSION'
-                WHEN LOWER(ri.unit) = 'ml' AND LOWER(cn.unit) = 'g' THEN 'VOLUME_TO_WEIGHT_APPROX'
-                WHEN LOWER(ri.unit) = 'g' AND LOWER(cn.unit) = 'ml' THEN 'WEIGHT_TO_VOLUME_APPROX'
-                ELSE 'FALLBACK_PER_100G'
-            END as conversion_method,
-            CASE 
-                WHEN LOWER(ri.unit) = LOWER(cn.unit) THEN ri.amount/cn.per_amount
-                WHEN LOWER(ri.unit) = 'tsp' AND LOWER(cn.unit) = 'ml' THEN (ri.amount * 5)/cn.per_amount
-                WHEN LOWER(ri.unit) = 'tbsp' AND LOWER(cn.unit) = 'ml' THEN (ri.amount * 15)/cn.per_amount
-                WHEN LOWER(ri.unit) = 'cup' AND LOWER(cn.unit) = 'ml' THEN (ri.amount * 250)/cn.per_amount
-                ELSE ri.amount/100
-            END as conversion_factor
-        FROM temp_recipe_ingredients ri
-        JOIN temp_cnf_nutrients cn ON ri.cnf_food_code = cn.cnf_food_code
-        WHERE ri.session_id = 'YOUR_SESSION_ID' AND cn.session_id = 'YOUR_SESSION_ID'
-        AND ri.recipe_id = 'YOUR_RECIPE_ID' AND cn.nutrient_name = 'Energy (kcal)'
-        GROUP BY ri.ingredient_id, ri.ingredient_name
-        ORDER BY conversion_method, ri.ingredient_name
-        ```
-        
-        **3. Simple Unit Matching (BASIC - Only Use When Sophisticated Method Fails):**
-        ```sql
-        WITH best_unit_matches AS (
-            SELECT 
-                ri.ingredient_id,
-                ri.ingredient_name,
-                ri.amount,
-                ri.unit as ingredient_unit,
-                cn.nutrient_name,
-                cn.nutrient_value,
-                cn.per_amount,
-                cn.unit as cnf_unit,
-                -- Priority: 1=exact match (case insensitive), 2=gram fallback, 3=ml fallback
-                CASE 
-                    WHEN LOWER(ri.unit) = LOWER(cn.unit) THEN 1
-                    WHEN cn.unit = 'g' THEN 2
-                    WHEN cn.unit = 'ml' THEN 3
-                    ELSE 4
-                END as match_priority,
-                -- Calculate nutrition value with basic unit conversion
-                CASE 
-                    WHEN LOWER(ri.unit) = LOWER(cn.unit) THEN (ri.amount/cn.per_amount)*cn.nutrient_value
-                    ELSE (ri.amount/100)*cn.nutrient_value 
-                END as calculated_value,
-                ROW_NUMBER() OVER (
-                    PARTITION BY ri.ingredient_id, cn.nutrient_name 
-                    ORDER BY 
-                        CASE 
-                            WHEN LOWER(ri.unit) = LOWER(cn.unit) THEN 1
-                            WHEN cn.unit = 'g' THEN 2
-                            WHEN cn.unit = 'ml' THEN 3
-                            ELSE 4
-                        END
-                ) as rn
-            FROM temp_recipe_ingredients ri
-            JOIN temp_cnf_nutrients cn ON ri.cnf_food_code = cn.cnf_food_code
-            WHERE ri.session_id = 'YOUR_SESSION_ID' AND cn.session_id = 'YOUR_SESSION_ID'
-            AND ri.recipe_id = 'YOUR_RECIPE_ID' AND cn.per_amount = 100
-            AND cn.nutrient_name IN ('Energy (kcal)', 'Protein', 'Total Fat', 'Carbohydrate')
-        )
-        SELECT 
-            'TOTAL_BASIC' as calculation_type,
-            ROUND(SUM(CASE WHEN nutrient_name = 'Energy (kcal)' THEN calculated_value ELSE 0 END), 1) as calories,
-            ROUND(SUM(CASE WHEN nutrient_name = 'Protein' THEN calculated_value ELSE 0 END), 1) as protein_g,
-            ROUND(SUM(CASE WHEN nutrient_name = 'Total Fat' THEN calculated_value ELSE 0 END), 1) as fat_g,
-            ROUND(SUM(CASE WHEN nutrient_name = 'Carbohydrate' THEN calculated_value ELSE 0 END), 1) as carbs_g
-        FROM best_unit_matches
-        WHERE rn = 1  -- Only use the best match for each ingredient-nutrient combination
-        ```
-        
-        **2. Per-Serving Nutrition:**
-        ```sql
-        SELECT 
-            r.title,
-            (total_nutrition.calories / r.base_servings) as calories_per_serving,
-            (total_nutrition.protein_g / r.base_servings) as protein_per_serving,
-            (total_nutrition.fat_g / r.base_servings) as fat_per_serving,
-            (total_nutrition.carbs_g / r.base_servings) as carbs_per_serving
-        FROM temp_recipes r
-        JOIN (/* INSERT QUERY 1 HERE */) total_nutrition ON 1=1
-        WHERE r.session_id = 'YOUR_SESSION_ID' AND r.recipe_id = 'YOUR_RECIPE_ID'
-        ```
-        
-        **3. Ingredient-by-Ingredient Breakdown:**
-        ```sql
-        SELECT 
-            ri.ingredient_name,
-            ri.amount,
-            ri.unit,
-            cn.nutrient_name,
-            CASE WHEN ri.unit = cn.unit THEN (ri.amount/cn.per_amount)*cn.nutrient_value 
-                 ELSE (ri.amount/100)*cn.nutrient_value END as contribution
-        FROM temp_recipe_ingredients ri
-        JOIN temp_cnf_nutrients cn ON ri.cnf_food_code = cn.cnf_food_code
-        WHERE ri.session_id = 'YOUR_SESSION_ID' AND cn.session_id = 'YOUR_SESSION_ID'
-        AND ri.recipe_id = 'YOUR_RECIPE_ID' 
-        AND cn.nutrient_name IN ('Energy (kcal)', 'Protein', 'Total Fat', 'Carbohydrate')
-        ORDER BY ri.ingredient_name, cn.nutrient_name
-        ```
-        
-        **4. Find Top Calorie Contributors:**
-        ```sql
-        SELECT 
-            ri.ingredient_name,
-            CASE WHEN ri.unit = cn.unit THEN (ri.amount/cn.per_amount)*cn.nutrient_value 
-                 ELSE (ri.amount/100)*cn.nutrient_value END as calories_contributed
-        FROM temp_recipe_ingredients ri
-        JOIN temp_cnf_nutrients cn ON ri.cnf_food_code = cn.cnf_food_code
-        WHERE ri.session_id = 'YOUR_SESSION_ID' AND cn.session_id = 'YOUR_SESSION_ID'
-        AND ri.recipe_id = 'YOUR_RECIPE_ID' AND cn.nutrient_name = 'Energy (kcal)'
-        ORDER BY calories_contributed DESC
-        ```
-        
-        **5. Enhanced CNF-Recipe Mapping Report (NEW - Uses ingredient_name column):**
-        ```sql
-        SELECT 
-            ri.ingredient_name as recipe_ingredient,
-            cf.food_description as cnf_food_match,
-            cf.ingredient_name as tracked_ingredient,
-            COUNT(DISTINCT cn.nutrient_name) as nutrient_count,
-            ri.cnf_food_code
-        FROM temp_recipe_ingredients ri
-        JOIN temp_cnf_foods cf ON ri.cnf_food_code = cf.cnf_food_code AND ri.session_id = cf.session_id
-        LEFT JOIN temp_cnf_nutrients cn ON cf.cnf_food_code = cn.cnf_food_code AND cf.session_id = cn.session_id
-        WHERE ri.session_id = 'YOUR_SESSION_ID' AND ri.recipe_id = 'YOUR_RECIPE_ID'
-        GROUP BY ri.ingredient_name, cf.food_description, cf.ingredient_name, ri.cnf_food_code
-        ORDER BY nutrient_count DESC
-        ```
-        
-        **6. Identify Missing CNF Linkages:**
-        ```sql
-        SELECT 
-            ri.ingredient_name,
-            ri.ingredient_id,
-            ri.amount,
-            ri.unit,
-            'Missing CNF link' as status
-        FROM temp_recipe_ingredients ri
-        WHERE ri.session_id = 'YOUR_SESSION_ID' 
-        AND ri.recipe_id = 'YOUR_RECIPE_ID'
-        AND (ri.cnf_food_code IS NULL OR ri.cnf_food_code = '')
-        ORDER BY ri.ingredient_order
-        ```
-        
-        **⚡ EFFICIENCY GUIDELINES:**
-        - 🚨 **CRITICAL**: ALWAYS use sophisticated unit conversion (Template 1) for nutrition calculations
-        - ❌ **NEVER**: Use simple `(ri.amount/100)*cn.nutrient_value` - this ignores units completely!
-        - ✅ **ALWAYS**: Use unit normalization and conversion priorities for accurate results
-        - ❌ **AVOID**: Using complex auto-matching tools that can fail silently
-        - ✅ **PREFER**: Manual step-by-step workflow with full control and transparency
-        - ❌ **AVOID**: Individual tool calls for each ingredient
-        - ✅ **PREFER**: Batch operations where possible (bulk UPDATE queries)
-        - ❌ **AVOID**: Running nutrition analysis before linking ingredients
-        - ✅ **PREFER**: Always check ingredient linkage first with SELECT queries
-        - 🎯 **BEST PRACTICE**: Use Template 2 to verify unit conversions before final calculations
-        
-        **Key Benefits:**
-        - **Manual control**: You decide which CNF foods match which ingredients
-        - **Transparent linking**: All ingredient-CNF associations are visible
-        - **Flexible analysis**: Write custom queries for any nutrition question
-        - **Unit conversion**: Handle serving size conversions in SQL
-        - **Reliable**: No complex auto-matching to break down
-        - **Debuggable**: Each step can be verified independently
-        
-        Use this tool when:
-        - Manually linking ingredients to CNF foods (UPDATE queries)
-        - Calculating recipe nutrition totals (SELECT queries)
-        - Comparing nutritional content across ingredients
-        - Analyzing nutrition per serving or per ingredient
-        - Creating custom nutrition reports
-        - Preparing data for DRI adequacy analysis
+        The tool requires that ingredients have been previously linked to CNF data using
+        get_cnf_macronutrients_only or bulk_get_cnf_macronutrients. After running this tool,
+        review the temp_recipe_macros table and use simple_math_calculator for final calculations.
         
         Args:
-            input_data: SQLQueryInput with session_id and SQL query
+            input_data: Contains session_id (data location) and recipe_id (target recipe identifier)
             
         Returns:
-            Dict with query results including rows, columns, and data
+            Dict with unit matching analysis summary and temp_recipe_macros population status
         """
         try:
-            from .schema import update_session_access_time
-            
-            # Update session access time
-            update_session_access_time(input_data.session_id)
-            
-            # Safety check: Block dangerous operations
-            query_upper = input_data.query.upper().strip()
-            if any(dangerous in query_upper for dangerous in ['DROP', 'DELETE', 'TRUNCATE', 'ALTER']):
-                return {"error": "Dangerous operations (DROP, DELETE, TRUNCATE, ALTER) are not allowed for safety"}
-            
-            # Validate session-scoped operations
-            if query_upper.startswith('UPDATE') or query_upper.startswith('INSERT'):
-                if 'temp_' not in input_data.query:
-                    return {"error": "UPDATE/INSERT operations are only allowed on temp_ tables"}
-                if input_data.session_id not in input_data.query:
-                    return {"error": "UPDATE/INSERT operations must include session_id in WHERE clause for safety"}
-            
-            # Special validation for CNF nutrition queries
-            if any(table in input_data.query for table in ['temp_cnf_nutrients', 'temp_cnf_foods']):
-                # Check if session has CNF data before allowing queries
-                with get_db_connection() as conn:
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT COUNT(*) FROM temp_cnf_foods WHERE session_id = ?", (input_data.session_id,))
-                    cnf_foods_count = cursor.fetchone()[0]
-                    
-                    if cnf_foods_count == 0 and query_upper.startswith('SELECT'):
-                        return {
-                            "warning": "No CNF foods found in session - use get_cnf_nutrient_profile() first",
-                            "session_id": input_data.session_id,
-                            "cnf_foods_count": cnf_foods_count,
-                            "suggestion": "Search for CNF foods using search_cnf_foods(), then get profiles with get_cnf_nutrient_profile()",
-                            "rows": 0,
-                            "columns": [],
-                            "data": []
-                        }
-            
-            # Execute query directly on SQLite temp tables
+            # Get recipe details
             with get_db_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute(input_data.query)
                 
-                # Handle different query types
-                if query_upper.startswith('SELECT'):
-                    # Get column names for SELECT queries
-                    columns = [description[0] for description in cursor.description] if cursor.description else []
+                # Get recipe base servings
+                cursor.execute("""
+                    SELECT title, base_servings FROM temp_recipes 
+                    WHERE session_id = ? AND recipe_id = ?
+                """, (input_data.session_id, input_data.recipe_id))
+                
+                recipe_info = cursor.fetchone()
+                if not recipe_info:
+                    return {"error": f"Recipe {input_data.recipe_id} not found in session {input_data.session_id}"}
+                
+                recipe_title, base_servings = recipe_info
+                base_servings = base_servings or 1
+                
+                # Get all ingredients (including those without CNF linkage)
+                cursor.execute("""
+                    SELECT ri.ingredient_id, ri.ingredient_name, ri.amount, ri.unit, ri.cnf_food_code
+                    FROM temp_recipe_ingredients ri
+                    WHERE ri.session_id = ? AND ri.recipe_id = ?
+                    ORDER BY ri.ingredient_order
+                """, (input_data.session_id, input_data.recipe_id))
+                
+                ingredients = cursor.fetchall()
+                if not ingredients:
+                    return {"error": f"No ingredients found for recipe {input_data.recipe_id}"}
+                
+                # Clear existing temp_recipe_macros for this recipe
+                cursor.execute("""
+                    DELETE FROM temp_recipe_macros 
+                    WHERE session_id = ? AND recipe_id = ?
+                """, (input_data.session_id, input_data.recipe_id))
+                
+                # Analyze unit matching for each ingredient
+                ingredients_analyzed = 0
+                manual_decisions_needed = 0
+                exact_matches = 0
+                conversion_available = 0
+                no_cnf_data = 0
+                
+                for ingredient_id, ingredient_name, amount, unit, cnf_food_code in ingredients:
+                    ingredients_analyzed += 1
                     
-                    # Fetch all results
-                    rows = cursor.fetchall()
-                    
-                    # Convert rows to list of dictionaries
-                    data = [dict(row) for row in rows]
-                    
-                    return {
-                        "success": "Query executed successfully",
-                        "rows": len(data),
-                        "columns": columns,
-                        "data": data,
-                        "session_id": input_data.session_id,
-                        "query": input_data.query,
-                        "available_tables": ["temp_recipe_ingredients", "temp_cnf_foods", "temp_cnf_nutrients", "temp_recipes"],
-                        "storage_type": "persistent_sqlite"
-                    }
-                else:
-                    # Handle UPDATE/INSERT queries
-                    affected_rows = cursor.rowcount
-                    conn.commit()
-                    
-                    return {
-                        "success": "Query executed successfully",
-                        "operation": "UPDATE/INSERT",
-                        "affected_rows": affected_rows,
-                        "session_id": input_data.session_id,
-                        "query": input_data.query,
-                        "available_tables": ["temp_recipe_ingredients", "temp_cnf_foods", "temp_cnf_nutrients", "temp_recipes"],
-                        "storage_type": "persistent_sqlite"
-                    }
-            
-        except sqlite3.Error as e:
-            ##logger.error(f"SQLite error executing nutrition query: {e}")
-            return {"error": f"SQLite error executing query: {str(e)}"}
-        except Exception as e:
-            ##logger.error(f"Error executing SQL query: {e}")
-            return {"error": f"Failed to execute SQL query: {str(e)}"}
-
-    @mcp.tool() 
-    def get_nutrition_tables_info() -> Dict[str, Any]:
-        """
-        Get information about available virtual nutrition tables and their schemas.
-        
-        This tool provides documentation about the virtual SQL tables available for 
-        nutrition analysis, including column descriptions and example queries.
-        
-        Use this tool when:
-        - Learning about available nutrition data structures
-        - Understanding table relationships and schemas
-        - Getting examples for common nutrition queries
-        - Troubleshooting SQL query issues
-        
-        Returns:
-            Dict with complete table documentation and example queries
-        """
-        try:
-            tables_info = get_available_tables_info()
-            
-            return {
-                "success": "Retrieved nutrition tables information",
-                "tables": tables_info,
-                "notes": [
-                    "These are virtual tables stored in session memory",
-                    "Data must be loaded using get_cnf_nutrient_profile before querying",
-                    "Use execute_nutrition_sql to run queries on these tables",
-                    "All calculations should be done in SQL for transparency"
-                ],
-                "example_workflow": [
-                    "1. Store recipe: store_recipe_in_session",
-                    "2. Parse ingredients: parse_and_update_ingredients", 
-                    "3. Get CNF data: get_cnf_nutrient_profile for each ingredient",
-                    "4. Query nutrition: execute_nutrition_sql with custom queries"
-                ]
-            }
-            
-        except Exception as e:
-            ##logger.error(f"Error getting tables info: {e}")
-            return {"error": f"Failed to get tables info: {str(e)}"}
-
-    @mcp.tool()
-    def get_ingredient_nutrition_matches(session_id: str) -> Dict[str, Any]:
-        """
-        View all current ingredient-CNF matches in a session.
-        
-        This tool provides an overview of all ingredient-to-CNF food linkages currently
-        stored in a virtual session. Use this to review matches before calculating
-        nutrition or to identify ingredients that still need CNF linking.
-        
-        Use this tool when:
-        - Reviewing ingredient-CNF matches before nutrition calculation
-        - Identifying unmatched ingredients that need CNF linking
-        - Debugging nutrition calculation issues
-        - Getting an overview of session nutrition data status
-        
-        Args:
-            session_id: Session identifier to check for matches
-            
-        Returns:
-            Dict with all ingredient matches and session nutrition status
-        """
-        try:
-            session_data = get_virtual_session_data(session_id)
-            if session_data is None:
-                return {"error": f"Session {session_id} not found"}
-            
-            matches = session_data.get('ingredient_cnf_matches', {})
-            ingredients = session_data.get('ingredients', {})
-            profiles = session_data.get('nutrient_profiles', {})
-            
-            match_details = []
-            for ingredient_id, match_data in matches.items():
-                ingredient_info = ingredients.get(ingredient_id, {})
-                match_details.append({
-                    'ingredient_id': ingredient_id,
-                    'ingredient_name': ingredient_info.get('ingredient_name', ''),
-                    'ingredient_text': ingredient_info.get('ingredient_list_org', ''),
-                    'cnf_food_code': match_data.get('cnf_food_code', ''),
-                    'confidence_score': match_data.get('confidence_score', 0.0),
-                    'has_nutrient_profile': match_data.get('cnf_food_code', '') in profiles
-                })
-            
-            unmatched_ingredients = []
-            for ingredient_id, ingredient_data in ingredients.items():
-                if ingredient_id not in matches:
-                    unmatched_ingredients.append({
-                        'ingredient_id': ingredient_id,
-                        'ingredient_name': ingredient_data.get('ingredient_name', ''),
-                        'ingredient_text': ingredient_data.get('ingredient_list_org', '')
-                    })
-            
-            return {
-                "session_id": session_id,
-                "matched_ingredients": match_details,
-                "matched_count": len(match_details),
-                "unmatched_ingredients": unmatched_ingredients,
-                "unmatched_count": len(unmatched_ingredients),
-                "total_ingredients": len(ingredients),
-                "nutrient_profiles_available": len(profiles),
-                "match_coverage_percentage": (len(match_details) / len(ingredients)) * 100 if ingredients else 0
-            }
-            
-        except Exception as e:
-            ##logger.error(f"Error getting ingredient nutrition matches: {e}")
-            return {"error": f"Failed to get ingredient nutrition matches: {str(e)}"}
-
-    @mcp.tool()
-    def get_cnf_session_status(session_id: str) -> Dict[str, Any]:
-        """
-        Get comprehensive status of CNF data for a session - PERFECT FOR DEBUGGING!
-        
-        **🔍 DEBUGGING AND VALIDATION TOOL** - Use this to understand session state
-        This tool provides complete visibility into CNF data status, helping you
-        identify issues and validate the streamlined workflow at each step.
-        
-        **📊 COMPREHENSIVE SESSION ANALYSIS:**
-        - CNF foods count (from persistent SQLite)
-        - CNF nutrients count (from persistent SQLite)  
-        - Linked ingredients count vs total ingredients
-        - Linkage percentage for progress tracking
-        - Ready status for nutrition analysis
-        
-        **🎯 PERFECT FOR TROUBLESHOOTING:**
-        ```
-        Before CNF work: 0 CNF foods, 0% linkage → "Need to get CNF profiles"
-        After get_cnf_nutrient_profile(): 5 CNF foods, 0% linkage → "Need to link ingredients"
-        After execute_nutrition_sql(UPDATE): 5 CNF foods, 100% linkage → "Ready for analysis!"
-        ```
-        
-        **✅ WORKFLOW VALIDATION GUIDE:**
-        - `cnf_foods_count = 0` → Use get_cnf_nutrient_profile() first
-        - `linked_ingredients_count = 0` → Use execute_nutrition_sql(UPDATE) to link
-        - `ready_for_nutrition_analysis = true` → Use execute_nutrition_sql(SELECT) for analysis
-        
-        Use this tool when:
-        - Debugging CNF linking workflow issues
-        - Validating data state between workflow steps
-        - Understanding why nutrition queries return no results
-        - Tracking progress through the manual CNF workflow
-        - Confirming the streamlined architecture is working
-        
-        Args:
-            session_id: Session identifier to check
-            
-        Returns:
-            Dict with complete CNF data status and workflow guidance
-        """
-        return get_cnf_session_status(session_id)
-
-    @mcp.tool()
-    def clear_cnf_session_data(input_data: CNFCleanupInput) -> Dict[str, Any]:
-        """
-        Clear CNF data from a virtual session to free up memory.
-        
-        This tool removes CNF-related data from a virtual session while preserving
-        recipe and ingredient data. Use this to clean up nutrition data when analysis
-        is complete or to start fresh nutrition work.
-        
-        Use this tool when:
-        - Finished with nutrition analysis for a session
-        - Cleaning up memory usage
-        - Starting fresh nutrition analysis
-        - Removing outdated CNF data
-        
-        Args:
-            input_data: CNFCleanupInput with session_id and cleanup_type
-            
-        Returns:
-            Dict confirming what CNF data was cleared from the session
-        """
-        try:
-            session_data = get_virtual_session_data(input_data.session_id)
-            if session_data is None:
-                return {"error": f"Session {input_data.session_id} not found"}
-            
-            cleaned_items = []
-            
-            if input_data.cleanup_type in ('all', 'profiles'):
-                if 'nutrient_profiles' in session_data:
-                    profile_count = len(session_data['nutrient_profiles'])
-                    del session_data['nutrient_profiles']
-                    cleaned_items.append(f"{profile_count} nutrient profiles")
-            
-            if input_data.cleanup_type in ('all', 'matches'):
-                if 'ingredient_cnf_matches' in session_data:
-                    match_count = len(session_data['ingredient_cnf_matches'])
-                    del session_data['ingredient_cnf_matches']
-                    cleaned_items.append(f"{match_count} ingredient matches")
-            
-            if input_data.cleanup_type in ('all', 'summaries'):
-                if 'nutrition_summaries' in session_data:
-                    summary_count = len(session_data['nutrition_summaries'])
-                    del session_data['nutrition_summaries']
-                    cleaned_items.append(f"{summary_count} nutrition summaries")
-            
-            if input_data.cleanup_type in ('all', 'profiles'):
-                if 'cnf_search_results' in session_data:
-                    search_count = len(session_data['cnf_search_results'])
-                    del session_data['cnf_search_results']
-                    cleaned_items.append(f"{search_count} search result sets")
-            
-            return {
-                "success": f"Cleaned CNF data from session {input_data.session_id}",
-                "session_id": input_data.session_id,
-                "cleanup_type": input_data.cleanup_type,
-                "cleaned_items": cleaned_items,
-                "total_cleaned": len(cleaned_items)
-            }
-            
-        except Exception as e:
-            ##logger.error(f"Error clearing CNF session data: {e}")
-            return {"error": f"Failed to clear CNF session data: {str(e)}"}
-
-    ###logger.info("CNF tools registered successfully")
-
-def _store_cnf_profile_in_session(session_data: Dict[str, Any], food_code: str, 
-                                 serving_options: Dict[str, Any], refuse_info: str, 
-                                 nutrient_profile: Dict[str, Any]) -> None:
-    """Helper method to store CNF profile data in session (same logic as get_cnf_nutrient_profile)."""
-    # This replicates the storage logic from get_cnf_nutrient_profile
-    # Ensure CNF data structures exist
-    if 'nutrient_profiles' not in session_data:
-        session_data['nutrient_profiles'] = {}
-    if 'cnf_foods' not in session_data:
-        session_data['cnf_foods'] = []
-    if 'cnf_nutrients' not in session_data:
-        session_data['cnf_nutrients'] = []
-    
-    # Store complete profile (legacy format)
-    session_data['nutrient_profiles'][food_code] = {
-        'food_code': food_code,
-        'serving_options': serving_options,
-        'refuse_info': refuse_info,
-        'nutrient_profile': nutrient_profile,
-        'retrieved_at': str(json.dumps(None))
-    }
-    
-    # Add to cnf_foods table
-    cnf_foods_entry = {
-        'cnf_food_code': food_code,
-        'food_description': f"CNF Food {food_code}"
-    }
-    
-    existing_food = next((f for f in session_data['cnf_foods'] if f['cnf_food_code'] == food_code), None)
-    if not existing_food:
-        session_data['cnf_foods'].append(cnf_foods_entry)
-    
-    # Add to cnf_nutrients table (same logic as original)
-    if isinstance(nutrient_profile, dict):
-        for category_name, nutrients in nutrient_profile.items():
-            if isinstance(nutrients, list):
-                for nutrient in nutrients:
-                    nutrient_name = nutrient.get('Nutrient name', '')
-                    
-                    # Store 100g baseline value
-                    baseline_value = nutrient.get('Value per 100 g of edible portion', '')
-                    if baseline_value and baseline_value.strip():
-                        try:
-                            baseline_float = float(baseline_value)
-                            session_data['cnf_nutrients'].append({
-                                'cnf_food_code': food_code,
-                                'nutrient_name': nutrient_name,
-                                'nutrient_value': baseline_float,
-                                'per_amount': 100.0,
-                                'unit': 'g'
-                            })
-                        except (ValueError, TypeError):
-                            pass
-
-# Helper functions for CNF serving size processing
-
-def _parse_cnf_serving_columns(nutrient_entry: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
-    """
-    Parse all serving size columns from a CNF nutrient entry.
-    
-    Args:
-        nutrient_entry: Single nutrient dict from CNF data
-        
-    Returns:
-        Dict mapping serving descriptions to parsed serving info
-        Example: {"5ml / 5 g": {"amount": 5, "unit": "ml", "weight": 5, "value": 44.25}}
-    """
-    serving_data = {}
-    
-    for key, value in nutrient_entry.items():
-        # Skip standard columns
-        if key in ['Nutrient name', 'Unit see footnote1', 'Value per 100 g of edible portion', 
-                   'Number of observations', 'Standard error', 'Data source View list']:
-            continue
-            
-        # Parse serving size columns (e.g., "5ml / 5 g", "15ml / 14 g", "100ml / 92 g")
-        if '/' in key and any(unit in key.lower() for unit in ['ml', 'g', 'tsp', 'tbsp', 'cup']):
-            try:
-                # Extract serving amount and unit
-                parts = key.split('/')
-                if len(parts) >= 2:
-                    # Parse first part (e.g., "5ml")
-                    serving_part = parts[0].strip()
-                    amount_match = None
-                    unit = None
-                    
-                    # Extract number and unit
-                    import re
-                    match = re.match(r'(\d+(?:\.\d+)?)\s*([a-zA-Z]+)', serving_part)
-                    if match:
-                        amount = float(match.group(1))
-                        unit = match.group(2).lower()
+                    if cnf_food_code:
+                        # Get nutrient data for unit matching analysis
+                        cursor.execute("""
+                            SELECT nutrient_name, nutrient_value, per_amount, unit as cnf_unit
+                            FROM temp_cnf_nutrients
+                            WHERE session_id = ? AND cnf_food_code = ?
+                            AND nutrient_name IN ('Energy (kcal)', 'Protein', 'Total Fat', 'Carbohydrate')
+                            ORDER BY nutrient_name, per_amount
+                        """, (input_data.session_id, cnf_food_code))
                         
-                        # Parse weight part if present (e.g., "5 g")
-                        weight_part = parts[1].strip()
-                        weight_match = re.match(r'(\d+(?:\.\d+)?)\s*g', weight_part)
-                        weight = float(weight_match.group(1)) if weight_match else None
+                        nutrients = cursor.fetchall()
                         
-                        # Convert value to float if possible
-                        nutrient_value = None
-                        if value and str(value).strip():
-                            try:
-                                nutrient_value = float(str(value).strip())
-                            except (ValueError, TypeError):
-                                continue
-                        
-                        serving_data[key] = {
-                            'amount': amount,
-                            'unit': unit,
-                            'weight': weight,
-                            'value': nutrient_value,
-                            'original_key': key
+                        # Analyze unit matching
+                        matching_analysis = _analyze_unit_matching(
+                            ingredient_name, amount, unit, nutrients
+                        )
+                    else:
+                        # No CNF data available
+                        matching_analysis = {
+                            "unit_match_status": 'no_cnf_data',
+                            "available_cnf_servings": '[]',
+                            "recommended_conversion": f"No CNF data linked for '{ingredient_name}' - needs CNF food code assignment",
+                            "confidence_level": 'low'
                         }
-            except Exception:
-                continue
+                    
+                    # Count status types
+                    status = matching_analysis["unit_match_status"]
+                    if status == 'exact_match':
+                        exact_matches += 1
+                    elif status == 'conversion_available':
+                        conversion_available += 1
+                    elif status == 'manual_decision_needed':
+                        manual_decisions_needed += 1
+                    elif status == 'no_cnf_data':
+                        no_cnf_data += 1
+                    
+                    # Insert into temp_recipe_macros
+                    cursor.execute("""
+                        INSERT INTO temp_recipe_macros (
+                            session_id, recipe_id, ingredient_id, cnf_food_code,
+                            recipe_ingredient_name, recipe_amount, recipe_unit,
+                            unit_match_status, available_cnf_servings, 
+                            recommended_conversion, confidence_level
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        input_data.session_id, input_data.recipe_id, ingredient_id, cnf_food_code,
+                        ingredient_name, amount, unit,
+                        matching_analysis["unit_match_status"],
+                        matching_analysis["available_cnf_servings"],
+                        matching_analysis["recommended_conversion"],
+                        matching_analysis["confidence_level"]
+                    ))
                 
-    return serving_data
+                conn.commit()
+                
+                return {
+                    "success": True,
+                    "recipe_title": recipe_title,
+                    "recipe_id": input_data.recipe_id,
+                    "base_servings": base_servings,
+                    "unit_matching_complete": True,
+                    "ingredients_analyzed": ingredients_analyzed,
+                    "analysis_summary": {
+                        "exact_matches": exact_matches,
+                        "conversion_available": conversion_available,
+                        "manual_decisions_needed": manual_decisions_needed,
+                        "no_cnf_data": no_cnf_data
+                    },
+                    "next_steps": [
+                        "1. Review temp_recipe_macros table for unit matching status",
+                        "2. Make conversion decisions for manual_decision_needed ingredients", 
+                        "3. Use simple_math_calculator for nutrition calculations",
+                        "4. Update temp_recipe_macros with final calculated values"
+                    ],
+                    "sql_query_example": f"SELECT * FROM temp_recipe_macros WHERE session_id = '{input_data.session_id}' AND recipe_id = '{input_data.recipe_id}' ORDER BY unit_match_status, recipe_ingredient_name"
+                }
+                
+        except Exception as e:
+            return {
+                "error": f"Failed to analyze recipe unit matching: {str(e)}",
+                "recipe_id": input_data.recipe_id
+            }
+
+
 
 def _normalize_unit(unit: str) -> str:
-    """
-    Normalize unit variations to standard forms.
+    """Normalize unit variations for better matching."""
+    if not unit:
+        return ""
     
-    Args:
-        unit: Unit string to normalize
-        
-    Returns:
-        Normalized unit string
-    """
-    unit_map = {
-        'ml': 'mL', 'milliliter': 'mL', 'millilitre': 'mL',
-        'l': 'L', 'liter': 'L', 'litre': 'L',
-        'g': 'g', 'gram': 'g', 'grams': 'g',
-        'kg': 'kg', 'kilogram': 'kg', 'kilograms': 'kg',
-        'tsp': 'tsp', 'teaspoon': 'tsp', 'teaspoons': 'tsp',
-        'tbsp': 'tbsp', 'tablespoon': 'tbsp', 'tablespoons': 'tbsp',
-        'cup': 'cup', 'cups': 'cup'
-    }
+    unit_lower = unit.lower().strip()
     
-    normalized = unit_map.get(unit.lower(), unit)
-    return normalized
+    # Volume units
+    if unit_lower in ['ml', 'millilitre', 'milliliter']:
+        return 'ml'
+    elif unit_lower in ['tsp', 'teaspoon']:
+        return 'tsp'
+    elif unit_lower in ['tbsp', 'tablespoon']:
+        return 'tbsp'
+    elif unit_lower in ['cup', 'cups']:
+        return 'cup'
+    # Weight units
+    elif unit_lower in ['g', 'gram', 'grams']:
+        return 'g'
+    elif unit_lower in ['kg', 'kilogram', 'kilograms']:
+        return 'kg'
+    elif unit_lower in ['lb', 'pound', 'pounds']:
+        return 'lb'
+    elif unit_lower in ['oz', 'ounce', 'ounces']:
+        return 'oz'
+    
+    return unit_lower
 
-def _match_recipe_units_to_servings(recipe_amount: float, recipe_unit: str, 
-                                   serving_data: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _analyze_unit_matching(ingredient_name: str, amount: float, unit: str, cnf_nutrients: list) -> Dict[str, Any]:
     """
-    Find best serving size matches for a recipe ingredient.
+    Analyze unit matching between recipe ingredient and CNF data without doing calculations.
     
-    Args:
-        recipe_amount: Amount from recipe (e.g., 10)
-        recipe_unit: Unit from recipe (e.g., "mL")
-        serving_data: Parsed serving data from CNF
-        
-    Returns:
-        List of calculation options ranked by accuracy
+    Returns analysis of what conversions are possible and recommendations for LLM decisions.
     """
-    recipe_unit_norm = _normalize_unit(recipe_unit)
-    calculation_options = []
-    
-    # Find direct unit matches
-    for serving_key, serving_info in serving_data.items():
-        if serving_info['value'] is None:
-            continue
-            
-        serving_unit_norm = _normalize_unit(serving_info['unit'])
+    try:
+        import json
         
-        if serving_unit_norm == recipe_unit_norm:
-            # Direct unit match - highest accuracy
-            multiplier = recipe_amount / serving_info['amount']
-            calculation_options.append({
-                'method': 'direct_serving_match',
-                'serving_key': serving_key,
-                'serving_amount': serving_info['amount'],
-                'serving_unit': serving_info['unit'],
-                'serving_value': serving_info['value'],
-                'multiplier': multiplier,
-                'formula': f"{serving_info['value']} * {multiplier}",
-                'description': f"Use {serving_info['amount']}{serving_info['unit']} serving × {multiplier:.2f}",
-                'accuracy': 'high',
-                'preferred': True
-            })
+        # Normalize recipe unit
+        normalized_unit = _normalize_unit(unit) if unit else 'unknown'
+        
+        # Get available CNF servings
+        available_servings = []
+        exact_matches = []
+        conversion_matches = []
+        
+        for nutrient_name, nutrient_value, per_amount, cnf_unit in cnf_nutrients:
+            if nutrient_name == 'Energy (kcal)':  # Use energy as representative nutrient
+                serving_info = {
+                    "amount": per_amount,
+                    "unit": cnf_unit,
+                    "calories_per_serving": nutrient_value
+                }
+                available_servings.append(serving_info)
+                
+                cnf_normalized = _normalize_unit(cnf_unit)
+                
+                # Check for exact matches
+                if normalized_unit == cnf_normalized:
+                    exact_matches.append(serving_info)
+                
+                # Check for conversion possibilities
+                elif _can_convert_units(normalized_unit, cnf_normalized):
+                    conversion_matches.append(serving_info)
+        
+        # Determine unit match status
+        if not cnf_nutrients:
+            unit_match_status = 'no_cnf_data'
+            confidence_level = 'low'
+            recommended_conversion = 'No CNF data available for this ingredient'
+        elif exact_matches:
+            unit_match_status = 'exact_match'
+            confidence_level = 'high'
+            best_match = exact_matches[0]
+            recommended_conversion = f"Exact match: {amount} {unit} matches CNF serving of {best_match['amount']} {best_match['unit']}"
+        elif conversion_matches:
+            unit_match_status = 'conversion_available'
+            confidence_level = 'medium'
+            best_match = conversion_matches[0]
+            recommended_conversion = f"Unit conversion: {amount} {unit} can be converted to match CNF serving of {best_match['amount']} {best_match['unit']}"
+        elif unit in [None, 'unknown', ''] or amount is None or amount <= 0:
+            unit_match_status = 'manual_decision_needed'
+            confidence_level = 'low'
+            recommended_conversion = f"Manual decision needed: '{ingredient_name}' has unclear amount/unit. Consider estimating reasonable serving size."
+        else:
+            unit_match_status = 'manual_decision_needed'
+            confidence_level = 'low'
+            recommended_conversion = f"Manual decision needed: '{amount} {unit}' needs conversion estimate to match available CNF servings"
+        
+        return {
+            "unit_match_status": unit_match_status,
+            "available_cnf_servings": json.dumps(available_servings),
+            "recommended_conversion": recommended_conversion,
+            "confidence_level": confidence_level,
+            "exact_matches_found": len(exact_matches),
+            "conversion_matches_found": len(conversion_matches)
+        }
+        
+    except Exception as e:
+        return {
+            "unit_match_status": 'no_match',
+            "available_cnf_servings": '[]',
+            "recommended_conversion": f"Error analyzing unit matching: {str(e)}",
+            "confidence_level": 'low',
+            "exact_matches_found": 0,
+            "conversion_matches_found": 0
+        }
+
+def _can_convert_units(recipe_unit: str, cnf_unit: str) -> bool:
+    """Check if unit conversion is possible between recipe and CNF units."""
+    # Volume conversions
+    volume_units = {'tsp', 'tbsp', 'cup', 'ml', 'l', 'fl oz'}
+    weight_units = {'g', 'kg', 'lb', 'oz'}
     
-    # Sort by multiplier closeness to 1.0 (prefer multipliers close to whole numbers)
-    calculation_options.sort(key=lambda x: abs(x['multiplier'] - round(x['multiplier'])))
+    recipe_is_volume = recipe_unit in volume_units
+    recipe_is_weight = recipe_unit in weight_units
+    cnf_is_volume = cnf_unit in volume_units
+    cnf_is_weight = cnf_unit in weight_units
     
-    # Mark only the best option as preferred
-    if calculation_options:
-        for i, option in enumerate(calculation_options):
-            option['preferred'] = (i == 0)
+    # Same category conversions
+    if recipe_is_volume and cnf_is_volume:
+        return True
+    if recipe_is_weight and cnf_is_weight:
+        return True
     
-    return calculation_options
+    # Cross-category approximations (liquids only)
+    if recipe_is_volume and cnf_is_weight and cnf_unit == 'g':
+        return True
+    if recipe_is_weight and cnf_is_volume and cnf_unit == 'ml':
+        return True
+    
+    return False
+
 
 # Helper functions for direct SQLite CNF population
 
@@ -1704,79 +1963,28 @@ def clear_cnf_data_from_sqlite(session_id: str, food_code: str = None) -> Dict[s
     except Exception as e:
         return {"error": f"Failed to clear CNF data: {str(e)}"}
 
-def get_cnf_session_status(session_id: str) -> Dict[str, Any]:
-    """
-    Helper function to get CNF data status for a session.
-    
-    Args:
-        session_id: Session identifier
-        
-    Returns:
-        Dict with session CNF data statistics
-    """
-    try:
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            
-            # Count CNF foods
-            cursor.execute("SELECT COUNT(*) FROM temp_cnf_foods WHERE session_id = ?", (session_id,))
-            cnf_foods_count = cursor.fetchone()[0]
-            
-            # Count CNF nutrients
-            cursor.execute("SELECT COUNT(*) FROM temp_cnf_nutrients WHERE session_id = ?", (session_id,))
-            cnf_nutrients_count = cursor.fetchone()[0]
-            
-            # Count linked ingredients
-            cursor.execute("SELECT COUNT(*) FROM temp_recipe_ingredients WHERE session_id = ? AND cnf_food_code IS NOT NULL", (session_id,))
-            linked_ingredients_count = cursor.fetchone()[0]
-            
-            # Count total ingredients
-            cursor.execute("SELECT COUNT(*) FROM temp_recipe_ingredients WHERE session_id = ?", (session_id,))
-            total_ingredients_count = cursor.fetchone()[0]
-            
-            return {
-                "session_id": session_id,
-                "cnf_foods_count": cnf_foods_count,
-                "cnf_nutrients_count": cnf_nutrients_count,
-                "linked_ingredients_count": linked_ingredients_count,
-                "total_ingredients_count": total_ingredients_count,
-                "linkage_percentage": (linked_ingredients_count / total_ingredients_count * 100) if total_ingredients_count > 0 else 0,
-                "ready_for_nutrition_analysis": cnf_foods_count > 0 and linked_ingredients_count > 0
-            }
-    except Exception as e:
-        return {"error": f"Failed to get CNF session status: {str(e)}"}
 
 def get_cnf_tools_status() -> Dict[str, Any]:
     """Get status of CNF tools availability."""
     return {
         "cnf_tools_available": CNF_TOOLS_AVAILABLE,
-        "tools_count": 8 if CNF_TOOLS_AVAILABLE else 0,
+        "tools_count": 7 if CNF_TOOLS_AVAILABLE else 0,
         "tools": [
             "simple_recipe_setup",            # 🛠️ Manual recipe setup (reliable)
             "search_cnf_foods",               # Core search functionality
             "get_cnf_nutrient_profile",       # Core profile retrieval (NOW: auto-populates SQLite)
             "link_ingredient_to_cnf_simple",  # Simplified linking for SQL
-            "execute_nutrition_sql",          # SQL query engine for nutrition calculations
             "get_nutrition_tables_info",      # SQL table schema documentation
-            "get_ingredient_nutrition_matches", # Match status viewer
-            "clear_cnf_session_data"          # Session cleanup
+            "get_ingredient_nutrition_matches" # Match status viewer
         ] if CNF_TOOLS_AVAILABLE else [],
         "architecture_improvement": {
             "issue_fixed": "CNF linking failures due to dual virtual/persistent architecture",
             "solution_implemented": "Full SQLite architecture - CNF data goes directly to persistent tables",
             "benefits": [
                 "✅ CNF data and ingredient updates use SAME SQLite tables",
-                "✅ execute_nutrition_sql() can find CNF data reliably",
                 "✅ No more virtual/persistent sync issues",
                 "✅ Transparent, debuggable nutrition analysis",
                 "✅ Single source of truth for all data"
             ],
-            "recommended_workflow": [
-                "1. simple_recipe_setup() → Transfer recipe data and parse ingredients",
-                "2. search_cnf_foods() → Find CNF food codes for ingredients",
-                "3. get_cnf_nutrient_profile() → Auto-stores CNF data in SQLite",
-                "4. execute_nutrition_sql(UPDATE) → Link ingredients to CNF foods",
-                "5. execute_nutrition_sql(SELECT) → Calculate nutrition totals"
-            ]
         }
     }

@@ -22,7 +22,6 @@ from .schema import (
     list_temp_sessions
 )
 from .math_tools import register_math_tools
-from .ingredient_parser import register_ingredient_tools
 from .dri_tools import register_dri_tools, register_session_dri_tools
 # Handle imports using absolute path resolution  
 import os
@@ -68,9 +67,6 @@ def register_db_tools(mcp: FastMCP):
     
     # Register math and calculation tools
     register_math_tools(mcp)
-
-    # Register ingredient parsing tools
-    register_ingredient_tools(mcp)
     
     # Register DRI macronutrient tools
     register_dri_tools(mcp)
@@ -88,11 +84,6 @@ def register_db_tools(mcp: FastMCP):
         virtual collections for ingredients, instructions, and metadata to enable structured analysis 
         and calculations without database bloat.
 
-        Always follow these steps after fetching a recipe:
-        1. Store recipe in session: store_recipe_in_session
-        2. Parse ingredients: parse_and_update_ingredients (reads ingredient_list_org, populates ingredient_name, amount, unit)
-        3. Check results: get_structured_ingredients
-        4. Use parsed data for scaling: scale_recipe_servings
         
         Use this tool after fetching a recipe with get_recipe() to enable:
         - Detailed recipe analysis and comparison

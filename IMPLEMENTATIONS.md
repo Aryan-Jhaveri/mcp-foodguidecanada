@@ -1,6 +1,59 @@
 # Implementations
 A list future ideas, tasks, and ideas to improve/maintain the mcp server
 
+## June 9, 2025
+#### Phase 4: CNF Tools Documentation Rewrite and Final Cleanup PENDING 📝 
+
+Following the successful workflow fixes, a comprehensive documentation cleanup is required to eliminate LLM confusion and establish professional standards.
+
+[x] **Cleanup Phase (User Completed)**
+    - [x] Removed broken `parse_and_update_ingredients` tool and `ingredient_parser.py` file  
+    - [x] Updated `queries.py` to remove ingredient tool registration
+    - [x] Cleaned `foodguide_data.db` for fresh testing
+    - [x] Updated `CLAUDE.md` to remove broken tool references
+
+[] **CNF Tools Complete Documentation Rewrite (Priority: CRITICAL)**
+    - [] Rewrite all 12 @mcp.tool() docstrings in `src/db/cnf_tools.py` 
+    - [] Follow professional style from `queries.py` (lines 80-160)
+    - [] Remove all emoji and marketing language (🚀 🎯 ✅ ❌ ⚡)
+    - [] Eliminate confusing multiple workflow options
+    - [] Accurately reflect fixed ingredient linking functionality
+    - [] Remove references to deprecated/removed tools
+
+[] **Tool Consolidation and Optimization**
+    - [] Remove redundant `link_ingredient_to_cnf_simple` tool (automatic linking now available)
+    - [] Remove debug `get_ingredient_nutrition_matches` tool (not essential)
+    - [] Streamline to 10 core tools from current 12
+    - [] Update tool numbering in `CLAUDE.md` to reflect changes
+
+[] **Documentation Standards Establishment** 
+    - [] Create consistent docstring template based on `queries.py` style
+    - [] Establish clear messaging hierarchy: Core Tools → Utility Tools → Advanced Tools
+    - [] Remove workflow confusion by focusing on single working approach
+    - [] Professional technical documentation over marketing copy
+
+[] **Final Integration Testing**
+    - [] Test complete workflow: `simple_recipe_setup` → CNF tools → `calculate_recipe_nutrition_summary`
+    - [] Verify all tool prompts accurately guide LLMs through working functionality
+    - [] Confirm no references to removed or broken tools
+    - [] Test bulk processing efficiency gains
+
+**Phase 4 Success Criteria:**
+- ✅ Professional documentation matching `queries.py` standards
+- ✅ Zero LLM confusion about workflow choices
+- ✅ Accurate tool descriptions reflecting fixed functionality  
+- ✅ Streamlined toolset focusing on working features
+- ✅ Complete removal of marketing language and emoji clutter
+
+**Context for Phase 4:**
+This documentation rewrite is critical because the current CNF tool prompts contain:
+- Confusing emoji-heavy marketing language
+- References to broken/removed functionality
+- Multiple conflicting workflow approaches
+- Technical inaccuracies about tool capabilities
+
+The rewrite will transform these into clean, professional documentation that clearly guides LLMs through the working nutrition analysis workflow, eliminating confusion and ensuring reliable tool usage.
+
 ## June 6, 2025
 #### Phase 1: EER Implementation COMPLETED ✅ 
 [x] **EER equation fetching** - Live fetching from Health Canada DRI website
@@ -41,7 +94,6 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
     - [x] `link_ingredient_to_cnf` - Associate recipe ingredients with CNF codes
     - [x] `calculate_recipe_nutrition` - **FIXED**: Now prepares data for math tools instead of manual calculation
     - [x] `get_ingredient_nutrition_matches` - View ingredient-CNF linkage status
-    - [x] `clear_cnf_session_data` - Clean up CNF data from virtual sessions
 
 [x] **Extended virtual session system** in `src/db/schema.py` for CNF data storage
     - [x] Added nutrient_profiles, ingredient_cnf_matches, nutrition_summaries structures
@@ -226,68 +278,73 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
     - [x] Eliminates tool complexity: Just SQL knowledge required
     - [x] Scalable analysis: Easy to extend for multiple recipes, nutrients, comparisons
 
-#### Phase 3.2: CNF Tool Efficiency & Unit Conversion Enhancement (Priority: HIGH) 🚧
-[] **Combine redundant CNF tools to reduce LLM tool call overhead**
-    - [] Create `search_and_get_cnf_nutrition` combined tool to replace 2-step workflow
-    - [] Single tool: ingredient_name → CNF search → best match selection → nutrient profile retrieval
-    - [] Reduces tool calls from 2→1 per ingredient for nutrition analysis
-    - [] Maintains current SQL table population approach (auto-populates temp_cnf_foods, temp_cnf_nutrients)
-    - [] Include confidence scoring for automated food matching decisions
-    - [] Fallback option for manual CNF food code specification when auto-matching fails
+#### Phase 3.2: CNF Macronutrient-Only Tool for LLM Efficiency COMPLETED ✅
+[x] **Create `get_cnf_macronutrients_only` tool for streamlined nutrition analysis**
+    - [x] LLM-optimized tool that fetches only 13 core macronutrients (vs 146 total nutrients)
+    - [x] Massive data reduction: 91% less nutrient data for LLMs to process
+    - [x] User-specified unit filtering: preferred_units parameter for targeted serving sizes
+    - [x] Same SQL table population approach but with filtered nutrient storage
+    - [x] Maintains sophisticated unit conversion and calculation capabilities
+    - [x] Perfect for basic recipe nutrition analysis without micronutrient complexity
 
-[] **Enhanced execute_nutrition_sql tool prompts with sophisticated unit conversion**
-    - [] Add comprehensive unit conversion SQL template examples to tool docstring
-    - [] Include sophisticated serving size matching SQL queries (beyond simple ÷100 approach)
-    - [] Provide unit normalization patterns for common conversions (ml↔mL, tsp↔teaspoon, etc.)
-    - [] Add SQL CASE statement examples for weight/volume/count unit matching
-    - [] Include best_unit_matches query pattern from previous CNF implementation
-    - [] Guide LLMs to use unit-aware calculations instead of naive 100g divisions
+[x] **Core macronutrients included in streamlined tool (13 total)**
+    - [x] Energy (kcal), Energy (kJ) - for calorie calculations
+    - [x] Protein, Total Fat, Carbohydrate - core macronutrients
+    - [x] Fatty acids: saturated, monounsaturated, polyunsaturated, trans - fat breakdown
+    - [x] Dietary Fiber, Sugars - carbohydrate details
+    - [x] Sodium, Cholesterol - key health markers
+    - [x] All nutrients essential for recipe nutrition analysis and meal planning
 
-[] **Updated CLAUDE.md workflow guidance for streamlined 4-step process**
-    - [] New simplified workflow: setup → search_and_get (bulk) → link → calculate
-    - [] Replace current 6-step manual process with optimized 4-step approach
-    - [] Emphasize unit conversion sophistication in SQL query examples
-    - [] Update workflow documentation to highlight reduced tool call overhead
-    - [] Maintain manual linking control while reducing search/retrieval redundancy
+[x] **Enhanced execute_nutrition_sql tool prompts with sophisticated unit conversion**
+    - [x] Add comprehensive unit conversion SQL template examples to tool docstring
+    - [x] Include sophisticated serving size matching SQL queries (beyond simple ÷100 approach)
+    - [x] Provide unit normalization patterns for common conversions (ml↔mL, tsp↔teaspoon, etc.)
+    - [x] Add SQL CASE statement examples for weight/volume/count unit matching
+    - [x] Include best_unit_matches query pattern from previous CNF implementation
+    - [x] Guide LLMs to use unit-aware calculations instead of naive 100g divisions
 
-[] **Optional temp_recipe_macros table for future optimization**
-    - [] Consider adding temp_recipe_macros virtual table for common nutrition summaries
-    - [] Pre-calculated columns: total_calories, total_protein, total_carbs, total_fat
-    - [] Enable faster nutrition overview queries without complex SQL aggregations
-    - [] Populate automatically when execute_nutrition_sql runs macro summary queries
-    - [] Design for future meal planning and daily nutrition tracking features
+[x] **Updated CLAUDE.md workflow guidance for streamlined LLM-optimized process**
+    - [x] New streamlined workflow: setup → check → search → get_macronutrients_only → link → calculate
+    - [x] Replace complex 6-step process with efficient 5-step macronutrient-focused approach  
+    - [x] Emphasize 91% data reduction benefits for LLM processing efficiency
+    - [x] Update workflow documentation to highlight macronutrient-only advantages
+    - [x] Maintain manual linking control while dramatically reducing data complexity
+    - [x] Added separate "Advanced Workflow" section for full nutrient profile when needed
 
-[] **Tool prompt optimization focus areas**
-    - [] Enhance search_and_get_cnf_nutrition with comprehensive ingredient matching guidance
-    - [] Improve execute_nutrition_sql with unit conversion sophistication examples
-    - [] Update get_nutrition_tables_info with advanced SQL patterns and unit conversion templates
-    - [] Add serving size optimization guidance to all CNF tool docstrings
-    - [] Emphasize LLM should prefer unit-matched calculations over 100g fallbacks
+[x] **Backward compatibility and tool ecosystem updates**
+    - [x] Keep existing `get_cnf_nutrient_profile` for advanced users needing full data
+    - [x] Updated tool numbering and descriptions in CLAUDE.md tool list
+    - [x] Added clear guidance on when to use macronutrients-only vs full profile
+    - [x] Maintained all existing SQL engine and unit conversion capabilities
+    - [x] Preserved session-scoped data storage approach with temp SQLite tables
 
-#### Phase 3.3: DRI Virtual Tables and Math Tool Integration PENDING 🚧
+[x] **Tool prompt optimization completed**
+    - [x] Enhanced get_cnf_macronutrients_only with comprehensive LLM guidance
+    - [x] Updated execute_nutrition_sql with unit conversion sophistication examples
+    - [x] Improved workflow documentation with macronutrient focus
+    - [x] Added serving size optimization guidance emphasizing core nutrients
+    - [x] Clear LLM direction to prefer streamlined tool for basic nutrition analysis
+
+**Phase 3.2 Key Benefits Delivered:**
+- ✅ **Massive efficiency gain**: 91% reduction in nutrient data complexity for LLMs
+- ✅ **Faster analysis**: Streamlined SQL queries on essential macronutrients only
+- ✅ **Better LLM experience**: Focus on nutrition basics without overwhelming micronutrient details
+- ✅ **Maintained accuracy**: Same sophisticated unit conversion with targeted data
+- ✅ **Flexible architecture**: Full profile still available for research-grade analysis
+
+#### Phase 3.3: DRI Direct Access and Math Tool Integration PENDING 🚧
+**⚠️ NOTE: Virtual session support is NOT being implemented for DRI tools per design decision**
+
 [] **Fix parsing issues and enhance robustness**
     - [] Normalize non-breaking spaces (`\xa0`) to regular spaces in all parsed data
     - [] Improve age range matching with flexible text normalization
     - [] Add validation for parsed DRI values
 
-[] **Add virtual session support for DRI data storage**
-    - [] Extend `src/db/schema.py` with DRI data structures in virtual sessions
-    - [] Add `'dri_reference_tables'`, `'dri_user_profiles'`, `'dri_lookups'`, `'dri_comparisons'` to sessions
-    - [] Create DRI session management functions (store, retrieve, clear, list)
-    - [] Enable cross-tool data sharing between EER, CNF, and DRI systems
-
-[] **Session-aware DRI tools for LLM interaction**
-    - [] `store_dri_tables_in_session` - Cache complete DRI tables in virtual session
-    - [] `get_dri_lookup_from_session` - Retrieve specific DRI values from session
-    - [] `store_dri_user_profile_in_session` - Store user demographics for DRI analysis
-    - [] `calculate_dri_adequacy_in_session` - Calculate and store adequacy results
-    - [] `list_session_dri_analysis` - View all DRI calculations in session
-
-[] **Complete math tool integration in ALL DRI tool prompts**
-    - [] Update all DRI tools to mandate `simple_math_calculator` usage
-    - [] Add comprehensive examples for AMDR calculations, adequacy percentages, comparisons
-    - [] Include cross-tool integration examples (CNF → DRI, EER → DRI workflows)
-    - [] Emphasize "NEVER manually calculate" with math tool alternatives
+[] **Enhanced direct DRI tool access (NO virtual sessions)**
+    - [] Keep current direct API approach with live Health Canada website fetching
+    - [] Maintain 24-hour caching system for performance optimization
+    - [] Focus on improving direct tool responses rather than session storage
+    - [] Ensure all DRI tools work efficiently with direct database/API calls only
 
 [] **EER → DRI macronutrient calculation workflow**
     - [] Create `calculate_dri_from_eer` tool for energy-based macro targets
@@ -297,10 +354,7 @@ A list future ideas, tasks, and ideas to improve/maintain the mcp server
     - [] Add examples: EER kcal → AMDR % → specific gram targets via simple_math_calculator
 
 [] **Enhanced tool documentation with mandatory math tool usage**
-    - [] All DRI tools reference `simple_math_calculator` for calculations
     - [] Clear examples for adequacy: `(intake/rda)*100`, deficit: `intake - rda`, AMDR compliance
-    - [] Integration workflow examples: Recipe → CNF → EER → DRI → Math Tools
-    - [] Cross-system calculation patterns and best practices
 
 #### Phase 4: Integrated Nutrition Analysis (Priority: MEDIUM)
 [] **Recipe-to-Nutrition Pipeline**

@@ -72,6 +72,11 @@ def register_math_tools(mcp: FastMCP):
         - Scaling: expression="original_amount * scale_factor", variables={"original_amount": 100, "scale_factor": 1.5}
         - EER comparison: expression="recipe_calories - eer_requirement", variables={"recipe_calories": 287, "eer_requirement": 2000}
         
+        **TEMP_RECIPE_MACROS Calculation Examples:**
+        - Conversion factor: expression="recipe_amount / cnf_serving", variables={"recipe_amount": 10.0, "cnf_serving": 5.0}  # = 2.0
+        - Scaled calories: expression="cnf_calories * conversion_factor", variables={"cnf_calories": 22.0, "conversion_factor": 2.0}  # = 44.0
+        - Recipe total from cache: expression="honey_cals + oil_cals + salmon_cals", variables={"honey_cals": 44.0, "oil_cals": 80.0, "salmon_cals": 200.0}
+        
         **General Examples:**
         - EER calculation: "662 - (9.53 * age) + (15.91 * weight) + (539.6 * height)"
         - Unit conversion: "cups * 240" (cups to ml)

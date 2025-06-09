@@ -7,7 +7,24 @@ import logging
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
-#logger = logging.get#logger(__name__)
+logger = logging.getLogger(__name__)
+
+# Core macronutrients for streamlined LLM-optimized analysis
+CORE_MACRONUTRIENTS = [
+    "Energy (kcal)",
+    "Energy (kJ)", 
+    "Protein",
+    "Total Fat",
+    "Carbohydrate",
+    "Fatty acids, saturated, total",
+    "Fatty acids, monounsaturated, total", 
+    "Fatty acids, polyunsaturated, total",
+    "Fatty acids, trans, total",
+    "Dietary Fibre",
+    "Sugars",
+    "Sodium",
+    "Cholesterol"
+]
 
 class NutrientFileScraper:
     """
@@ -52,7 +69,7 @@ class NutrientFileScraper:
                 return True
             return False
         except Exception as e:
-            #logger.error(f"Error extracting CSRF token: {e}")
+            logger.error(f"Error extracting CSRF token: {e}")
             return False
 
     def search_food(self, food_name: str) -> Optional[List[Dict[str, str]]]:
@@ -66,14 +83,14 @@ class NutrientFileScraper:
             List of dictionaries with 'food_code' and 'food_name' keys, or None if error
         """
         if not food_name or not food_name.strip():
-            #logger.error("Food name cannot be empty")
+            logger.error("Food name cannot be empty")
             return None
 
         search_page_url = f"{self.BASE_URL}/newSearch"
         
         try:
             self._rate_limit_wait()
-            #logger.info(f"Searching CNF for: '{food_name}'")
+            logger.info(f"Searching CNF for: '{food_name}'")
             
             # Get search page to obtain CSRF token
             get_response = self.session.get(search_page_url)
@@ -81,7 +98,7 @@ class NutrientFileScraper:
 
             soup = BeautifulSoup(get_response.text, 'html.parser')
             if not self._get_csrf_token(soup):
-                #logger.error("Could not find CSRF token on search page")
+                logger.error("Could not find CSRF token on search page")
                 return None
 
             # Submit search request with DataTables parameters to get all results
@@ -118,14 +135,14 @@ class NutrientFileScraper:
             # Update CSRF token for subsequent requests
             self._get_csrf_token(results_soup)
             
-            #logger.info(f"Found {len(results)} food matches")
+            logger.info(f"Found {len(results)} food matches")
             return results
             
         except requests.exceptions.RequestException as e:
-            #logger.error(f"Network error during food search: {e}")
+            logger.error(f"Network error during food search: {e}")
             return None
         except Exception as e:
-            #logger.error(f"Unexpected error during food search: {e}")
+            logger.error(f"Unexpected error during food search: {e}")
             return None
 
     def get_serving_info(self, food_code: str) -> tuple[Optional[Dict[str, str]], Optional[str]]:
@@ -139,21 +156,21 @@ class NutrientFileScraper:
             Tuple of (serving_options_dict, refuse_info_string), or (None, None) if error
         """
         if not food_code or not food_code.strip():
-            #logger.error("Food code cannot be empty")
+            logger.error("Food code cannot be empty")
             return None, None
 
         serving_page_url = f"{self.BASE_URL}/serving-portion?id={food_code}"
         
         try:
             self._rate_limit_wait()
-            #logger.info(f"Getting serving info for food code: {food_code}")
+            logger.info(f"Getting serving info for food code: {food_code}")
             
             response = self.session.get(serving_page_url)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, 'html.parser')
             
             if not self._get_csrf_token(soup):
-                #logger.error("Could not find CSRF token on serving info page")
+                logger.error("Could not find CSRF token on serving info page")
                 return None, None
 
             # Extract ALL serving options (including unchecked ones)
@@ -187,29 +204,38 @@ class NutrientFileScraper:
             if refuse_div and 'Refuse:' in refuse_div.text:
                 refuse_info = ' '.join(refuse_div.text.strip().split())
 
-            #logger.info(f"Found {len(serving_options)} serving options")
+            logger.info(f"Found {len(serving_options)} serving options")
             return serving_options, refuse_info
             
         except requests.exceptions.RequestException as e:
-            #logger.error(f"Network error getting serving info: {e}")
+            logger.error(f"Network error getting serving info: {e}")
             return None, None
         except Exception as e:
-            #logger.error(f"Unexpected error getting serving info: {e}")
+            logger.error(f"Unexpected error getting serving info: {e}")
             return None, None
 
-    def get_nutrient_profile(self, food_code: str, serving_options: Dict[str, str]) -> Optional[Dict[str, Any]]:
+    def get_nutrient_profile(
+        self, 
+        food_code: str, 
+        serving_options: Dict[str, str],
+        nutrient_filter: str = "all",
+        preferred_units: Optional[List[str]] = None
+    ) -> Optional[Dict[str, Any]]:
         """
         Submits the form to generate the nutrient profile and scrapes the resulting table.
+        Enhanced with EER-style filtering for LLM efficiency.
         
         Args:
             food_code: CNF food code
             serving_options: Dictionary of serving options from get_serving_info()
+            nutrient_filter: "all" (default) or "macronutrients" for 91% data reduction
+            preferred_units: List of units to filter (e.g. ["100g", "15ml", "tsp"])
             
         Returns:
-            Dictionary with nutrient data organized by category, or None if error
+            Dictionary with nutrient data (filtered if requested) and metadata, or None if error
         """
         if not food_code or not serving_options:
-            #logger.error("Food code and serving options are required")
+            logger.error("Food code and serving options are required")
             return None
 
         report_url = f"{self.BASE_URL}/report-rapport"
@@ -232,7 +258,7 @@ class NutrientFileScraper:
 
         try:
             self._rate_limit_wait()
-            #logger.info(f"Getting nutrient profile for food code: {food_code}")
+            logger.info(f"Getting nutrient profile for food code: {food_code}")
             
             response = self.session.post(report_url, data=payload)
             response.raise_for_status()
@@ -241,7 +267,7 @@ class NutrientFileScraper:
             # Find the nutrient report table
             table = soup.find('table', id='nutrReport')
             if not table:
-                #logger.error("Nutrient report table not found")
+                logger.error("Nutrient report table not found")
                 return {"error": "Nutrient report table not found"}
 
             # Parse the complex nutrient table structure
@@ -277,14 +303,32 @@ class NutrientFileScraper:
                                 nutrient_data[current_group] = []
                             nutrient_data[current_group].append(nutrient_entry)
 
-            #logger.info(f"Successfully parsed nutrient profile with {len(nutrient_data)} categories")
-            return nutrient_data
+            logger.info(f"Successfully parsed nutrient profile with {len(nutrient_data)} categories")
+            
+            # Apply post-fetch filtering (EER-style approach)
+            original_data = nutrient_data.copy()
+            
+            if nutrient_filter == "macronutrients":
+                nutrient_data = self._filter_macronutrients_only(nutrient_data)
+            
+            if preferred_units:
+                nutrient_data = self._filter_serving_units(nutrient_data, preferred_units)
+            
+            # Return with EER-style metadata
+            return {
+                "nutrient_data": nutrient_data,
+                "filter_applied": nutrient_filter,
+                "total_nutrients_found": self._count_nutrients(original_data),
+                "filtered_nutrients_count": self._count_nutrients(nutrient_data),
+                "serving_units_filtered": preferred_units or "all",
+                "data_reduction_percentage": self._calculate_reduction_percentage(original_data, nutrient_data)
+            }
             
         except requests.exceptions.RequestException as e:
-            #logger.error(f"Network error generating nutrient profile: {e}")
+            logger.error(f"Network error generating nutrient profile: {e}")
             return None
         except Exception as e:
-            #logger.error(f"Unexpected error generating nutrient profile: {e}")
+            logger.error(f"Unexpected error generating nutrient profile: {e}")
             return None
 
     def get_complete_food_profile(self, food_code: str) -> Optional[Dict[str, Any]]:
@@ -300,13 +344,13 @@ class NutrientFileScraper:
         serving_options, refuse_info = self.get_serving_info(food_code)
         
         if not serving_options:
-            #logger.error(f"Could not get serving info for food code: {food_code}")
+            logger.error(f"Could not get serving info for food code: {food_code}")
             return None
             
         nutrient_profile = self.get_nutrient_profile(food_code, serving_options)
         
         if not nutrient_profile:
-            #logger.error(f"Could not get nutrient profile for food code: {food_code}")
+            logger.error(f"Could not get nutrient profile for food code: {food_code}")
             return None
             
         return {
@@ -330,13 +374,13 @@ class NutrientFileScraper:
         search_results = self.search_food(food_name)
         
         if not search_results or len(search_results) <= food_index:
-            #logger.error(f"No food found at index {food_index} for search: {food_name}")
+            logger.error(f"No food found at index {food_index} for search: {food_name}")
             return None
             
         selected_food = search_results[food_index]
         food_code = selected_food['food_code']
         
-        #logger.info(f"Selected food: {selected_food['food_name']} (Code: {food_code})")
+        logger.info(f"Selected food: {selected_food['food_name']} (Code: {food_code})")
         
         profile = self.get_complete_food_profile(food_code)
         if profile:
@@ -344,3 +388,102 @@ class NutrientFileScraper:
             profile['search_results'] = search_results
             
         return profile
+    
+    def _filter_macronutrients_only(self, nutrient_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Filter nutrient data to include only core macronutrients - 91% data reduction.
+        
+        Args:
+            nutrient_data: Complete nutrient data organized by category
+            
+        Returns:
+            Filtered nutrient data containing only macronutrients
+        """
+        filtered_data = {}
+        
+        for category_name, nutrients in nutrient_data.items():
+            if not isinstance(nutrients, list):
+                continue
+                
+            filtered_nutrients = []
+            for nutrient in nutrients:
+                if not isinstance(nutrient, dict):
+                    continue
+                    
+                nutrient_name = nutrient.get('Nutrient name', '').strip()
+                
+                # Check if this nutrient is in our core macronutrients list
+                if nutrient_name in CORE_MACRONUTRIENTS:
+                    filtered_nutrients.append(nutrient)
+            
+            # Only include categories that have macronutrients
+            if filtered_nutrients:
+                filtered_data[category_name] = filtered_nutrients
+        
+        return filtered_data
+    
+    def _filter_serving_units(self, nutrient_data: Dict[str, Any], preferred_units: List[str]) -> Dict[str, Any]:
+        """
+        Filter nutrient data to include only specified serving units.
+        
+        Args:
+            nutrient_data: Nutrient data organized by category
+            preferred_units: List of preferred units (e.g. ["100g", "15ml", "tsp"])
+            
+        Returns:
+            Filtered nutrient data with only preferred serving units
+        """
+        filtered_data = {}
+        
+        for category_name, nutrients in nutrient_data.items():
+            if not isinstance(nutrients, list):
+                continue
+                
+            filtered_nutrients = []
+            for nutrient in nutrients:
+                if not isinstance(nutrient, dict):
+                    continue
+                
+                # Create a filtered nutrient entry with only preferred serving columns
+                filtered_nutrient = {}
+                
+                # Always keep the nutrient name and unit
+                for key, value in nutrient.items():
+                    if key in ['Nutrient name', 'Unit see footnote1']:
+                        filtered_nutrient[key] = value
+                    elif key == 'Value per 100 g of edible portion':
+                        # Always keep the baseline 100g value
+                        filtered_nutrient[key] = value
+                    else:
+                        # Check if this column matches any of our preferred units
+                        for unit in preferred_units:
+                            if unit.lower() in key.lower():
+                                filtered_nutrient[key] = value
+                                break
+                
+                if filtered_nutrient:
+                    filtered_nutrients.append(filtered_nutrient)
+            
+            if filtered_nutrients:
+                filtered_data[category_name] = filtered_nutrients
+        
+        return filtered_data
+    
+    def _count_nutrients(self, nutrient_data: Dict[str, Any]) -> int:
+        """Count total number of nutrients in the data."""
+        count = 0
+        for category_name, nutrients in nutrient_data.items():
+            if isinstance(nutrients, list):
+                count += len(nutrients)
+        return count
+    
+    def _calculate_reduction_percentage(self, original_data: Dict[str, Any], filtered_data: Dict[str, Any]) -> float:
+        """Calculate the percentage reduction in data size."""
+        original_count = self._count_nutrients(original_data)
+        filtered_count = self._count_nutrients(filtered_data)
+        
+        if original_count == 0:
+            return 0.0
+            
+        reduction = ((original_count - filtered_count) / original_count) * 100
+        return round(reduction, 1)

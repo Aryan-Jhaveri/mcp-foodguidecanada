@@ -140,12 +140,51 @@ def initialize_database() -> Dict[str, str]:
                 )
             """)
             
+            # Temporary recipe macros table for unit matching analysis and LLM-driven conversions
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS temp_recipe_macros (
+                    session_id TEXT NOT NULL,
+                    recipe_id TEXT NOT NULL,
+                    ingredient_id TEXT NOT NULL,
+                    cnf_food_code TEXT,
+                    
+                    -- Recipe ingredient details
+                    recipe_ingredient_name TEXT,
+                    recipe_amount REAL,
+                    recipe_unit TEXT,
+                    
+                    -- CNF matching analysis
+                    unit_match_status TEXT CHECK(unit_match_status IN ('exact_match', 'conversion_available', 'manual_decision_needed', 'no_match', 'no_cnf_data')),
+                    available_cnf_servings TEXT, -- JSON array of available serving options
+                    recommended_conversion TEXT, -- Human-readable conversion suggestion
+                    confidence_level TEXT CHECK(confidence_level IN ('high', 'medium', 'low')),
+                    
+                    -- Manual decision fields (populated by LLM)
+                    llm_conversion_decision TEXT,
+                    llm_conversion_factor REAL,
+                    llm_reasoning TEXT,
+                    
+                    -- Final calculated values (populated after LLM decisions)
+                    final_calories REAL DEFAULT 0,
+                    final_protein REAL DEFAULT 0,
+                    final_fat REAL DEFAULT 0,
+                    final_carbs REAL DEFAULT 0,
+                    
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (session_id, recipe_id, ingredient_id),
+                    FOREIGN KEY (session_id, ingredient_id) REFERENCES temp_recipe_ingredients(session_id, ingredient_id)
+                )
+            """)
+            
             # Create indexes for better performance
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_temp_sessions_last_accessed ON temp_sessions(last_accessed)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_temp_recipe_ingredients_recipe_id ON temp_recipe_ingredients(session_id, recipe_id)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_temp_recipe_ingredients_cnf_code ON temp_recipe_ingredients(session_id, cnf_food_code)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_temp_cnf_nutrients_food_code ON temp_cnf_nutrients(session_id, cnf_food_code)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_temp_cnf_nutrients_nutrient_name ON temp_cnf_nutrients(session_id, nutrient_name)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_temp_recipe_macros_recipe_id ON temp_recipe_macros(session_id, recipe_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_temp_recipe_macros_cnf_code ON temp_recipe_macros(session_id, cnf_food_code)")
             
             # Schema migration logic for existing CNF tables
             migration_results = migrate_cnf_schema(cursor)
@@ -462,6 +501,7 @@ def migrate_cnf_schema(cursor) -> Dict[str, Any]:
         "migrations_applied": 0,
         "cnf_foods_migrated": False,
         "cnf_nutrients_migrated": False,
+        "recipe_macros_migrated": False,
         "details": []
     }
     
@@ -569,10 +609,72 @@ def migrate_cnf_schema(cursor) -> Dict[str, Any]:
             migration_results["migrations_applied"] += 1
             migration_results["details"].append(f"Migrated temp_cnf_nutrients: removed standard_error and number_observations, restored {len(existing_cnf_nutrients)} records")
         
+        # Check temp_recipe_macros table structure for unit matching redesign
+        cursor.execute("PRAGMA table_info(temp_recipe_macros)")
+        recipe_macros_columns = [col[1] for col in cursor.fetchall()]
+        
+        # Check if migration is needed for temp_recipe_macros (old structure has pre-calculated values)
+        needs_recipe_macros_migration = (
+            "matched_serving_amount" in recipe_macros_columns and 
+            "unit_match_status" not in recipe_macros_columns
+        )
+        
+        if needs_recipe_macros_migration:
+            # Backup existing data (though it will likely be obsolete with new structure)
+            cursor.execute("SELECT * FROM temp_recipe_macros")
+            existing_recipe_macros = cursor.fetchall()
+            
+            # Drop and recreate table with new unit matching structure
+            cursor.execute("DROP TABLE IF EXISTS temp_recipe_macros")
+            cursor.execute("""
+                CREATE TABLE temp_recipe_macros (
+                    session_id TEXT NOT NULL,
+                    recipe_id TEXT NOT NULL,
+                    ingredient_id TEXT NOT NULL,
+                    cnf_food_code TEXT,
+                    
+                    -- Recipe ingredient details
+                    recipe_ingredient_name TEXT,
+                    recipe_amount REAL,
+                    recipe_unit TEXT,
+                    
+                    -- CNF matching analysis
+                    unit_match_status TEXT CHECK(unit_match_status IN ('exact_match', 'conversion_available', 'manual_decision_needed', 'no_match', 'no_cnf_data')),
+                    available_cnf_servings TEXT, -- JSON array of available serving options
+                    recommended_conversion TEXT, -- Human-readable conversion suggestion
+                    confidence_level TEXT CHECK(confidence_level IN ('high', 'medium', 'low')),
+                    
+                    -- Manual decision fields (populated by LLM)
+                    llm_conversion_decision TEXT,
+                    llm_conversion_factor REAL,
+                    llm_reasoning TEXT,
+                    
+                    -- Final calculated values (populated after LLM decisions)
+                    final_calories REAL DEFAULT 0,
+                    final_protein REAL DEFAULT 0,
+                    final_fat REAL DEFAULT 0,
+                    final_carbs REAL DEFAULT 0,
+                    
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (session_id, recipe_id, ingredient_id),
+                    FOREIGN KEY (session_id, ingredient_id) REFERENCES temp_recipe_ingredients(session_id, ingredient_id)
+                )
+            """)
+            
+            # Note: We don't restore old data as the new structure is fundamentally different
+            # Old data would be incompatible with the new unit matching approach
+            
+            migration_results["recipe_macros_migrated"] = True
+            migration_results["migrations_applied"] += 1
+            migration_results["details"].append(f"Migrated temp_recipe_macros: redesigned for unit matching analysis (old pre-calculated data cleared - {len(existing_recipe_macros)} obsolete records)")
+        
         # Recreate indexes after migration
         if migration_results["migrations_applied"] > 0:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_temp_cnf_nutrients_food_code ON temp_cnf_nutrients(session_id, cnf_food_code)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_temp_cnf_nutrients_nutrient_name ON temp_cnf_nutrients(session_id, nutrient_name)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_temp_recipe_macros_unit_status ON temp_recipe_macros(session_id, unit_match_status)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_temp_recipe_macros_recipe_id ON temp_recipe_macros(session_id, recipe_id)")
         
         return migration_results
         
@@ -651,7 +753,7 @@ def get_cnf_session_summary(session_id: str) -> Dict[str, Any]:
     except Exception as e:
         return {"error": f"Error getting CNF session summary: {e}"}
 
-def clear_cnf_data_from_session(session_id: str, data_type: str = "all") -> Dict[str, Any]:
+def clear_cnf_data_from_sessioclear_cnf_data_from_sessionn(session_id: str, data_type: str = "all") -> Dict[str, Any]:
     """
     Clear specific CNF data from a virtual session.
     
@@ -835,29 +937,35 @@ def clear_dri_data_from_session(session_id: str, data_type: str = "all") -> Dict
 
 def create_temp_nutrition_session(session_id: str) -> Dict[str, Any]:
     """
-    Create a new temporary nutrition analysis session with persistent SQLite storage.
+    ⚠️ CHECK EXISTING SESSIONS FIRST! Create temporary nutrition session only if needed.
     
-    **⚠️ IMPORTANT: Always check existing sessions first with list_temp_sessions()!**
+    **🚨 CRITICAL: ALWAYS run list_temp_sessions() BEFORE creating new sessions!**
     
-    **🎯 EFFICIENCY GUIDELINES:**
-    - ❌ **AVOID**: Creating new sessions without checking existing ones
-    - ✅ **PREFER**: Use list_temp_sessions() first to see if session already exists
-    - ❌ **AVOID**: Creating multiple sessions for the same work
-    - ✅ **PREFER**: Reuse existing sessions when possible
+    **Why check first?**
+    - Avoids duplicate sessions for same work
+    - Saves time by reusing existing recipe data  
+    - Prevents confusion with multiple similar sessions
     
-    **📋 RECOMMENDED WORKFLOW:**
+    **🎯 EFFICIENT WORKFLOW:**
     ```
-    1. list_temp_sessions() ← Check what sessions already exist
-    2. If session exists and has your data → Reuse it
-    3. If session exists but empty/different → Clean it up first with cleanup_temp_sessions()
-    4. create_temp_nutrition_session() ← Only if really needed
+    1. list_temp_sessions() ← ALWAYS CHECK FIRST!
+    2. Found existing session? → Reuse it (more efficient)
+    3. Session has old data? → Use cleanup_temp_sessions() to clean
+    4. No suitable session? → Then create new one with this tool
     ```
     
-    **🔄 AUTO-CLEANUP**: This function automatically cleans sessions older than 24 hours
-    to prevent database bloat.
+    **✅ WHEN TO CREATE NEW SESSION:**
+    - No existing sessions found
+    - Existing sessions are for different recipes/work
+    - Need fresh start after cleaning old sessions
     
-    This replaces virtual in-memory sessions with persistent SQLite tables that provide
-    better reliability and data integrity while maintaining the temporary nature.
+    **❌ AVOID CREATING IF:**
+    - Session already exists for your recipe
+    - You haven't checked existing sessions first
+    
+    **NEXT STEPS after creating session:**
+    1. Use simple_recipe_setup() for integrated recipe data transfer
+    3. Use bulk SQL operations instead of individual tool calls
     
     What this creates:
     - Session tracking record for cleanup management
@@ -901,8 +1009,6 @@ def create_temp_nutrition_session(session_id: str) -> Dict[str, Any]:
                     "recommendation": "Consider using existing data or clean up with cleanup_temp_sessions() if needed"
                 }
             
-            # AUTO-CLEANUP: Removed recursive call to prevent infinite loop
-            # old_cleanup_result = cleanup_temp_sessions(hours_old=24, auto_cleanup_old=True)
             
             # Register this session for tracking and cleanup
             cursor.execute("""
@@ -923,11 +1029,6 @@ def create_temp_nutrition_session(session_id: str) -> Dict[str, Any]:
                 "existing_session": False,
                 "auto_cleanup_performed": 0,  # Disabled to prevent recursive loop
                 "auto_cleanup": True,
-                "next_steps": [
-                    "Use simple_recipe_setup() to add recipe data",
-                    "Use get_cnf_nutrient_profile() to add nutrition data",
-                    "Use execute_nutrition_sql() for analysis"
-                ]
             }
             
     except sqlite3.Error as e:
@@ -1102,20 +1203,20 @@ def get_temp_session_recipes(session_id: str, recipe_id: str = None) -> Dict[str
     except Exception as e:
         return {"error": f"Unexpected error retrieving recipes: {e}"}
 
-def cleanup_temp_sessions(session_id: str = None, hours_old: int = 24, auto_cleanup_old: bool = True) -> Dict[str, Any]:
+def cleanup_temp_sessions(session_id: str = None, hours_old: int = None, auto_cleanup_old: bool = True) -> Dict[str, Any]:
     """
-    Clean up temporary session data - can target specific session or clean old sessions automatically.
+    Clean up temporary session data - can target specific session or clean all sessions.
     
-    **🧹 UNIFIED CLEANUP TOOL** - Handles both specific session cleanup and automatic maintenance
+    **🧹 UNIFIED CLEANUP TOOL** - Handles both specific session cleanup and complete cleanup
     
     **Usage Modes:**
-    1. **Specific Session**: `cleanup_temp_sessions(session_id="my_session")` → Clean specific session
-    2. **Old Sessions Only**: `cleanup_temp_sessions(hours_old=48)` → Clean sessions older than 48 hours  
-    3. **Both**: `cleanup_temp_sessions(session_id="current", auto_cleanup_old=True)` → Clean current + old sessions
-    4. **Auto-maintenance**: `cleanup_temp_sessions()` → Clean sessions older than 24 hours (default)
+    1. **Specific Session**: `cleanup_temp_sessions(session_id="my_session")` → Clean specific session only
+    2. **All Sessions**: `cleanup_temp_sessions()` → Clean ALL existing sessions (default behavior)
+    3. **Age-based**: `cleanup_temp_sessions(hours_old=48)` → Clean sessions older than 48 hours  
+    4. **Combined**: `cleanup_temp_sessions(session_id="current", auto_cleanup_old=True)` → Clean current + all others
     
     **What Gets Cleaned:**
-    - All temporary SQLite tables: temp_recipes, temp_recipe_ingredients, temp_cnf_foods, temp_cnf_nutrients
+    - All temporary SQLite tables: temp_recipes, temp_recipe_ingredients, temp_cnf_foods, temp_cnf_nutrients, temp_recipe_macros
     - Virtual session data from memory
     - Session tracking records
     
@@ -1126,7 +1227,7 @@ def cleanup_temp_sessions(session_id: str = None, hours_old: int = 24, auto_clea
     
     Args:
         session_id: Optional specific session to clean up
-        hours_old: Hours of inactivity before auto-cleanup (default 24)  
+        hours_old: Optional hours of inactivity before auto-cleanup (None = clean all)
         auto_cleanup_old: Whether to also clean old sessions (default True)
         
     Returns:
@@ -1140,7 +1241,7 @@ def cleanup_temp_sessions(session_id: str = None, hours_old: int = 24, auto_clea
             total_records_cleaned = {}
             
             # Initialize counters
-            for table in ['temp_recipe_ingredients', 'temp_cnf_nutrients', 'temp_cnf_foods', 'temp_recipes', 'temp_sessions']:
+            for table in ['temp_recipe_ingredients', 'temp_cnf_nutrients', 'temp_cnf_foods', 'temp_recipes', 'temp_recipe_macros', 'temp_sessions']:
                 total_records_cleaned[table] = 0
             
             sessions_to_clean = []
@@ -1151,11 +1252,16 @@ def cleanup_temp_sessions(session_id: str = None, hours_old: int = 24, auto_clea
                 sessions_to_clean.append(session_id)
             
             if auto_cleanup_old or not session_id:
-                # Find old sessions for auto-cleanup
-                cursor.execute("""
-                    SELECT session_id FROM temp_sessions 
-                    WHERE last_accessed < datetime('now', '-{} hours')
-                """.format(hours_old))
+                # Find sessions for auto-cleanup
+                if hours_old is None:
+                    # Clean ALL existing sessions
+                    cursor.execute("SELECT session_id FROM temp_sessions")
+                else:
+                    # Clean sessions older than specified hours
+                    cursor.execute("""
+                        SELECT session_id FROM temp_sessions 
+                        WHERE last_accessed < datetime('now', '-{} hours')
+                    """.format(hours_old))
                 
                 old_sessions = [row[0] for row in cursor.fetchall()]
                 sessions_to_clean.extend(old_sessions)
@@ -1168,7 +1274,7 @@ def cleanup_temp_sessions(session_id: str = None, hours_old: int = 24, auto_clea
                 session_counts = {}
                 
                 # Count records before cleanup for this session
-                for table in ['temp_recipe_ingredients', 'temp_cnf_nutrients', 'temp_cnf_foods', 'temp_recipes']:
+                for table in ['temp_recipe_ingredients', 'temp_cnf_nutrients', 'temp_cnf_foods', 'temp_recipes', 'temp_recipe_macros']:
                     cursor.execute(f"SELECT COUNT(*) FROM {table} WHERE session_id = ?", (cleanup_session_id,))
                     count = cursor.fetchone()[0]
                     session_counts[table] = count
@@ -1179,6 +1285,7 @@ def cleanup_temp_sessions(session_id: str = None, hours_old: int = 24, auto_clea
                 cursor.execute("DELETE FROM temp_cnf_nutrients WHERE session_id = ?", (cleanup_session_id,))
                 cursor.execute("DELETE FROM temp_cnf_foods WHERE session_id = ?", (cleanup_session_id,))
                 cursor.execute("DELETE FROM temp_recipes WHERE session_id = ?", (cleanup_session_id,))
+                cursor.execute("DELETE FROM temp_recipe_macros WHERE session_id = ?", (cleanup_session_id,))
                 cursor.execute("DELETE FROM temp_sessions WHERE session_id = ?", (cleanup_session_id,))
                 
                 total_records_cleaned['temp_sessions'] += 1
@@ -1199,7 +1306,10 @@ def cleanup_temp_sessions(session_id: str = None, hours_old: int = 24, auto_clea
             if session_id:
                 cleanup_type.append(f"specific session '{session_id}'")
             if auto_cleanup_old or not session_id:
-                cleanup_type.append(f"sessions older than {hours_old} hours")
+                if hours_old is None:
+                    cleanup_type.append("all existing sessions")
+                else:
+                    cleanup_type.append(f"sessions older than {hours_old} hours")
             
             return {
                 "success": f"Cleaned up {len(cleaned_sessions)} temporary sessions",
@@ -1207,7 +1317,7 @@ def cleanup_temp_sessions(session_id: str = None, hours_old: int = 24, auto_clea
                 "sessions_cleaned": len(cleaned_sessions),
                 "session_details": cleaned_sessions,
                 "total_records_cleaned": total_records_cleaned,
-                "hours_threshold": hours_old if auto_cleanup_old or not session_id else None,
+                "hours_threshold": hours_old if hours_old is not None else "all_sessions",
                 "storage_type": "persistent_sqlite"
             }
             

@@ -11,7 +11,7 @@ import pandas as pd
 from typing import Dict, List, Any, Optional
 import logging
 
-#logger = logging.get#logger(__name__)
+#logger = logging.getLogger(__name__)
 
 class VirtualSQLEngine:
     """
