@@ -474,3 +474,49 @@ class AnalyzeRecipeNutritionInput(BaseModel):
         if not v or not v.strip():
             raise ValueError('Recipe ID cannot be empty')
         return v.strip()
+
+class RecipeMacrosQueryInput(BaseModel):
+    """Input model for querying temp_recipe_macros table"""
+    session_id: str = Field(..., description="Session containing the recipe macros data")
+    recipe_id: Optional[str] = Field(default=None, description="Optional specific recipe to filter (None = all recipes in session)")
+    unit_match_status: Optional[str] = Field(default=None, description="Optional filter by unit match status (exact_match, conversion_available, manual_decision_needed, no_match, no_cnf_data)")
+    
+    @validator('session_id')
+    def validate_session_id(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Session ID cannot be empty')
+        return v.strip()
+    
+    @validator('unit_match_status')
+    def validate_unit_match_status(cls, v):
+        if v is not None:
+            valid_statuses = ['exact_match', 'conversion_available', 'manual_decision_needed', 'no_match', 'no_cnf_data']
+            if v not in valid_statuses:
+                raise ValueError(f'Unit match status must be one of: {valid_statuses}')
+        return v
+
+class RecipeMacrosUpdateInput(BaseModel):
+    """Input model for updating temp_recipe_macros with LLM conversion decisions"""
+    session_id: str = Field(..., description="Session containing the recipe macros data")
+    ingredient_id: str = Field(..., description="Ingredient ID to update")
+    llm_conversion_decision: str = Field(..., description="LLM's conversion decision (e.g., '4 fillets = 565g')")
+    llm_conversion_factor: float = Field(..., description="Calculated conversion factor (e.g., 5.65 for 565g/100g)")
+    llm_reasoning: str = Field(..., description="LLM's reasoning for the conversion decision")
+    
+    @validator('session_id')
+    def validate_session_id(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Session ID cannot be empty')
+        return v.strip()
+    
+    @validator('ingredient_id')
+    def validate_ingredient_id(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Ingredient ID cannot be empty')
+        return v.strip()
+    
+    @validator('llm_conversion_factor')
+    def validate_conversion_factor(cls, v):
+        if v <= 0:
+            raise ValueError('Conversion factor must be positive')
+        return v

@@ -40,7 +40,8 @@ try:
         SQLQueryInput, CNFFoodResult, CNFNutrientProfile, IngredientCNFMatch,
         RecipeNutritionSummary, CNFSessionSummary, IngredientNutritionData,
         AnalyzeRecipeNutritionInput, RecipeNutritionCalculationInput,
-        IngredientNutritionBreakdownInput, DailyNutritionComparisonInput
+        IngredientNutritionBreakdownInput, DailyNutritionComparisonInput,
+        RecipeMacrosQueryInput, RecipeMacrosUpdateInput
     )
     from src.api.cnf import NutrientFileScraper, CORE_MACRONUTRIENTS
     from src.db.schema import get_virtual_session_data, store_recipe_in_virtual_session
@@ -1713,6 +1714,279 @@ def register_cnf_tools(mcp: FastMCP) -> None:
                 "recipe_id": input_data.recipe_id
             }
 
+    @mcp.tool()
+    def query_recipe_macros_table(input_data: RecipeMacrosQueryInput) -> Dict[str, Any]:
+        """
+        Query temp_recipe_macros table to review unit matching status and make conversion decisions.
+        
+        This tool allows the LLM to view the temp_recipe_macros table populated by 
+        calculate_recipe_nutrition_summary, showing unit matching analysis for each ingredient.
+        Use this tool to identify which ingredients need manual conversion decisions and
+        review available CNF serving options before making conversion calculations.
+        
+        The tool returns detailed unit matching information for each ingredient:
+        - exact_match: Recipe unit exactly matches CNF serving size
+        - conversion_available: Standard unit conversion possible (tsp->ml, etc.)
+        - manual_decision_needed: LLM needs to estimate conversion (e.g., "4 fillets" -> grams)
+        - no_cnf_data: Ingredient not linked to CNF data yet
+        
+        Use this tool to:
+        - Review unit matching status after calculate_recipe_nutrition_summary
+        - Identify ingredients needing manual conversion decisions
+        - See available CNF serving options for conversion estimates
+        - Plan conversion strategy before using simple_math_calculator
+        
+        Args:
+            input_data: Contains session_id, optional recipe_id filter, optional unit_match_status filter
+            
+        Returns:
+            Dict with ingredient unit matching details and conversion recommendations
+        """
+        try:
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Build query with optional filters
+                query = """
+                    SELECT 
+                        recipe_id,
+                        ingredient_id,
+                        cnf_food_code,
+                        recipe_ingredient_name,
+                        recipe_amount,
+                        recipe_unit,
+                        unit_match_status,
+                        available_cnf_servings,
+                        recommended_conversion,
+                        confidence_level,
+                        llm_conversion_decision,
+                        llm_conversion_factor,
+                        llm_reasoning,
+                        final_calories,
+                        final_protein,
+                        final_fat,
+                        final_carbs
+                    FROM temp_recipe_macros 
+                    WHERE session_id = ?
+                """
+                
+                params = [input_data.session_id]
+                
+                if input_data.recipe_id:
+                    query += " AND recipe_id = ?"
+                    params.append(input_data.recipe_id)
+                    
+                if input_data.unit_match_status:
+                    query += " AND unit_match_status = ?"
+                    params.append(input_data.unit_match_status)
+                    
+                query += " ORDER BY unit_match_status, recipe_ingredient_name"
+                
+                cursor.execute(query, params)
+                results = cursor.fetchall()
+                
+                if not results:
+                    return {
+                        "message": f"No recipe macros data found for session {input_data.session_id}",
+                        "session_id": input_data.session_id,
+                        "recipe_id": input_data.recipe_id,
+                        "suggestion": "Run calculate_recipe_nutrition_summary first to populate temp_recipe_macros table"
+                    }
+                
+                # Process results into structured format
+                ingredients_data = []
+                status_summary = {}
+                
+                for row in results:
+                    ingredient_data = {
+                        "recipe_id": row[0],
+                        "ingredient_id": row[1],
+                        "cnf_food_code": row[2],
+                        "recipe_ingredient_name": row[3],
+                        "recipe_amount": row[4],
+                        "recipe_unit": row[5],
+                        "unit_match_status": row[6],
+                        "available_cnf_servings": json.loads(row[7]) if row[7] else [],
+                        "recommended_conversion": row[8],
+                        "confidence_level": row[9],
+                        "llm_conversion_decision": row[10],
+                        "llm_conversion_factor": row[11],
+                        "llm_reasoning": row[12],
+                        "final_calories": row[13],
+                        "final_protein": row[14],
+                        "final_fat": row[15],
+                        "final_carbs": row[16]
+                    }
+                    ingredients_data.append(ingredient_data)
+                    
+                    # Count status types
+                    status = row[6]
+                    status_summary[status] = status_summary.get(status, 0) + 1
+                
+                # Identify ingredients needing LLM attention
+                needs_decision = [ing for ing in ingredients_data if ing["unit_match_status"] == "manual_decision_needed"]
+                has_decisions = [ing for ing in ingredients_data if ing["llm_conversion_decision"]]
+                
+                return {
+                    "success": True,
+                    "session_id": input_data.session_id,
+                    "query_filters": {
+                        "recipe_id": input_data.recipe_id,
+                        "unit_match_status": input_data.unit_match_status
+                    },
+                    "total_ingredients": len(ingredients_data),
+                    "status_summary": status_summary,
+                    "needs_llm_decisions": len(needs_decision),
+                    "has_llm_decisions": len(has_decisions),
+                    "ingredients_data": ingredients_data,
+                    "next_steps": [
+                        f"Make conversion decisions for {len(needs_decision)} ingredients with manual_decision_needed status" if needs_decision else "All ingredients have unit matching completed",
+                        "Use update_recipe_macros_decisions tool to record conversion decisions",
+                        "Use simple_math_calculator for final nutrition calculations"
+                    ],
+                    "ingredients_needing_decisions": [
+                        {
+                            "ingredient_id": ing["ingredient_id"],
+                            "name": ing["recipe_ingredient_name"],
+                            "amount_unit": f"{ing['recipe_amount']} {ing['recipe_unit']}" if ing['recipe_amount'] else "unclear amount",
+                            "available_servings": ing["available_cnf_servings"],
+                            "recommendation": ing["recommended_conversion"]
+                        }
+                        for ing in needs_decision
+                    ]
+                }
+                
+        except Exception as e:
+            return {
+                "error": f"Failed to query recipe macros: {str(e)}",
+                "session_id": input_data.session_id,
+                "suggestion": "Check that session exists and calculate_recipe_nutrition_summary has been run"
+            }
+
+    @mcp.tool()
+    def update_recipe_macros_decisions(input_data: RecipeMacrosUpdateInput) -> Dict[str, Any]:
+        """
+        Update temp_recipe_macros table with LLM conversion decisions and reasoning.
+        
+        This tool allows the LLM to record intelligent conversion decisions for ingredients
+        that need manual unit conversions (e.g., "4 salmon fillets" -> "565g"). After
+        reviewing the temp_recipe_macros table, use this tool to update specific ingredients
+        with conversion factors and reasoning.
+        
+        The tool updates the LLM decision fields in temp_recipe_macros:
+        - llm_conversion_decision: Human-readable conversion (e.g., "4 fillets = 565g")
+        - llm_conversion_factor: Calculated factor for nutrition math (e.g., 5.65 for 565g/100g)
+        - llm_reasoning: LLM's reasoning for the conversion estimate
+        
+        Use this tool to:
+        - Record conversion decisions for manual_decision_needed ingredients
+        - Document reasoning for conversion estimates
+        - Prepare data for final nutrition calculations with simple_math_calculator
+        - Build transparent audit trail of conversion decisions
+        
+        Args:
+            input_data: Contains session_id, ingredient_id, conversion decision, factor, and reasoning
+            
+        Returns:
+            Dict with update status and next steps for nutrition calculations
+        """
+        try:
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                
+                # First, verify the ingredient exists and needs a decision
+                cursor.execute("""
+                    SELECT recipe_ingredient_name, recipe_amount, recipe_unit, unit_match_status, cnf_food_code
+                    FROM temp_recipe_macros 
+                    WHERE session_id = ? AND ingredient_id = ?
+                """, (input_data.session_id, input_data.ingredient_id))
+                
+                result = cursor.fetchone()
+                if not result:
+                    return {
+                        "error": f"Ingredient {input_data.ingredient_id} not found in session {input_data.session_id}",
+                        "session_id": input_data.session_id,
+                        "ingredient_id": input_data.ingredient_id,
+                        "suggestion": "Use query_recipe_macros_table to see available ingredient IDs"
+                    }
+                
+                ingredient_name, recipe_amount, recipe_unit, unit_status, cnf_food_code = result
+                
+                # Update the LLM decision fields
+                cursor.execute("""
+                    UPDATE temp_recipe_macros 
+                    SET 
+                        llm_conversion_decision = ?,
+                        llm_conversion_factor = ?,
+                        llm_reasoning = ?,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE session_id = ? AND ingredient_id = ?
+                """, (
+                    input_data.llm_conversion_decision,
+                    input_data.llm_conversion_factor,
+                    input_data.llm_reasoning,
+                    input_data.session_id,
+                    input_data.ingredient_id
+                ))
+                
+                if cursor.rowcount == 0:
+                    return {
+                        "error": f"Failed to update ingredient {input_data.ingredient_id}",
+                        "session_id": input_data.session_id,
+                        "ingredient_id": input_data.ingredient_id
+                    }
+                
+                conn.commit()
+                
+                # Check if this was the last ingredient needing decisions
+                cursor.execute("""
+                    SELECT COUNT(*) FROM temp_recipe_macros 
+                    WHERE session_id = ? AND unit_match_status = 'manual_decision_needed' 
+                    AND llm_conversion_decision IS NULL
+                """, (input_data.session_id,))
+                
+                remaining_decisions = cursor.fetchone()[0]
+                
+                return {
+                    "success": True,
+                    "message": f"Updated conversion decision for ingredient: {ingredient_name}",
+                    "session_id": input_data.session_id,
+                    "ingredient_id": input_data.ingredient_id,
+                    "updated_fields": {
+                        "ingredient_name": ingredient_name,
+                        "original_amount_unit": f"{recipe_amount} {recipe_unit}" if recipe_amount else "unclear amount",
+                        "conversion_decision": input_data.llm_conversion_decision,
+                        "conversion_factor": input_data.llm_conversion_factor,
+                        "reasoning": input_data.llm_reasoning,
+                        "cnf_food_code": cnf_food_code,
+                        "unit_match_status": unit_status
+                    },
+                    "workflow_status": {
+                        "remaining_manual_decisions": remaining_decisions,
+                        "ready_for_calculations": remaining_decisions == 0
+                    },
+                    "next_steps": [
+                        f"Update {remaining_decisions} more ingredients needing manual decisions" if remaining_decisions > 0 else "All conversion decisions completed",
+                        "Use simple_math_calculator to calculate final nutrition values" if remaining_decisions == 0 else "Continue making conversion decisions",
+                        "Example calculation: simple_math_calculator(expression='cnf_calories * conversion_factor', variables={'cnf_calories': 206, 'conversion_factor': " + str(input_data.llm_conversion_factor) + "})" if remaining_decisions == 0 else ""
+                    ],
+                    "calculation_example": {
+                        "expression": "cnf_calories * conversion_factor",
+                        "variables": {
+                            "cnf_calories": "VALUE_FROM_CNF_DATA",  
+                            "conversion_factor": input_data.llm_conversion_factor
+                        },
+                        "description": f"Use this pattern to calculate final nutrition for {ingredient_name}"
+                    }
+                }
+                
+        except Exception as e:
+            return {
+                "error": f"Failed to update conversion decision: {str(e)}",
+                "session_id": input_data.session_id,
+                "ingredient_id": input_data.ingredient_id,
+                "suggestion": "Check that ingredient_id exists and conversion_factor is positive"
+            }
 
 
 def _normalize_unit(unit: str) -> str:
@@ -1847,7 +2121,7 @@ def _can_convert_units(recipe_unit: str, cnf_unit: str) -> bool:
     
     return False
 
-
+    
 # Helper functions for direct SQLite CNF population
 
 def populate_cnf_food_in_sqlite(session_id: str, food_code: str, food_description: str, 
@@ -1962,7 +2236,6 @@ def clear_cnf_data_from_sqlite(session_id: str, food_code: str = None) -> Dict[s
             }
     except Exception as e:
         return {"error": f"Failed to clear CNF data: {str(e)}"}
-
 
 def get_cnf_tools_status() -> Dict[str, Any]:
     """Get status of CNF tools availability."""

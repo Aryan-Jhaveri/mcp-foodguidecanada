@@ -54,25 +54,27 @@ This is an MCP (Model Context Protocol) server that provides access to Canada's 
 23. `get_cnf_macronutrients_only` - Retrieve macronutrients with automatic ingredient linking
 24. `bulk_get_cnf_macronutrients` - Process multiple CNF food codes efficiently in bulk
 25. `simple_recipe_setup` - Transfer recipe data and parse ingredients for nutrition analysis
-26. `calculate_recipe_nutrition_summary` - Calculate complete nutrition summary with linked ingredients
-27. `get_cnf_nutrient_profile` - Retrieve complete nutrient profile for research-grade analysis
-28. `get_ingredient_nutrition_breakdown` - Calculate detailed per-ingredient nutrition breakdown
-29. `compare_recipe_to_daily_needs` - Compare recipe nutrition against daily requirements
+26. `calculate_recipe_nutrition_summary` - Analyze unit matching for recipe ingredients (LLM-driven workflow)
+27. `query_recipe_macros_table` - Review unit matching status and conversion recommendations ✅ NEW!
+28. `update_recipe_macros_decisions` - Record LLM conversion decisions with reasoning ✅ NEW!
+29. `get_cnf_nutrient_profile` - Retrieve complete nutrient profile for research-grade analysis
+30. `get_ingredient_nutrition_breakdown` - Calculate detailed per-ingredient nutrition breakdown
+31. `compare_recipe_to_daily_needs` - Compare recipe nutrition against daily requirements
 
 #### DRI (Dietary Reference Intake) Tools
-30. `get_macronutrient_dri_tables` - Get complete DRI macronutrient tables from Health Canada
-31. `get_specific_macronutrient_dri` - Get specific macronutrient DRI values by age/gender
-32. `get_amdrs` - Get Acceptable Macronutrient Distribution Ranges by age group
-33. `get_amino_acid_patterns` - Get amino acid patterns for protein quality evaluation (PDCAAS)
-34. `compare_intake_to_dri` - Compare actual intake against DRI recommendations
+32. `get_macronutrient_dri_tables` - Get complete DRI macronutrient tables from Health Canada
+33. `get_specific_macronutrient_dri` - Get specific macronutrient DRI values by age/gender
+34. `get_amdrs` - Get Acceptable Macronutrient Distribution Ranges by age group
+35. `get_amino_acid_patterns` - Get amino acid patterns for protein quality evaluation (PDCAAS)
+36. `compare_intake_to_dri` - Compare actual intake against DRI recommendations
 
 #### Session-Aware DRI Tools ✅ NEW!
-35. `store_dri_tables_in_session` - Cache complete DRI tables in virtual session storage
-36. `get_dri_lookup_from_session` - Retrieve specific DRI values from session-cached data
-37. `store_dri_user_profile_in_session` - Store user demographics for repeated DRI analysis
-38. `calculate_dri_adequacy_in_session` - Calculate and store adequacy assessments
-39. `calculate_dri_from_eer` - Convert EER energy requirements to macronutrient targets
-40. `list_session_dri_analysis` - View all DRI calculations and analysis in session
+37. `store_dri_tables_in_session` - Cache complete DRI tables in virtual session storage
+38. `get_dri_lookup_from_session` - Retrieve specific DRI values from session-cached data
+39. `store_dri_user_profile_in_session` - Store user demographics for repeated DRI analysis
+40. `calculate_dri_adequacy_in_session` - Calculate and store adequacy assessments
+41. `calculate_dri_from_eer` - Convert EER energy requirements to macronutrient targets
+42. `list_session_dri_analysis` - View all DRI calculations and analysis in session
 
 ## Development Context
 
@@ -88,6 +90,7 @@ This is an MCP (Model Context Protocol) server that provides access to Canada's 
 - ✅ **EER equations integration** - Live fetching from Health Canada DRI tables
 - ✅ **Simple math calculator** - Safe arithmetic evaluation with variables
 - ✅ **CNF integration** - Canadian Nutrient File food search and nutrition analysis
+- ✅ **LLM-driven unit conversion system** - Intelligent handling of non-standard units like "4 fillets"
 
 ### Key Architectural Improvements (v2.0)
 - **Virtual Sessions**: Temporary recipe data stored in memory, auto-cleaned
@@ -170,39 +173,28 @@ The IMPLEMENTATIONS.md includes a comprehensive ERD with:
    ✅ Returns analysis summary for LLM review
 ```
 
-**🔍 STEP 2: Review Unit Matching Status**
-```sql
--- LLM reviews what conversions are needed
-SELECT 
-    recipe_ingredient_name,
-    recipe_amount,
-    recipe_unit,
-    unit_match_status,          -- 'exact_match', 'conversion_available', 'manual_decision_needed'
-    recommended_conversion,      -- Human-readable conversion suggestion
-    confidence_level,           -- 'high', 'medium', 'low'
-    available_cnf_servings      -- JSON array of CNF serving options
-FROM temp_recipe_macros 
-WHERE session_id = 'nutrition' AND recipe_id = 'honey_salmon'
-ORDER BY unit_match_status;
+**🔍 STEP 2: Review Unit Matching Status** ✅ IMPLEMENTED!
+```
+4. query_recipe_macros_table(session_id="nutrition", recipe_id="honey_salmon")
+   ✅ NEW TOOL: LLM can now view temp_recipe_macros table directly
+   ✅ Shows unit matching status, conversion recommendations, CNF serving options
+   ✅ Filters by status: manual_decision_needed, exact_match, etc.
+   ✅ Returns structured data for LLM decision making
 ```
 
-**🧠 STEP 3: LLM Makes Intelligent Conversion Decisions**
-```sql
--- Example: LLM decides "4 salmon fillets = 565g" (140g per fillet average)
-UPDATE temp_recipe_macros 
-SET 
-    llm_conversion_decision = '4 fillets = 565g',
-    llm_conversion_factor = 5.65,  -- 565g / 100g CNF serving
-    llm_reasoning = 'Atlantic salmon fillet averages 140g each: 4 × 140g = 560g ≈ 565g'
-WHERE session_id = 'nutrition' AND ingredient_id = 'salmon_001';
-
--- Honey (exact match example)
-UPDATE temp_recipe_macros 
-SET 
-    llm_conversion_decision = '15ml = 3 × 5ml servings',
-    llm_conversion_factor = 3.0,
-    llm_reasoning = 'Direct conversion: 15ml ÷ 5ml CNF serving = 3.0 factor'
-WHERE session_id = 'nutrition' AND ingredient_id = 'honey_001';
+**🧠 STEP 3: LLM Makes Intelligent Conversion Decisions** ✅ IMPLEMENTED!
+```
+5. update_recipe_macros_decisions(
+   session_id="nutrition",
+   ingredient_id="salmon_001", 
+   llm_conversion_decision="4 salmon fillets = 560g (140g per fillet average)",
+   llm_conversion_factor=5.6,
+   llm_reasoning="Atlantic salmon fillets average 140g each. 4 × 140g = 560g. CNF is per 100g, so 560÷100 = 5.6"
+)
+   ✅ NEW TOOL: Records LLM conversion decisions with full reasoning
+   ✅ Updates temp_recipe_macros with conversion factor and explanation
+   ✅ Tracks remaining manual decisions needed
+   ✅ Provides calculation examples for next steps
 ```
 
 **🧮 STEP 4: Calculate Final Nutrition Using Simple Math**
@@ -236,39 +228,41 @@ calculate_recipe_nutrition_summary() → 8.24 kcal (wrong!)
 ↳ No way to fix the conversion
 ```
 
-**✅ NEW (LLM-Driven - Works):**
+**✅ NEW (LLM-Driven - Working!):**
 ```
 calculate_recipe_nutrition_summary() → Unit matching analysis
-↳ Shows "manual_decision_needed" for "4 fillets"  
-↳ LLM converts: "4 fillets = 565g"
-↳ simple_math_calculator: 291 * 5.65 = 1644.2 kcal (correct!)
+↳ query_recipe_macros_table() → Shows "manual_decision_needed" for "4 fillets"  
+↳ update_recipe_macros_decisions() → LLM converts: "4 fillets = 560g"
+↳ simple_math_calculator: 296 * 5.6 = 1658 kcal (correct!)
 ```
 
 #### 🔄 COMPLETE WORKFLOW EXAMPLE:
 
-**Honey Glazed Salmon Recipe (4 salmon fillets, 15ml honey):**
+**Honey Glazed Salmon Recipe (4 salmon fillets, 15ml honey):** ✅ TESTED AND WORKING!
 
 ```
-1. calculate_recipe_nutrition_summary() 
+1. calculate_recipe_nutrition_summary(session_id="honey_salmon_macros", recipe_id="honey_salmon_001") 
    Result: {
      "analysis_summary": {
-       "exact_matches": 1,        // honey: 15ml matches 5ml CNF serving
-       "manual_decisions_needed": 1  // salmon: "4 fillets" needs conversion
+       "exact_matches": 4,         // soy sauce, oil, honey, brown sugar
+       "manual_decisions_needed": 1,  // salmon: "4 fillets" needs conversion
+       "no_cnf_data": 6           // marinade headers, thyme, pepper, asparagus, lemon
      }
    }
 
-2. Review temp_recipe_macros:
-   - Honey: exact_match, high confidence
-   - Salmon: manual_decision_needed, low confidence
+2. query_recipe_macros_table(unit_match_status="manual_decision_needed"):
+   - Salmon fillets: "4.0" (no unit), manual_decision_needed
+   - Available CNF: 100g = 296 kcal, 250ml = 296 kcal  
+   - Recommendation: "Manual decision needed: estimate reasonable serving size"
 
-3. LLM decisions:
-   - Honey: 15ml ÷ 5ml = 3.0 factor
-   - Salmon: 4 fillets × 140g = 565g = 5.65 factor
+3. update_recipe_macros_decisions():
+   - LLM Decision: "4 salmon fillets = 560g (140g per fillet average)"
+   - Conversion Factor: 5.6 (560g ÷ 100g CNF serving)
+   - Reasoning: "Atlantic salmon fillets average 140g each. 4 × 140g = 560g. CNF is per 100g, so 560÷100 = 5.6"
 
-4. Final calculations:
-   - Honey: 22 kcal × 3.0 = 66 kcal
-   - Salmon: 291 kcal × 5.65 = 1644 kcal
-   - Total: 1710 kcal (vs previous 8.24 kcal error!)
+4. Final calculation (simple_math_calculator):
+   - Salmon: 296 kcal × 5.6 = 1,658 kcal
+   - Success: 1,658 kcal (vs previous 8.24 kcal error - 201x improvement!)
 ```
 
 #### 🛠️ NEW temp_recipe_macros TABLE STRUCTURE:
@@ -575,19 +569,23 @@ simple_math_calculator({
 
 ## Current Development Status (June 9, 2025)
 
-### 🚀 MAJOR UPDATE: Unit Conversion System Revolutionized
-- **Problem Fixed**: Automated unit conversion that failed with "4 fillets" (8.24 kcal error) completely resolved
-- **New Architecture**: LLM-driven unit conversion with full transparency and intelligent decision making
-- **temp_recipe_macros Redesigned**: Now shows unit matching status, conversion recommendations, and LLM decision fields
-- **calculate_recipe_nutrition_summary Rebuilt**: Performs unit matching analysis instead of failed automated calculations
-- **Schema Migration Added**: Automatic migration of existing temp_recipe_macros to new structure
-- **Successful Testing**: Test workflow shows salmon now correctly calculates 1644 kcal vs previous 8.24 kcal error
+### 🎉 COMPLETED: Unit Conversion System Revolutionized ✅
+- **Problem SOLVED**: Automated unit conversion that failed with "4 fillets" (8.24 kcal error) completely resolved
+- **New Architecture IMPLEMENTED**: LLM-driven unit conversion with full transparency and intelligent decision making
+- **New Tools ADDED**: `query_recipe_macros_table` and `update_recipe_macros_decisions` for LLM interaction
+- **temp_recipe_macros Redesigned**: Shows unit matching status, conversion recommendations, and LLM decision fields
+- **calculate_recipe_nutrition_summary Enhanced**: Performs unit matching analysis for LLM-driven workflow
+- **Schema Migration Working**: Automatic migration of existing temp_recipe_macros to new structure
+- **TESTED AND VERIFIED**: Salmon correctly calculates 1,658 kcal vs previous 8.24 kcal error (201x improvement)
 
 ### ✅ Recent Major Updates Completed  
+- **LLM-driven unit conversion system COMPLETED** ✅: Added `query_recipe_macros_table` and `update_recipe_macros_decisions` tools
+- **Unit conversion problem FIXED** ✅: "4 fillets" now correctly calculates 1,658 kcal vs previous 8.24 kcal error (201x improvement)
+- **Full transparency achieved** ✅: LLM can see unit matching status and make intelligent conversion decisions with reasoning
 - **CNF tools documentation rewrite**: Professional, clear documentation following queries.py style
-- **Tool consolidation**: Removed 2 redundant tools, streamlined to 10 essential CNF tools
+- **Tool consolidation**: Removed 2 redundant tools, streamlined to essential CNF tools
 - **Ingredient linking fixed**: `get_cnf_macronutrients_only` now properly links ingredients
-- **Nutrition analysis working**: `calculate_recipe_nutrition_summary` now functions correctly
+- **Nutrition analysis working**: `calculate_recipe_nutrition_summary` now functions correctly with unit matching analysis
 - **Bulk processing added**: `bulk_get_cnf_macronutrients` for efficiency
 - **Marketing language removed**: Eliminated emoji-heavy promotional text for professional documentation
 
