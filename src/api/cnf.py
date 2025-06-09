@@ -5,8 +5,10 @@ import time
 from typing import Optional, List, Dict, Any
 import logging
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Configure logging with environment-based level control
+import os
+LOG_LEVEL = os.getenv('FOODGUIDE_LOG_LEVEL', 'ERROR')
+logging.basicConfig(level=getattr(logging, LOG_LEVEL))
 logger = logging.getLogger(__name__)
 
 # Core macronutrients for streamlined LLM-optimized analysis

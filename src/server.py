@@ -39,9 +39,10 @@ except ImportError:
         print(f"Error importing modules: {e}", file=sys.stderr)
         sys.exit(1)
 
-# Configure logging
+# Configure logging with environment-based level control
+LOG_LEVEL = os.getenv('FOODGUIDE_LOG_LEVEL', 'WARNING')
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, LOG_LEVEL),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(sys.stderr)

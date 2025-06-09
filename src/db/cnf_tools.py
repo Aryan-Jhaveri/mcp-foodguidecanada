@@ -67,8 +67,9 @@ except ImportError:
     except ImportError as e:
         print(f"Warning: CNF tools not available due to import error: {e}", file=sys.stderr)
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Configure logging with environment-based level control
+LOG_LEVEL = os.getenv('FOODGUIDE_LOG_LEVEL', 'ERROR')
+logging.basicConfig(level=getattr(logging, LOG_LEVEL))
 #logger = logging.getLogger(__name__)
 
 # Global CNF scraper instance and caching

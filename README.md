@@ -8,18 +8,20 @@ Click the image to watch example uses of the mcp server to 1) find themed recipe
 [![Watch the trailer](https://img.youtube.com/vi/VtKMYpnC2EI/maxresdefault.jpg)](https://youtu.be/VtKMYpnC2EI)
 ## 📝 Description
 
-This project is essentially a **web scraper built specifically for <a href="https://food-guide.canada.ca/en/" target="_blank">Canada's Food Guide </a>** that's been wrapped into a <a href="https://modelcontextprotocol.io/" target="_blank">Model Context Protocol (MCP)</a> server. 
+This is a **comprehensive nutrition analysis platform** that integrates <a href="https://food-guide.canada.ca/en/" target="_blank">Canada's Food Guide</a> recipes with Health Canada's official nutrition databases through a <a href="https://modelcontextprotocol.io/" target="_blank">Model Context Protocol (MCP)</a> server.
 
-**Why this matters:**
+**What makes this powerful:**
 
-Instead of LLMs having to figure out Canada's Food Guide website structure, search through HTML, and extract recipe information manually each call, this server gives LLMs three simple, ready-to-use tools for quick-calls:
-1. 🔍 **Search for recipes** with smart filtering (by ingredient, meal type, dietary preferences)
-2. 📖 **Get complete recipe details** (ingredients, instructions, cooking tips, nutritional info)
-3. 📋 **Discover available filters** (see what ingredients, meal types, and collections are available)
+Instead of LLMs manually parsing multiple government websites and performing complex nutrition calculations, this server provides **42+ specialized tools** organized into six major categories:
 
-The server is built using the <a href="https://github.com/jlowin/fastmcp" target="_blank">FastMCP</a> library and uses custom BeautifulSoup4 scrapers fine-tuned to Canada's Food Guide website structure, making Canada's Food Guide Recipes directly accessible to AI assistants.
+🍲 **Recipe Discovery & Management** - Smart search, detailed extraction, favorites storage  
+🗄️ **Database & Session Management** - Virtual sessions, persistent storage, bulk operations  
+🧮 **Math & Calculation Tools** - Recipe scaling, ingredient calculations, safe arithmetic  
+🥗 **CNF Nutrition Analysis** - Canadian Nutrient File integration with LLM-driven unit conversion  
+⚡ **Energy Requirements (EER)** - Health Canada energy equation calculations  
+📊 **Dietary Reference Intakes (DRI)** - Macronutrient recommendations and adequacy assessment  
 
-<b>Looking to contribute?</b> Check the implementations.md to see where the next versions of the project could go towards!
+Built using <a href="https://github.com/jlowin/fastmcp" target="_blank">FastMCP</a> with custom integrations to Health Canada's <a href="https://food-nutrition.canada.ca/cnf-fce/index-eng.jsp" target="_blank">Canadian Nutrient File (CNF)</a> database, <a href="https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes/tables.html" target="_blank">Dietary Reference Intakes (DRI)</a> tables, and EER equations, this server transforms complex nutrition analysis into simple tool calls for AI assistants.
 
 ## 📑 Table of Contents
 
@@ -33,25 +35,46 @@ The server is built using the <a href="https://github.com/jlowin/fastmcp" target
 
 ## ✨ Features
 
-This server exposes Canada's Food Guide recipe functionalities as MCP tools, including:
+This comprehensive nutrition analysis platform provides **42+ specialized tools** organized into six major categories:
 
-### Recipe Search & Retrieval
+### 🍲 Recipe Discovery & Management (Core Tools)
+* **Smart Recipe Search** - Text queries with advanced filtering by ingredients, meal types, appliances, and collections
+* **Detailed Recipe Extraction** - Complete ingredients, instructions, prep times, tips, and nutritional information
+* **Filter Discovery** - Dynamic exploration of available search filters and categories
+* **Favorites Management** - Persistent storage of user's preferred recipes with SQLite database
 
-* **Search Operations:**
-    - Search for recipes by text query
-    - Filter by ingredients (fruits, vegetables, proteins, whole grains)
-    - Filter by meal type (breakfast, lunch, dinner, snacks)
-    - Filter by cooking appliance (oven, stovetop, etc.)
-    - Filter by collections (vegetarian, kid-friendly, etc.)
-    - Configure maximum search pages
-* **Recipe Operations:**
-    - Fetch detailed recipe information by URL
-    - Get ingredients, instructions, cooking times, and servings
-    - Retrieve recipe tips and images from the recipe
-* **Filter Operations:**
-    * List all available filter categories
-    * Get specific filter options (e.g., all available vegetables)
-    * Find valid collections for recipe filtering
+### 🗄️ Database & Session Management
+* **Virtual Sessions** - In-memory storage for temporary recipe analysis (prevents database bloat)
+* **Recipe Storage & Parsing** - Automatic ingredient parsing with amounts, units, and names
+* **Session Cleanup** - Automatic memory management for optimal performance
+* **Bulk Operations** - Process multiple recipes efficiently with reduced tool calls
+
+### 🧮 Math & Calculation Tools
+* **Recipe Scaling** - Scale entire recipes or individual ingredients using parsed data
+* **Serving Size Adjustments** - Calculate ingredients for different serving counts
+* **Bulk Calculations** - Process multiple calculations in one operation (3x-10x efficiency gain)
+* **Simple Calculator** - Safe arithmetic evaluation with string variables for any calculations
+* **Recipe Comparisons** - Compare recipes by servings, complexity, or nutritional content
+
+### 🥗 CNF Nutrition Analysis (Canadian Nutrient File Integration)
+* **Food Search & Retrieval** - Search Health Canada's official CNF database by food name
+* **Macronutrient Analysis** - Complete nutritional profiles with 13+ core nutrients
+* **LLM-Driven Unit Conversion** - Intelligent handling of non-standard units like "4 fillets" with full transparency
+* **Bulk Processing** - Analyze multiple foods in single operations for efficiency
+* **Unit Matching Intelligence** - Clear status indicators for conversion decisions with LLM reasoning
+
+### ⚡ Energy Requirements (EER Integration)
+* **Live EER Equations** - Fetch current Energy Expenditure equations from Health Canada DRI tables
+* **Profile Management** - Create and manage user profiles for repeated calculations
+* **PAL Categories** - Physical Activity Level descriptions with examples
+* **42+ Equations Available** - Complete coverage of age groups, genders, and activity levels
+
+### 📊 Dietary Reference Intakes (DRI Analysis)
+* **Complete DRI Tables** - Macronutrient recommendations (EAR, RDA, AI, UL) for all age groups
+* **Adequacy Assessment** - Compare actual intake against Health Canada recommendations
+* **AMDR Analysis** - Acceptable Macronutrient Distribution Range evaluation
+* **Session-Based Workflows** - Cache DRI data for complex multi-step nutrition analysis
+* **EER Integration** - Convert energy requirements to macronutrient targets for meal planning
 
 ## 📥 Installation
 Click the image to Watch the setup tutorial!
@@ -129,100 +152,190 @@ To use this server with Claude Desktop:
 
 ## 🏗️ Project Structure
 
-Here's what each file does in simple terms:
+Here's how the comprehensive nutrition platform is organized:
 
 ### 🗂️ **Root Files**
-* **`main.py`**: The starting point if you want to run this as a command-line tool (instead of an MCP server)
-* **`requirements.txt`**: Lists all the Python packages this project needs to work
+* **`main.py`**: Command-line interface for testing (alternative to MCP server)
+* **`requirements.txt`**: Python dependencies for the entire platform
+* **`IMPLEMENTATIONS.md`**: Development roadmap and architecture plans
 
-### 📁 **`src/` Folder - The Heart of the Project**
-This is where all the main code lives:
+### 📁 **`src/` Folder - Core Platform**
 
-* **`server.py`** : This is the main file that creates the MCP server. It:
-  - Sets up the three tools (search_recipes, get_recipe, list_filters) that Claude can use
-  - Connects everything together
-  - This is the file you run to start the server
+* **`server.py`**: Main MCP server with **42+ specialized tools** across 6 categories:
+  - Recipe discovery and management tools
+  - Database and session management tools
+  - Math and calculation tools
+  - CNF nutrition analysis tools
+  - EER energy requirement tools
+  - DRI dietary reference intake tools
 
-* **`cli.py`**: Creates a command-line interface so you can test the recipe search in your terminal (useful for debugging)
+* **`config.py`**: Platform configuration including database settings and Health Canada endpoints
+* **`cli.py`**: Command-line interface for development and testing
 
-#### 📁 **`api/` Folder - Talks to Canada's Food Guide Website**
-* **`search.py`**: Goes to Canada's Food Guide website and searches for recipes
-  - Takes your search terms and filters 
-  - Returns a list of recipe titles and URLs
-* **`recipe.py`**: Takes a recipe URL and extracts all the details:
-  - Ingredients list, cooking steps, prep time, tips, photos, etc.
-  - Does the "web scraping" to pull information from the HTML
+#### 📁 **`api/` Folder - Health Canada Integrations**
+* **`search.py`**: Canada's Food Guide recipe search and filtering
+* **`recipe.py`**: Detailed recipe extraction and ingredient parsing
+* **`cnf.py`**: Canadian Nutrient File food search and nutrition data retrieval
+* **`eer.py`**: Energy Expenditure Requirements from DRI tables
+* **`dri.py`**: Dietary Reference Intake tables and macronutrient recommendations
 
-#### 📁 **`models/` Folder - Data Structures**
-* **`recipe.py`**: Defines what a "Recipe" looks like in code (title, ingredients, instructions, etc.)
-* **`filters.py`**: Manages the search filters (like "vegetarian", "breakfast", "chicken")
-  - Downloads available filters from the website and caches them
-  - Converts user-friendly names (like "apple") into website codes (like "43")
+#### 📁 **`db/` Folder - Database & Calculation Layer**
+* **`connection.py`**: SQLite database connection and management
+* **`schema.py`**: Database schema and virtual session management
+* **`queries.py`**: Database operation tools registration
+* **`cnf_tools.py`**: CNF nutrition analysis and unit conversion tools
+* **`math_tools.py`**: Recipe scaling, calculations, and arithmetic tools
+* **`eer_tools.py`**: Energy requirement calculation and profile management
+* **`dri_tools.py`**: DRI analysis and adequacy assessment tools
 
-#### 📁 **`utils/` Folder - Helper Functions**
-* **`url_builder.py`**: Builds the correct web addresses for searching Canada's Food Guide
-* **`downloader.py`**: Can save recipes to your computer as files (JSON or Markdown format)
-* **`parser.py`**: Currently empty (reserved for future HTML parsing utilities)
+#### 📁 **`models/` Folder - Data Structures & Validation**
+* **`recipe.py`**: Recipe data models with ingredient parsing
+* **`filters.py`**: Search filter management and caching
+* **`cnf_models.py`**: CNF food and nutrition data models
+* **`eer_models.py`**: EER calculation and profile models
+* **`dri_models.py`**: DRI table and assessment models
+* **`math_models.py`**: Calculation tool input/output models
+* **`db_models.py`**: Database operation models
 
-### 📁 **Other Folders**
-* **`cache/`**: Stores downloaded filter information so the app doesn't have to re-download it every time
-* **`prompts/`**: Contains documentation and examples for MCP integration
+#### 📁 **`utils/` Folder - Support Functions**
+* **`url_builder.py`**: Canada's Food Guide URL construction
+* **`downloader.py`**: Recipe export functionality (JSON/Markdown)
 
-### 🔄 **How It All Works Together**:
-1. `server.py` creates the MCP tools
-2. When LLM calls `search_recipes`, it uses `search.py` and `url_builder.py` to find recipes
-3. When LLM calls `get_recipe`, it uses `recipe.py` to extract all recipe details
-4. The `models/` define how data is structured
-5. Everything gets returned to LLM in a format it can understand
+### 📁 **Storage & Data**
+* **`cache/`**: Filter data and temporary file storage
+* **`docs/`**: Additional documentation and guides
+* **`downloads/`**: Recipe export output directory
+* **`foodguide_data.db`**: SQLite database for persistent favorites storage
+
+### 🔄 **Platform Architecture**:
+1. **MCP Server Layer**: `server.py` exposes 42+ tools to AI assistants
+2. **Health Canada APIs**: Live integration with CNF, DRI, and recipe databases
+3. **Database Layer**: Virtual sessions (memory) + persistent favorites (SQLite)
+4. **Calculation Engine**: Math tools for scaling, nutrition analysis, and comparisons
+5. **LLM Integration**: Intelligent unit conversion and decision-making workflows
 
 
 ## ⚠️ Known Issues and Limitations
 
-- **Website Dependency**: Will break if Canada's Food Guide website structure changes
-- **Data Inconsistency**: Depends on food guide to upload clean data (e.g., searching for `--fruits apple` vs `search apple` results in 1 missing recipe in filtered search due to data editing anomalies)
-- **Search Limitations**: Maximum number of pages and results is capped
-- **Performance**: Web scraping may be slow compared to a direct API
-- **Availability**: Requires internet connection to access the Canada's Food Guide website
+### Data Dependencies
+- **Multiple Website Dependencies**: Functionality depends on Canada's Food Guide, Health Canada CNF database, and DRI tables maintaining consistent structure
+- **Internet Required**: All nutrition data is fetched live from Health Canada websites
+- **Data Quality**: Recipe and nutrition accuracy depends on Health Canada's data quality and updates
+
+### Performance Considerations
+- **Web Scraping Overhead**: Recipe search may be slower than direct APIs due to HTML parsing
+- **Virtual Session Memory**: Large datasets in virtual sessions consume RAM (auto-cleanup helps)
+- **Bulk Operation Limits**: Some tools have built-in limits to prevent resource exhaustion
+
+### Calculation Accuracy
+- **LLM-Dependent Unit Conversion**: Non-standard units like "4 fillets" require LLM reasoning for accurate conversion
+- **Math Verification Recommended**: Complex calculations should be spot-checked for accuracy
+- **Ingredient Parsing Limitations**: Unusual ingredient formats may not parse correctly
+
+### System Limitations
+- **Search Result Caps**: Recipe search results are limited by website pagination
+- **Session Data Temporary**: Virtual session data is lost on server restart (by design for favorites-only persistence)
 
 ## 📋 API Reference
 
-### Tool: `search_recipes`
+This platform provides **42+ specialized tools** across 6 major categories. Below are representative examples from each category.
 
-Search for recipes on Canada's Food Guide website.
+### 🍲 Recipe Discovery Tools
 
-**Parameters**:
-- `search_text` (string, optional): Text to search for in recipes
-- `fruits` (array of strings, optional): Filter by fruits (e.g., apple, banana)
-- `vegetables` (array of strings, optional): Filter by vegetables (e.g., carrot, broccoli)
-- `proteins` (array of strings, optional): Filter by proteins (e.g., chicken, tofu)
-- `whole_grains` (array of strings, optional): Filter by whole grains (e.g., rice, quinoa)
-- `meals` (array of strings, optional): Filter by meal type (e.g., breakfast, dinner)
-- `appliances` (array of strings, optional): Filter by cooking appliance (e.g., oven, stovetop)
-- `collections` (array of strings, optional): Filter by collections (e.g., vegetarian, kid-friendly)
-- `max_pages` (integer, optional, default=5): Maximum pages to search
+#### `search_recipes`
+Search Canada's Food Guide with advanced filtering.
+- **Parameters**: `search_text`, `fruits`, `vegetables`, `proteins`, `meals`, `appliances`, `collections`, `max_pages`
+- **Returns**: Array of recipe metadata with titles, URLs, and slugs
 
-**Returns**:
-- Array of recipe metadata objects with title, URL, and slug
+#### `get_recipe`
+Extract complete recipe details from URL.
+- **Parameters**: `url` (required)
+- **Returns**: Full recipe with ingredients, instructions, prep time, tips
 
-### Tool: `get_recipe`
+#### `add_to_favorites`
+Save recipes to persistent SQLite storage.
+- **Parameters**: `recipe_url`, `notes` (optional)
+- **Returns**: Confirmation with recipe stored in database
 
-Fetch detailed recipe information from a URL.
+### 🗄️ Database & Session Tools
 
-**Parameters**:
-- `url` (string, required): The full URL to the recipe on Canada's Food Guide website
+#### `store_recipe_in_session`
+Store recipes in virtual memory sessions.
+- **Parameters**: `session_id`, `recipe_data`
+- **Returns**: Confirmation with parsed ingredient data
 
-**Returns**:
-- Recipe object with detailed information including ingredients, instructions, preparation time, etc.
+#### `simple_recipe_setup`
+Combined recipe transfer, parsing, and nutrition preparation.
+- **Parameters**: `session_id`, `recipe_url`
+- **Returns**: Complete recipe setup for analysis
 
-### Tool: `list_filters`
+### 🧮 Math & Calculation Tools
 
-Get available filters for searching recipes.
+#### `scale_recipe_servings`
+Scale entire recipes using parsed ingredient data.
+- **Parameters**: `session_id`, `recipe_id`, `target_servings`
+- **Returns**: Scaled ingredient amounts with units
 
-**Parameters**:
-- `filter_type` (string, optional): Specific filter type to retrieve (vegetables, fruits, proteins, whole_grains, meal, cooking_appliance)
+#### `bulk_math_calculator`
+Process multiple calculations in one operation (3x-10x efficiency gain).
+- **Parameters**: `calculations` (array of expression objects)
+- **Returns**: All calculation results in single response
 
-**Returns**:
-- Dictionary of filter types and their available values
+### 🥗 CNF Nutrition Analysis Tools
+
+#### `search_and_get_cnf_macronutrients`
+Search Canadian Nutrient File and retrieve nutrition data.
+- **Parameters**: `food_name`, `max_results`
+- **Returns**: CNF foods with complete macronutrient profiles
+
+#### `calculate_recipe_nutrition_summary`
+Analyze unit matching for LLM-driven conversion workflow.
+- **Parameters**: `session_id`, `recipe_id`
+- **Returns**: Unit matching analysis with conversion recommendations
+
+#### `bulk_get_cnf_macronutrients`
+Process multiple CNF foods efficiently.
+- **Parameters**: `food_codes` (up to 20 foods)
+- **Returns**: Batch nutrition data with 90% tool call reduction
+
+### ⚡ Energy Requirements (EER) Tools
+
+#### `get_eer_equations`
+Fetch Energy Expenditure Requirements from Health Canada.
+- **Parameters**: `equation_type`, `pal_category`
+- **Returns**: Live EER equations with coefficients in JSON format
+
+#### `create_user_profile`
+Create profiles for repeated EER calculations.
+- **Parameters**: `profile_name`, `age`, `gender`, `height`, `weight`, `pal_category`
+- **Returns**: Stored profile for calculation workflows
+
+### 📊 Dietary Reference Intakes (DRI) Tools
+
+#### `get_macronutrient_dri_tables`
+Fetch complete DRI tables from Health Canada.
+- **Parameters**: None (fetches all current DRI data)
+- **Returns**: Complete macronutrient recommendations (EAR, RDA, AI, UL)
+
+#### `compare_intake_to_dri`
+Assess nutritional adequacy against Health Canada standards.
+- **Parameters**: `age_range`, `gender`, `intake_data`
+- **Returns**: Adequacy assessment with risk evaluation
+
+---
+
+### 🔄 Complete Workflow Example
+
+```
+1. search_recipes(search_text="salmon") → Find recipes
+2. get_recipe(url="recipe_url") → Extract details  
+3. store_recipe_in_session(session_id="nutrition", recipe_data=...) → Store in memory
+4. search_and_get_cnf_macronutrients(food_name="salmon") → Get nutrition data
+5. calculate_recipe_nutrition_summary(session_id="nutrition") → Analyze unit matching
+6. scale_recipe_servings(target_servings=6) → Scale for family dinner
+7. get_eer_equations(equation_type="adult") → Calculate energy needs
+8. compare_intake_to_dri(age_range="19-30 y", gender="males") → Assess adequacy
+```
 
 ---
 
@@ -230,5 +343,7 @@ Get available filters for searching recipes.
 <p>Made with ❤️ for Canada's Food Guide</p>
 <p>
 <a href="https://food-guide.canada.ca/en/" target="_blank">Canada's Food Guide</a>
+<a href="https://food-nutrition.canada.ca/cnf-fce/?lang=eng" target="_blank">Health Canada's Canadian Nutrient File</a>
+<a href="https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes/tables.html" target="_blank">Health Canada's Dietary Reference Intakes</a>
 </p>
 </div>
