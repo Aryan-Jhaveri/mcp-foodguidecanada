@@ -1,14 +1,240 @@
+"""Math tools for calculating recipe servings, scaling ingredients, and comparing recipes."""
 import json
 import re
+import ast
+import operator
+import os
+import sys
 from typing import Dict, Any, List, Optional
 from fastmcp import FastMCP
-from ..models.math_models import (
-    ServingSizeInput, IngredientScaleInput, BulkIngredientScaleInput, 
-    RecipeComparisonInput, DRIComparisonInput, NutrientAnalysisInput
-)
+
+# Handle imports using absolute path resolution
+script_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(script_dir)
+project_root = os.path.dirname(parent_dir)
+
+# Add paths to sys.path
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+try:
+    from src.models.math_models import (
+        SimpleMathInput, ServingSizeInput, IngredientScaleInput, BulkIngredientScaleInput, 
+        RecipeComparisonInput, BulkMathInput, BulkMathCalculation
+    )
+except ImportError:
+    try:
+        from models.math_models import (
+            SimpleMathInput, ServingSizeInput, IngredientScaleInput, BulkIngredientScaleInput, 
+            RecipeComparisonInput, BulkMathInput, BulkMathCalculation
+        )
+    except ImportError as e:
+        print(f"Error importing math_models: {e}", file=sys.stderr)
+        # Set to None - will cause issues but can't easily fallback for Pydantic models
+        SimpleMathInput = None
+        ServingSizeInput = None
+        IngredientScaleInput = None
+        BulkIngredientScaleInput = None
+        RecipeComparisonInput = None
+        BulkMathInput = None
+        BulkMathCalculation = None
 
 def register_math_tools(mcp: FastMCP):
     """Register recipe math and calculation tools with the MCP server."""
+
+    @mcp.tool()
+    def simple_math_calculator(math_input: SimpleMathInput) -> Dict[str, Any]:
+        """
+        Perform simple mathematical calculations with string variables.
+        
+        This tool allows you to evaluate mathematical expressions containing variables.
+        It supports basic arithmetic operations (+, -, *, /, **, %) and common math functions.
+        
+        **CRITICAL for CNF nutrition calculations**: This is the ONLY tool to use for 
+        calculating nutrition totals. Never manually sum values from JSON data.
+        
+        Supported operations:
+        - Basic arithmetic: +, -, *, /, ** (power), % (modulo)
+        - Parentheses for grouping: (expression)
+        - Variables: any valid Python identifier (letters, numbers, underscores)
+        
+        Use this tool when:
+        - Calculating EER equations with specific values
+        - **CNF nutrition calculations - summing calories, macros across ingredients**
+        - **Recipe per-serving calculations - dividing totals by serving count**
+        - Scaling recipe quantities
+        - Converting units
+        - Any mathematical operation with known variables
+        
+        **CNF Nutrition Examples:**
+        - Total calories: "(206 * 565 / 100) + (885 * 10 / 100) + (22 * 450 / 100)"
+        - Per serving: expression="total_calories / servings", variables={"total_calories": 1437, "servings": 5}
+        - Scaling: expression="original_amount * scale_factor", variables={"original_amount": 100, "scale_factor": 1.5}
+        - EER comparison: expression="recipe_calories - eer_requirement", variables={"recipe_calories": 287, "eer_requirement": 2000}
+        
+        **TEMP_RECIPE_MACROS Calculation Examples:**
+        - Conversion factor: expression="recipe_amount / cnf_serving", variables={"recipe_amount": 10.0, "cnf_serving": 5.0}  # = 2.0
+        - Scaled calories: expression="cnf_calories * conversion_factor", variables={"cnf_calories": 22.0, "conversion_factor": 2.0}  # = 44.0
+        - Recipe total from cache: expression="honey_cals + oil_cals + salmon_cals", variables={"honey_cals": 44.0, "oil_cals": 80.0, "salmon_cals": 200.0}
+        
+        **General Examples:**
+        - EER calculation: "662 - (9.53 * age) + (15.91 * weight) + (539.6 * height)"
+        - Unit conversion: "cups * 240" (cups to ml)
+        - Percentage: "part / total * 100"
+        
+        Args:
+            math_input: Contains expression string and variables dictionary
+            
+        Returns:
+            Dictionary with calculation result and details
+        """
+        # Use the extracted helper function for core calculation logic
+        return _calculate_single_expression(math_input.expression, math_input.variables)
+
+    @mcp.tool()
+    def bulk_math_calculator(bulk_input: BulkMathInput) -> Dict[str, Any]:
+        """
+        Perform multiple mathematical calculations in a single operation.
+        
+        This tool allows you to evaluate multiple mathematical expressions in one call,
+        eliminating the need for repeated tool calls when calculating nutrition data,
+        recipe scaling, or any batch mathematical operations.
+        
+        **PERFECT for CNF nutrition calculations**: Instead of calling simple_math_calculator
+        multiple times for each ingredient, calculate all ingredient nutrition values at once.
+        
+        Each calculation includes:
+        - Unique ID for easy result identification
+        - Mathematical expression with variables
+        - Variable dictionary for that specific calculation
+        
+        Supported operations (same as simple_math_calculator):
+        - Basic arithmetic: +, -, *, /, ** (power), % (modulo)
+        - Parentheses for grouping: (expression)
+        - Variables: any valid Python identifier (letters, numbers, underscores)
+        
+        **Efficiency Benefits:**
+        - Reduces N tool calls to 1 tool call (3x-10x+ performance improvement)
+        - Perfect for multi-ingredient nutrition analysis
+        - Batch processing of recipe scaling calculations
+        - Bulk EER calculations for multiple profiles
+        
+        **Usage Examples:**
+        
+        **CNF Nutrition Analysis (Multiple Ingredients):**
+        ```
+        calculations: [
+            {"id": "honey_cals", "expression": "cnf_calories * conversion_factor", 
+             "variables": {"cnf_calories": 22, "conversion_factor": 2}},
+            {"id": "salmon_cals", "expression": "cnf_calories * conversion_factor",
+             "variables": {"cnf_calories": 206, "conversion_factor": 5.65}},
+            {"id": "oil_cals", "expression": "cnf_calories * conversion_factor",
+             "variables": {"cnf_calories": 885, "conversion_factor": 0.1}}
+        ]
+        ```
+        
+        **Recipe Totals and Per-Serving:**
+        ```
+        calculations: [
+            {"id": "total_calories", "expression": "honey + salmon + oil", 
+             "variables": {"honey": 44, "salmon": 1164, "oil": 89}},
+            {"id": "per_serving", "expression": "total / servings",
+             "variables": {"total": 1297, "servings": 4}}
+        ]
+        ```
+        
+        **Multiple EER Calculations:**
+        ```
+        calculations: [
+            {"id": "adult_male", "expression": "662 - (9.53 * age) + (15.91 * weight) + (539.6 * height)",
+             "variables": {"age": 30, "weight": 75, "height": 1.75}},
+            {"id": "adult_female", "expression": "354 - (6.91 * age) + (9.36 * weight) + (726 * height)",
+             "variables": {"age": 28, "weight": 65, "height": 1.65}}
+        ]
+        ```
+        
+        Args:
+            bulk_input: Contains list of calculations, each with id, expression, and variables
+            
+        Returns:
+            Dictionary with:
+            - Overall status and summary statistics
+            - Individual results keyed by calculation ID
+            - Error details for any failed calculations
+            - Performance metrics (total calculations processed)
+        """
+        try:
+            calculations = bulk_input.calculations
+            results = {}
+            errors = {}
+            successful_calculations = 0
+            total_calculations = len(calculations)
+            
+            # Process each calculation
+            for calc in calculations:
+                calc_id = calc.id
+                
+                # Validate unique IDs
+                if calc_id in results or calc_id in errors:
+                    errors[calc_id] = {
+                        "error": f"Duplicate calculation ID: {calc_id}",
+                        "expression": calc.expression
+                    }
+                    continue
+                
+                # Perform the calculation using the helper function
+                calc_result = _calculate_single_expression(calc.expression, calc.variables)
+                
+                if calc_result["status"] == "success":
+                    results[calc_id] = {
+                        "result": calc_result["result"],
+                        "expression": calc_result["expression"],
+                        "substituted_expression": calc_result["substituted_expression"],
+                        "variables_used": calc_result["variables_used"],
+                        "calculation_steps": calc_result["calculation_steps"]
+                    }
+                    successful_calculations += 1
+                else:
+                    errors[calc_id] = {
+                        "error": calc_result["error"],
+                        "expression": calc_result["expression"],
+                        "variables_provided": calc_result.get("variables_provided", [])
+                    }
+            
+            # Determine overall status
+            if successful_calculations == total_calculations:
+                overall_status = "success"
+            elif successful_calculations > 0:
+                overall_status = "partial_success"
+            else:
+                overall_status = "failure"
+            
+            return {
+                "status": overall_status,
+                "total_calculations": total_calculations,
+                "successful_calculations": successful_calculations,
+                "failed_calculations": total_calculations - successful_calculations,
+                "results": results,
+                "errors": errors,
+                "summary": {
+                    "efficiency_gain": f"Processed {total_calculations} calculations in 1 tool call",
+                    "success_rate": f"{successful_calculations}/{total_calculations}",
+                    "performance": f"{successful_calculations} successful calculations" if successful_calculations > 0 else "No successful calculations"
+                }
+            }
+            
+        except Exception as e:
+            return {
+                "status": "error", 
+                "error": f"Bulk calculation failed: {e}",
+                "total_calculations": len(bulk_input.calculations) if bulk_input.calculations else 0,
+                "successful_calculations": 0,
+                "failed_calculations": len(bulk_input.calculations) if bulk_input.calculations else 0,
+                "results": {},
+                "errors": {}
+            }
 
     @mcp.tool()
     def scale_recipe_servings(serving_input: ServingSizeInput) -> Dict[str, Any]:
@@ -461,58 +687,6 @@ REMEMBER! Always share recipe url, and image_url, and title with users before re
         except Exception as e:
             return {"error": f"Unexpected error in recipe comparison: {e}"}
 
-    #----
-    # FUTURE: Placeholder tools for nutritional analysis
-    # These will be implemented when Canadian Nutrient File (CNF) integration is added
-    
-    # @mcp.tool() 
-    # def compare_daily_nutrition_to_dri(dri_input: DRIComparisonInput) -> Dict[str, Any]:
-    #     """
-    #     FUTURE TOOL: Compare recipe nutrition against Canadian Dietary Reference Intakes (DRI).
-    #     
-    #     This tool will analyze the nutritional content of recipes against official Canadian
-    #     DRI values based on age, gender, and activity level. It will help users understand
-    #     how recipes contribute to meeting daily nutritional requirements.
-    #     
-    #     Features to be implemented:
-    #     - Integration with Canadian Nutrient File (CNF) for ingredient nutrition data
-    #     - DRI table lookups based on demographics
-    #     - Percentage of daily value calculations
-    #     - Deficiency and excess warnings
-    #     - Meal planning recommendations for balanced nutrition
-    #     
-    #     Will require:
-    #     - CNF database integration for ingredient nutrition lookup
-    #     - DRI reference tables from Health Canada
-    #     - Ingredient amount parsing and unit conversion
-    #     - Nutritional calculation algorithms
-    #     """
-    #     return {"error": "DRI comparison tool not yet implemented. Requires CNF integration."}
-    
-    # @mcp.tool()
-    # def analyze_recipe_nutrients(nutrient_input: NutrientAnalysisInput) -> Dict[str, Any]:
-    #     """
-    #     FUTURE TOOL: Detailed nutritional analysis of recipe ingredients and totals.
-    #     
-    #     This tool will provide comprehensive nutritional breakdowns for recipes including
-    #     macro and micronutrients, calories, and specific nutrients of interest.
-    #     
-    #     Features to be implemented:
-    #     - Complete macro analysis (protein, carbs, fat, fiber)
-    #     - Micronutrient analysis (vitamins, minerals)
-    #     - Calorie calculations per serving and total
-    #     - Nutritional density scoring
-    #     - Allergen and dietary restriction flagging
-    #     - Recipe healthiness scoring based on Canadian guidelines
-    #     
-    #     Will require:
-    #     - CNF database for comprehensive nutrient data
-    #     - Ingredient parsing and standardization
-    #     - Unit conversion systems (cups to grams, etc.)
-    #     - Nutrition calculation algorithms
-    #     - Health Canada dietary guideline integration
-    #     """
-    #     return {"error": "Nutrient analysis tool not yet implemented. Requires CNF integration."}
 
 def _scale_ingredient_amount(ingredient_text: str, scale_factor: float) -> tuple[str, Dict[str, Any]]:
     """
@@ -812,3 +986,167 @@ def _compare_portions(recipe_data: List[Dict[str, Any]]) -> Dict[str, Any]:
             "average_ingredients_per_serving": round(sum(r['ingredients_per_serving'] for r in comparison_results) / len(comparison_results), 1)
         }
     }
+
+def _is_safe_expression(expression: str) -> bool:
+    """
+    Check if a mathematical expression is safe to evaluate.
+    
+    Args:
+        expression: Mathematical expression string
+        
+    Returns:
+        True if expression is safe, False otherwise
+    """
+    # List of allowed characters and patterns
+    allowed_chars = set('0123456789+-*/.()%** abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_')
+    
+    # Check if expression only contains allowed characters
+    if not all(c in allowed_chars for c in expression):
+        return False
+    
+    # Check for dangerous keywords/functions
+    dangerous_keywords = [
+        'import', 'exec', 'eval', 'open', 'file', 'input', 'raw_input',
+        'compile', '__', 'getattr', 'setattr', 'delattr', 'globals', 'locals',
+        'vars', 'dir', 'help', 'exit', 'quit', 'reload', 'execfile'
+    ]
+    
+    expression_lower = expression.lower()
+    for keyword in dangerous_keywords:
+        if keyword in expression_lower:
+            return False
+    
+    return True
+
+def _calculate_single_expression(expression: str, variables: Dict[str, float]) -> Dict[str, Any]:
+    """
+    Core calculation logic extracted for reuse by both single and bulk calculators.
+    
+    Args:
+        expression: Mathematical expression string
+        variables: Dictionary of variable names and values
+        
+    Returns:
+        Dictionary with calculation result and details
+    """
+    try:
+        # Validate expression - only allow safe mathematical operations
+        if not _is_safe_expression(expression):
+            return {
+                "status": "error",
+                "error": "Expression contains unsafe operations. Only basic math operations are allowed.",
+                "expression": expression
+            }
+        
+        # Replace variables in expression
+        substituted_expression = expression
+        for var_name, var_value in variables.items():
+            # Use word boundaries to avoid partial replacements
+            substituted_expression = re.sub(rf'\b{re.escape(var_name)}\b', str(var_value), substituted_expression)
+        
+        # Check if all variables were substituted
+        remaining_vars = re.findall(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', substituted_expression)
+        if remaining_vars:
+            return {
+                "status": "error", 
+                "error": f"Undefined variables in expression: {remaining_vars}",
+                "expression": expression,
+                "variables_provided": list(variables.keys())
+            }
+        
+        # Evaluate the expression safely
+        result = _safe_eval(substituted_expression)
+        
+        return {
+            "status": "success",
+            "result": round(result, 6),
+            "expression": expression,
+            "substituted_expression": substituted_expression,
+            "variables_used": variables,
+            "calculation_steps": {
+                "original": expression,
+                "substituted": substituted_expression,
+                "result": result
+            }
+        }
+        
+    except ZeroDivisionError:
+        return {
+            "status": "error",
+            "error": "Division by zero",
+            "expression": expression
+        }
+    except ValueError as e:
+        return {
+            "status": "error",
+            "error": f"Invalid mathematical expression: {e}",
+            "expression": expression
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": f"Calculation failed: {e}",
+            "expression": expression
+        }
+
+def _safe_eval(expression: str) -> float:
+    """
+    Safely evaluate a mathematical expression using ast.
+    
+    Args:
+        expression: Mathematical expression string (should be pre-validated)
+        
+    Returns:
+        Result of the mathematical expression
+        
+    Raises:
+        ValueError: If expression is invalid
+    """
+    # Allowed operators and functions
+    allowed_operators = {
+        ast.Add: operator.add,
+        ast.Sub: operator.sub, 
+        ast.Mult: operator.mul,
+        ast.Div: operator.truediv,
+        ast.Pow: operator.pow,
+        ast.Mod: operator.mod,
+        ast.USub: operator.neg,
+        ast.UAdd: operator.pos,
+    }
+    
+    def eval_node(node):
+        if isinstance(node, ast.Constant):  # Python 3.8+
+            return node.value
+        elif isinstance(node, ast.Num):  # Python < 3.8
+            return node.n
+        elif isinstance(node, ast.BinOp):
+            left = eval_node(node.left)
+            right = eval_node(node.right)
+            op = allowed_operators.get(type(node.op))
+            if op is None:
+                raise ValueError(f"Unsupported operation: {type(node.op)}")
+            return op(left, right)
+        elif isinstance(node, ast.UnaryOp):
+            operand = eval_node(node.operand)
+            op = allowed_operators.get(type(node.op))
+            if op is None:
+                raise ValueError(f"Unsupported unary operation: {type(node.op)}")
+            return op(operand)
+        else:
+            raise ValueError(f"Unsupported node type: {type(node)}")
+    
+    try:
+        # Parse the expression into an AST
+        tree = ast.parse(expression, mode='eval')
+        
+        # Evaluate the AST safely
+        result = eval_node(tree.body)
+        
+        return float(result)
+        
+    except (SyntaxError, ValueError) as e:
+        raise ValueError(f"Invalid expression: {e}")
+    except ZeroDivisionError:
+        raise ZeroDivisionError("Division by zero")
+    except Exception as e:
+        raise ValueError(f"Evaluation error: {e}")

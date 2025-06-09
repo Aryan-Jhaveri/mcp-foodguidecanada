@@ -1,3 +1,6 @@
+"""
+Database interaction tools for managing recipes and user favorites in FastMCP.
+"""
 import sqlite3
 import json
 import uuid
@@ -10,12 +13,41 @@ from .schema import (
     cleanup_virtual_session, 
     list_active_virtual_sessions,
     store_recipe_in_virtual_session,
-    get_virtual_session_recipes
+    get_virtual_session_recipes,
+    # New temporary persistent storage functions
+    create_temp_nutrition_session,
+    store_recipe_in_temp_tables,
+    get_temp_session_recipes,
+    cleanup_temp_sessions,  # Updated combined function
+    list_temp_sessions
 )
 from .math_tools import register_math_tools
-from .ingredient_parser import register_ingredient_tools
-from ..models.db_models import RecipeInput, FavoriteInput, SessionInput, RecipeQueryInput
-from ..config import MAX_QUERY_ROWS
+from .dri_tools import register_dri_tools, register_session_dri_tools
+# Handle imports using absolute path resolution  
+import os
+import sys
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(script_dir)
+project_root = os.path.dirname(parent_dir)
+
+# Add paths to sys.path
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+try:
+    from src.models.db_models import RecipeInput, FavoriteInput, SessionInput, RecipeQueryInput
+    from src.config import MAX_QUERY_ROWS
+except ImportError:
+    try:
+        from models.db_models import RecipeInput, FavoriteInput, SessionInput, RecipeQueryInput
+        from config import MAX_QUERY_ROWS
+    except ImportError as e:
+        print(f"Error importing models/config: {e}", file=sys.stderr)
+        # Set fallback
+        MAX_QUERY_ROWS = 100
 
 def register_db_tools(mcp: FastMCP):
     """Register database tools with the MCP server."""
@@ -26,11 +58,21 @@ def register_db_tools(mcp: FastMCP):
     mcp.tool()(cleanup_virtual_session)
     mcp.tool()(list_active_virtual_sessions)
     
+    # Register new temporary persistent storage functions
+    mcp.tool()(create_temp_nutrition_session)
+    mcp.tool()(store_recipe_in_temp_tables)
+    mcp.tool()(get_temp_session_recipes)
+    mcp.tool()(cleanup_temp_sessions)  # Combined cleanup function
+    mcp.tool()(list_temp_sessions)
+    
     # Register math and calculation tools
     register_math_tools(mcp)
     
-    # Register ingredient parsing tools
-    register_ingredient_tools(mcp)
+    # Register DRI macronutrient tools
+    register_dri_tools(mcp)
+    
+    # Register session-aware DRI tools
+    register_session_dri_tools(mcp)
 
     @mcp.tool()
     def store_recipe_in_session(recipe_input: RecipeInput) -> Dict[str, Any]:
@@ -42,15 +84,6 @@ def register_db_tools(mcp: FastMCP):
         virtual collections for ingredients, instructions, and metadata to enable structured analysis 
         and calculations without database bloat.
 
-        REMEMBER! Always share recipe url, and image_url, and title with users before returning full recipe details. This allows them to see the source and context of the recipe.
-        REMEMBER! For Scaled Recipes, Always include original_servings with target_servings in the response to help users understand what has been adjusted.
-        REMEMBER! Scaled recipes cooking times may vary, so users should check for doneness and adjust as needed.
-
-        Always follow these steps after fetching a recipe:
-        1. Store recipe in session: store_recipe_in_session
-        2. Parse ingredients: parse_and_update_ingredients (reads ingredient_list_org, populates ingredient_name, amount, unit)
-        3. Check results: get_structured_ingredients
-        4. Use parsed data for scaling: scale_recipe_servings
         
         Use this tool after fetching a recipe with get_recipe() to enable:
         - Detailed recipe analysis and comparison
@@ -78,8 +111,14 @@ def register_db_tools(mcp: FastMCP):
         # Generate unique recipe ID
         recipe_id = str(uuid.uuid4())
         
-        # Store in virtual session
-        return store_recipe_in_virtual_session(session_id, recipe_id, recipe_data)
+        # Store in new temporary persistent storage for better reliability
+        result = store_recipe_in_temp_tables(session_id, recipe_id, recipe_data)
+        
+        # If persistent storage fails, fallback to virtual session
+        if "error" in result:
+            return store_recipe_in_virtual_session(session_id, recipe_id, recipe_data)
+        
+        return result
 
     @mcp.tool()
     def get_session_recipes(query_input: RecipeQueryInput) -> Dict[str, Any]:
@@ -115,8 +154,13 @@ def register_db_tools(mcp: FastMCP):
         session_id = query_input.session_id
         recipe_id = query_input.recipe_id
         
-        # Get from virtual session
-        return get_virtual_session_recipes(session_id, recipe_id)
+        # Try persistent storage first, fallback to virtual session
+        result = get_temp_session_recipes(session_id, recipe_id)
+        
+        if "error" in result:
+            return get_virtual_session_recipes(session_id, recipe_id)
+        
+        return result
 
     @mcp.tool()
     def add_to_favorites(favorite_input: FavoriteInput) -> Dict[str, str]:

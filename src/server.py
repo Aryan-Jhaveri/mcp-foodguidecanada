@@ -1,7 +1,11 @@
 from fastmcp import FastMCP
 import sys
 import os
+import logging
+import traceback
+import signal
 from typing import List, Dict, Any, Optional
+from contextlib import contextmanager
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(script_dir)
@@ -14,261 +18,69 @@ if project_root not in sys.path:
 
 try:
     from src.api.recipe import RecipeFetcher
+    from src.api.recipe import register_recipe_tools
     from src.api.search import RecipeSearcher
     from src.models.filters import SearchFilters
     from src.db.queries import register_db_tools
-    from src.config import DB_FILE
+    from src.db.eer_tools import register_eer_tools
+    from src.db.cnf_tools import register_cnf_tools
+    from src.config import DB_FILE, TOOL_TIMEOUT_SECONDS
 except ImportError:
     try:
         from api.recipe import RecipeFetcher
+        from src.api.recipe import register_recipe_tools
         from api.search import RecipeSearcher
         from models.filters import SearchFilters
         from db.queries import register_db_tools
-        from config import DB_FILE
+        from db.eer_tools import register_eer_tools
+        from db.cnf_tools import register_cnf_tools
+        from config import DB_FILE, TOOL_TIMEOUT_SECONDS
     except ImportError as e:
         print(f"Error importing modules: {e}", file=sys.stderr)
         sys.exit(1)
 
-def register_recipe_tools(mcp: FastMCP):
-    """Register all recipe-related tools with the MCP server."""
-    
-    @mcp.tool()
-    def search_recipes(
-        search_text: str = "", 
-        fruits: Optional[List[str]] = None,
-        vegetables: Optional[List[str]] = None,
-        proteins: Optional[List[str]] = None,
-        whole_grains: Optional[List[str]] = None,
-        meals: Optional[List[str]] = None,
-        appliances: Optional[List[str]] = None,
-        collections: Optional[List[str]] = None,
-        max_pages: int = 5
-    ) -> List[Dict[str, str]]:
-        """
-        Search for Canadian recipes from Health Canada's official Food Guide website. This tool searches through thousands of government-verified, nutrition-focused recipes designed to help Canadians eat well according to official dietary guidelines.
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stderr)
+    ]
+)
+#logger = logging.getLogger(__name__)
 
-        REMEMBER! For non-specific queries: Always try to use minimal search_text first, then apply filters to refine results. This approach ensures you see the broadest range of recipes available before narrowing down to specific dietary needs or cooking methods
+# Global flag to track if server should shutdown gracefully
+_shutdown_requested = False
 
-        Steps to efficient searching:
-        1. Use the only search_text parameter to find recipes by keywords in titles, ingredients, or descriptions 
-        2. Apply specific filters to narrow results based on dietary preferences, available ingredients, cooking methods, and meal occasions
-        3. Review the returned recipe metadata to find options that match your needs
+def signal_handler(signum, frame):
+    """Handle shutdown signals gracefully."""
+    global _shutdown_requested
+    _shutdown_requested = True
+    #logger.info(f"Received signal {signum}, initiating graceful shutdown...")
 
-        The search covers recipes that emphasize:
-        - Vegetables and fruits as the foundation of meals
-        - Whole grain foods for sustained energy  
-        - Protein foods including plant-based options
-        - Culturally diverse Canadian cuisine
-        - Family-friendly and accessible cooking methods
-
-        Each recipe returned includes complete nutritional guidance, cooking tips from registered dietitians, and visual instruction steps to ensure cooking success.
-
-        REMEMBER! Always share results of search_recipes before using get_recipe to fetch full details. This allows users to see available recipes and choose which ones they want to explore further.
-
-        Args:
-            search_text: Free-text search across recipe titles, ingredients, and descriptions (e.g., "quick breakfast", "salmon dinner", "vegetarian lunch")
-            fruits: Filter by specific fruits (e.g., ["apple", "banana", "berries"]) - use list_filters to see all available options
-            vegetables: Filter by specific vegetables (e.g., ["carrot", "broccoli", "spinach"]) - use list_filters to see all available options  
-            proteins: Filter by protein sources (e.g., ["chicken", "tofu", "beans", "fish"]) - use list_filters to see all available options
-            whole_grains: Filter by grain types (e.g., ["rice", "quinoa", "oats"]) - use list_filters to see all available options
-            meals: Filter by meal occasions (e.g., ["breakfast", "lunch", "dinner", "snack"]) - use list_filters to see all available options
-            appliances: Filter by cooking equipment needed (e.g., ["oven", "stovetop", "slow_cooker"]) - use list_filters to see all available options
-            collections: Filter by special dietary collections (e.g., ["vegetarian", "kid_friendly", "quick_meals"]) - use list_filters to see all available options
-            max_pages: Maximum search result pages to process (1-10, default: 5). Each page contains ~12 recipes.
-
-        Returns:
-            List of recipe metadata dictionaries containing:
-            - title: Recipe name as it appears on Canada's Food Guide
-            - url: Direct link to the full recipe on food-guide.canada.ca
-            - slug: URL-friendly recipe identifier for referencing
-            
-        Source: Health Canada's Food Guide - https://food-guide.canada.ca/
-        """
-        try:
-            searcher = RecipeSearcher()
-            filters = None
-            
-            filter_types = [
-                (fruits, 'fruits'),
-                (vegetables, 'vegetables'), 
-                (proteins, 'proteins'),
-                (whole_grains, 'whole_grains'),
-                (meals, 'meals_and_course'),
-                (appliances, 'cooking_appliance')
-            ]
-            
-            if any([fruits, vegetables, proteins, whole_grains, meals, appliances, collections]):
-                filters = SearchFilters()
-                
-                for filter_list, filter_type in filter_types:
-                    if filter_list:
-                        for value in filter_list:
-                            filters.add_filter(filter_type, value)
-                
-                if collections:
-                    for value in collections:
-                        filters.add_collection(value)
-            
-            results = searcher.search_recipes(
-                search_text=search_text,
-                filters=filters,
-                max_pages=max_pages
-            )
-            
-            # Add source attribution to each result
-            for result in results:
-                if 'url' in result and not result.get('source'):
-                    result['source'] = 'Health Canada\'s Food Guide'
-                    result['website'] = 'https://food-guide.canada.ca/' ## <---  Update this to slug url + url builder (May 30,2025)
-            
-            return results
-            
-        except Exception as e:
-            return [{"error": f"Search failed: {str(e)}"}]
-    
-    @mcp.tool()
-    def get_recipe(url: str) -> Dict[str, Any]:
-        """
-        Retrieve complete recipe details from Health Canada's Food Guide website. This tool extracts comprehensive recipe information from official government sources, providing nutrition-focused recipes developed by registered dietitians and health professionals.
-        
-        REMEMBER! Always share recipe url, and image_url, and title with users before returning full recipe details. This allows them to see the source and context of the recipe.
-        REMEMBER! For Scaled Reciped, Always include original_servings with target_servings in the response to help users understand what has been adjusted.
-        REMEMBER! Scaled recipes cooking times may vary, so users should check for doneness and adjust as needed.
-
-        Each recipe includes:
-        - Complete ingredient lists with measurements
-        - Step-by-step cooking instructions with visual guides
-        - Nutritional benefits and dietary information
-        - Preparation and cooking time estimates
-        - Serving size recommendations
-        - Professional cooking tips and techniques
-        - Recipe highlight images showing key preparation steps
-        - Food category classifications aligned with Canada's Food Guide
-        
-        All recipes are designed to support healthy eating according to Canadian dietary guidelines and promote food skills development.
-
-        
-
-        Args:
-            url: Complete URL to a specific recipe on Canada's Food Guide website (must start with https://food-guide.canada.ca/)
-            
-        Returns:
-            Comprehensive recipe dictionary containing:
-            - title: Official recipe name
-            - slug: URL identifier for the recipe
-            - url: Source URL for attribution and reference
-            - ingredients: Complete list of ingredients with measurements
-            - instructions: Detailed step-by-step cooking directions
-            - prep_time: Estimated preparation time
-            - cook_time: Estimated cooking time  
-            - servings: Number of servings the recipe yields
-            - categories: Food Guide category classifications
-            - tips: Professional cooking tips and dietary guidance
-            - recipe_highlights: Visual instruction steps with images and descriptions
-            - image_url: Main recipe photo URL
-            - website: "https://food-guide.canada.ca/" for reference
-
-        Source: Health Canada's Food Guide - https://food-guide.canada.ca/ + the recipe slug URL builder
-        """
-        if not url or not url.startswith('https://food-guide.canada.ca/'):
-            return {"error": "Invalid URL. Must be a Canada's Food Guide recipe URL."}
-        
-        try:
-            fetcher = RecipeFetcher()
-            recipe = fetcher.fetch_recipe(url)
-            
-            if not recipe:
-                return {"error": "Recipe not found or could not be parsed"}
-            
-            recipe_data = {
-                "title": recipe.title,
-                "slug": getattr(recipe, 'slug', ''),
-                "url": url,
-                "ingredients": recipe.ingredients or [],
-                "instructions": recipe.instructions or [],
-                "prep_time": getattr(recipe, 'prep_time', ''),
-                "cook_time": getattr(recipe, 'cook_time', ''),
-                "servings": getattr(recipe, 'servings', None),
-                "categories": getattr(recipe, 'categories', []),
-                "tips": getattr(recipe, 'tips', []),
-                "recipe_highlights": getattr(recipe, 'recipe_highlights', []),
-                "image_url": getattr(recipe, 'image_url', ''),
-                "website": "https://food-guide.canada.ca/",
-            }
-            
-            return recipe_data
-            
-        except Exception as e:
-            return {"error": f"Failed to fetch recipe: {str(e)}"}
-    
-    @mcp.tool()
-    def list_filters(filter_type: Optional[str] = None) -> Dict[str, List[str]]:
-        """
-        Discover available search filters for Canada's Food Guide recipes. This tool provides the complete catalog of filter options that can be used with the search_recipes tool to find recipes that match specific dietary needs, cooking methods, meal types, and food categories.
-
-        Filters are organized according to Canada's Food Guide food groups and practical cooking considerations:
-        
-        Food Categories (aligned with Canada's Food Guide):
-        - vegetables: All vegetable types featured in Canadian recipes
-        - fruits: Fresh, frozen, and dried fruits used in cooking
-        - proteins: Both animal and plant-based protein sources
-        - whole_grains: Whole grain options promoted for optimal nutrition
-        
-        Practical Filters:
-        - meal: Meal occasions and course types (breakfast, lunch, dinner, snacks)
-        - cooking_appliance: Kitchen equipment needed (accommodates various cooking setups)
-        - collections: Special dietary categories and cooking themes
-        
-        This information helps users discover the full range of recipe options available and construct precise searches that match their dietary preferences, available ingredients, cooking equipment, and meal planning needs.
-
-        Args:
-            filter_type: Specific filter category to retrieve (optional). Valid options:
-                        - "vegetables" - All vegetable filter options
-                        - "fruits" - All fruit filter options  
-                        - "proteins" - All protein source filter options
-                        - "whole_grains" - All whole grain filter options
-                        - "meal" - All meal type and course filter options
-                        - "cooking_appliance" - All cooking equipment filter options
-                        - "collections" - All special dietary and theme collections
-                        If not specified, returns all filter categories.
-
-        Returns:
-            Dictionary mapping filter categories to their available values. Each category contains a list of specific filter options that can be used in recipe searches.
-            Also includes source attribution for transparency.
-            
-        Source: Health Canada's Food Guide - https://food-guide.canada.ca/
-        """
-        try:
-            filters = SearchFilters(auto_update=True)
-            result = {}
-            
-            if filter_type:
-                if filter_type in ["vegetables", "fruits", "proteins", "whole_grains", "meal", "cooking_appliance"]:
-                    result[filter_type] = filters.get_available_filters(filter_type)
-                elif filter_type == "collections":
-                    result["collections"] = filters.get_available_collections()
-                else:
-                    return {"error": f"Invalid filter type: {filter_type}"}
-            else:
-                filter_types = [
-                    "vegetables", "fruits", "proteins", "whole_grains", 
-                    "meal", "cooking_appliance"
-                ]
-                
-                for ft in filter_types:
-                    result[ft] = filters.get_available_filters(ft)
-                
-                result["collections"] = filters.get_available_collections()
-            
-            # Add source attribution
-            result["source"] = "Health Canada's Food Guide"
-            result["website"] = "https://food-guide.canada.ca/"
-            result["note"] = "Filter options are dynamically updated from Canada's Food Guide recipe database to ensure current availability."
-            
-            return result
-            
-        except Exception as e:
-            return {"error": f"Failed to fetch filters: {str(e)}"}
+@contextmanager
+def connection_error_handler(operation_name: str):
+    """Context manager to handle connection errors gracefully."""
+    try:
+        yield
+    except BrokenPipeError as e:
+        #logger.warning(f"Client disconnected during {operation_name}: {e}")
+        # Don't re-raise - this is expected when client disconnects
+        pass
+    except ConnectionResetError as e:
+        #logger.warning(f"Connection reset during {operation_name}: {e}")
+        # Don't re-raise - this is expected when client disconnects
+        pass
+    except Exception as e:
+        # Check if it's a broken resource error from FastMCP
+        if "BrokenResourceError" in str(type(e)) or "broken" in str(e).lower():
+            #logger.warning(f"Resource broken during {operation_name}: {e}")
+            # Don't re-raise - this is expected when client disconnects
+            pass
+        else:
+            #logger.error(f"Unexpected error during {operation_name}: {e}")
+            #logger.error(traceback.format_exc())
+            raise
 
 def create_server() -> FastMCP:
     """Create and configure the MCP server with all tools registered."""
@@ -276,24 +88,56 @@ def create_server() -> FastMCP:
     mcp = FastMCP()
     
     try:
-        register_recipe_tools(mcp)
-        register_db_tools(mcp)
+        with connection_error_handler("tool registration"):
+            register_recipe_tools(mcp)
+            register_db_tools(mcp)
+            try:
+                register_eer_tools(mcp)
+                #logger.info("EER tools registered successfully")
+            except Exception as e:
+                #logger.warning(f"EER tools not available: {e}")
+                pass
+            try:
+                register_cnf_tools(mcp)
+                #logger.info("CNF tools registered successfully")
+            except Exception as e:
+                #logger.warning(f"CNF tools not available: {e}")
+                pass
     except Exception as e:
-        print(f"ERROR during tool registration: {e}", file=sys.stderr)
+        #logger.error(f"ERROR during tool registration: {e}")
+        #logger.error(traceback.format_exc())
         raise
     
+    #logger.info("MCP server created successfully with all available tools")
     return mcp
 
 if __name__ == "__main__":
+    # Register signal handlers for graceful shutdown
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
     try:
-        print(f"Database file location: {os.path.abspath(DB_FILE)}", file=sys.stderr)
+        #logger.info(f"Starting MCP server with database: {os.path.abspath(DB_FILE)}")
+        #logger.info(f"Tool timeout configured: {TOOL_TIMEOUT_SECONDS} seconds")
+        
         mcp = create_server()
         
-        # Call run() without any parameters
-        mcp.run()
-        
+        # Use connection error handler around the main server run
+        with connection_error_handler("server execution"):
+            #logger.info("MCP server starting...")
+            mcp.run()
+            
+    except KeyboardInterrupt:
+        #logger.info("Server shutdown requested by user")
+        pass
     except Exception as e:
-        print(f"Server error: {e}", file=sys.stderr)
-        import traceback
-        traceback.print_exc(file=sys.stderr)
-        sys.exit(1)
+        if "BrokenResourceError" in str(type(e)) or "broken" in str(e).lower():
+            #logger.warning(f"Client connection lost, shutting down gracefully: {e}")
+            pass
+        else:
+            #logger.error(f"Server error: {e}")
+            #logger.error(traceback.format_exc())
+            sys.exit(1)
+    finally:
+        #logger.info("MCP server shutdown complete")
+        pass

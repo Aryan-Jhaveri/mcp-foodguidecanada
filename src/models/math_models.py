@@ -1,5 +1,11 @@
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional
+from typing import List, Dict
+
+# Simple math tool input
+class SimpleMathInput(BaseModel):
+    """Input model for simple mathematical calculations with variables"""
+    expression: str = Field(..., description="Mathematical expression with variables (e.g., '2 * x + 3 * y - 10')")
+    variables: Dict[str, float] = Field(..., description="Dictionary of variable names and their values (e.g., {'x': 5, 'y': 2})")
 
 class ServingSizeInput(BaseModel):
     """Input model for serving size calculations"""
@@ -26,24 +32,16 @@ class RecipeComparisonInput(BaseModel):
     recipe_ids: List[str] = Field(..., description="List of recipe IDs to compare", min_items=2)
     comparison_type: str = Field("servings", description="Type of comparison: 'servings', 'ingredients', or 'portions'")
 
-# Placeholder models for future nutritional analysis tools
-class DRIComparisonInput(BaseModel):
-    """
-    FUTURE: Input model for comparing recipe nutrition against Dietary Reference Intakes
-    This will be used when Canadian Nutrient File (CNF) integration is added
-    """
-    session_id: str = Field(..., description="Session with recipes to analyze")
-    recipe_ids: List[str] = Field(..., description="Recipes to include in nutritional analysis")
-    age_group: str = Field(..., description="Age group for DRI comparison (e.g., '19-30', '31-50')")
-    gender: str = Field(..., description="Gender for DRI comparison ('male', 'female')")
-    daily_intake: bool = Field(True, description="Whether to analyze as part of daily intake")
+# Bulk math calculation models
+class BulkMathCalculation(BaseModel):
+    """Individual calculation within a bulk math operation"""
+    id: str = Field(..., description="Unique identifier for this calculation (e.g., 'honey_cals', 'protein_total')")
+    expression: str = Field(..., description="Mathematical expression with variables (e.g., 'base_calories * conversion_factor')")
+    variables: Dict[str, float] = Field(..., description="Dictionary of variable names and their values for this expression")
 
-class NutrientAnalysisInput(BaseModel):
-    """
-    FUTURE: Input model for detailed nutrient analysis of recipes
-    This will be used when Canadian Nutrient File (CNF) integration is added
-    """
-    session_id: str = Field(..., description="Session with recipes to analyze")
-    recipe_ids: List[str] = Field(..., description="Recipes to analyze for nutrients")
-    nutrients_of_interest: List[str] = Field(default=[], description="Specific nutrients to focus on (e.g., 'calcium', 'iron')")
-    per_serving: bool = Field(True, description="Whether to calculate per serving or total recipe")
+class BulkMathInput(BaseModel):
+    """Input model for bulk mathematical calculations"""
+    calculations: List[BulkMathCalculation] = Field(..., description="List of calculations to perform in one operation", min_items=1)
+
+# Note: DRI and nutrient analysis functionality is now implemented
+# through dedicated modules in src.db.dri_tools and src.db.cnf_tools

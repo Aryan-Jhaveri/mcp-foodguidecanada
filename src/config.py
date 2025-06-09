@@ -16,3 +16,13 @@ MAX_QUERY_ROWS = 500
 
 # Recipe session management
 MAX_TEMP_RECIPES = 50  # Maximum temporary recipes to store per session
+
+# Operation timeout configuration
+TOOL_TIMEOUT_SECONDS = int(os.environ.get("TOOL_TIMEOUT_SECONDS", "30"))
+BULK_OPERATION_TIMEOUT = int(os.environ.get("BULK_OPERATION_TIMEOUT", "60"))
+PROGRESS_REPORT_INTERVAL = int(os.environ.get("PROGRESS_REPORT_INTERVAL", "3"))
+
+# CNF API configuration
+CNF_RATE_LIMIT = float(os.environ.get("CNF_RATE_LIMIT", "0.5"))  # Reduced from 1.0 for better performance
+CNF_MAX_CONCURRENT = int(os.environ.get("CNF_MAX_CONCURRENT", "3"))  # Max concurrent requests
+CNF_CACHE_TTL = int(os.environ.get("CNF_CACHE_TTL", "1800"))  # 30 minutes cache TTL
