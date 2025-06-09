@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict
 
 # Simple math tool input
 class SimpleMathInput(BaseModel):
@@ -31,6 +31,17 @@ class RecipeComparisonInput(BaseModel):
     session_id: str = Field(..., description="Session identifier containing the recipes")
     recipe_ids: List[str] = Field(..., description="List of recipe IDs to compare", min_items=2)
     comparison_type: str = Field("servings", description="Type of comparison: 'servings', 'ingredients', or 'portions'")
+
+# Bulk math calculation models
+class BulkMathCalculation(BaseModel):
+    """Individual calculation within a bulk math operation"""
+    id: str = Field(..., description="Unique identifier for this calculation (e.g., 'honey_cals', 'protein_total')")
+    expression: str = Field(..., description="Mathematical expression with variables (e.g., 'base_calories * conversion_factor')")
+    variables: Dict[str, float] = Field(..., description="Dictionary of variable names and their values for this expression")
+
+class BulkMathInput(BaseModel):
+    """Input model for bulk mathematical calculations"""
+    calculations: List[BulkMathCalculation] = Field(..., description="List of calculations to perform in one operation", min_items=1)
 
 # Note: DRI and nutrient analysis functionality is now implemented
 # through dedicated modules in src.db.dri_tools and src.db.cnf_tools

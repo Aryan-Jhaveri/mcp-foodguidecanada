@@ -22,13 +22,13 @@ if project_root not in sys.path:
 try:
     from src.models.math_models import (
         SimpleMathInput, ServingSizeInput, IngredientScaleInput, BulkIngredientScaleInput, 
-        RecipeComparisonInput
+        RecipeComparisonInput, BulkMathInput, BulkMathCalculation
     )
 except ImportError:
     try:
         from models.math_models import (
             SimpleMathInput, ServingSizeInput, IngredientScaleInput, BulkIngredientScaleInput, 
-            RecipeComparisonInput
+            RecipeComparisonInput, BulkMathInput, BulkMathCalculation
         )
     except ImportError as e:
         print(f"Error importing math_models: {e}", file=sys.stderr)
@@ -38,6 +38,8 @@ except ImportError:
         IngredientScaleInput = None
         BulkIngredientScaleInput = None
         RecipeComparisonInput = None
+        BulkMathInput = None
+        BulkMathCalculation = None
 
 def register_math_tools(mcp: FastMCP):
     """Register recipe math and calculation tools with the MCP server."""
@@ -88,67 +90,150 @@ def register_math_tools(mcp: FastMCP):
         Returns:
             Dictionary with calculation result and details
         """
+        # Use the extracted helper function for core calculation logic
+        return _calculate_single_expression(math_input.expression, math_input.variables)
+
+    @mcp.tool()
+    def bulk_math_calculator(bulk_input: BulkMathInput) -> Dict[str, Any]:
+        """
+        Perform multiple mathematical calculations in a single operation.
+        
+        This tool allows you to evaluate multiple mathematical expressions in one call,
+        eliminating the need for repeated tool calls when calculating nutrition data,
+        recipe scaling, or any batch mathematical operations.
+        
+        **PERFECT for CNF nutrition calculations**: Instead of calling simple_math_calculator
+        multiple times for each ingredient, calculate all ingredient nutrition values at once.
+        
+        Each calculation includes:
+        - Unique ID for easy result identification
+        - Mathematical expression with variables
+        - Variable dictionary for that specific calculation
+        
+        Supported operations (same as simple_math_calculator):
+        - Basic arithmetic: +, -, *, /, ** (power), % (modulo)
+        - Parentheses for grouping: (expression)
+        - Variables: any valid Python identifier (letters, numbers, underscores)
+        
+        **Efficiency Benefits:**
+        - Reduces N tool calls to 1 tool call (3x-10x+ performance improvement)
+        - Perfect for multi-ingredient nutrition analysis
+        - Batch processing of recipe scaling calculations
+        - Bulk EER calculations for multiple profiles
+        
+        **Usage Examples:**
+        
+        **CNF Nutrition Analysis (Multiple Ingredients):**
+        ```
+        calculations: [
+            {"id": "honey_cals", "expression": "cnf_calories * conversion_factor", 
+             "variables": {"cnf_calories": 22, "conversion_factor": 2}},
+            {"id": "salmon_cals", "expression": "cnf_calories * conversion_factor",
+             "variables": {"cnf_calories": 206, "conversion_factor": 5.65}},
+            {"id": "oil_cals", "expression": "cnf_calories * conversion_factor",
+             "variables": {"cnf_calories": 885, "conversion_factor": 0.1}}
+        ]
+        ```
+        
+        **Recipe Totals and Per-Serving:**
+        ```
+        calculations: [
+            {"id": "total_calories", "expression": "honey + salmon + oil", 
+             "variables": {"honey": 44, "salmon": 1164, "oil": 89}},
+            {"id": "per_serving", "expression": "total / servings",
+             "variables": {"total": 1297, "servings": 4}}
+        ]
+        ```
+        
+        **Multiple EER Calculations:**
+        ```
+        calculations: [
+            {"id": "adult_male", "expression": "662 - (9.53 * age) + (15.91 * weight) + (539.6 * height)",
+             "variables": {"age": 30, "weight": 75, "height": 1.75}},
+            {"id": "adult_female", "expression": "354 - (6.91 * age) + (9.36 * weight) + (726 * height)",
+             "variables": {"age": 28, "weight": 65, "height": 1.65}}
+        ]
+        ```
+        
+        Args:
+            bulk_input: Contains list of calculations, each with id, expression, and variables
+            
+        Returns:
+            Dictionary with:
+            - Overall status and summary statistics
+            - Individual results keyed by calculation ID
+            - Error details for any failed calculations
+            - Performance metrics (total calculations processed)
+        """
         try:
-            expression = math_input.expression
-            variables = math_input.variables
+            calculations = bulk_input.calculations
+            results = {}
+            errors = {}
+            successful_calculations = 0
+            total_calculations = len(calculations)
             
-            # Validate expression - only allow safe mathematical operations
-            if not _is_safe_expression(expression):
-                return {
-                    "status": "error",
-                    "error": "Expression contains unsafe operations. Only basic math operations are allowed.",
-                    "expression": expression
-                }
+            # Process each calculation
+            for calc in calculations:
+                calc_id = calc.id
+                
+                # Validate unique IDs
+                if calc_id in results or calc_id in errors:
+                    errors[calc_id] = {
+                        "error": f"Duplicate calculation ID: {calc_id}",
+                        "expression": calc.expression
+                    }
+                    continue
+                
+                # Perform the calculation using the helper function
+                calc_result = _calculate_single_expression(calc.expression, calc.variables)
+                
+                if calc_result["status"] == "success":
+                    results[calc_id] = {
+                        "result": calc_result["result"],
+                        "expression": calc_result["expression"],
+                        "substituted_expression": calc_result["substituted_expression"],
+                        "variables_used": calc_result["variables_used"],
+                        "calculation_steps": calc_result["calculation_steps"]
+                    }
+                    successful_calculations += 1
+                else:
+                    errors[calc_id] = {
+                        "error": calc_result["error"],
+                        "expression": calc_result["expression"],
+                        "variables_provided": calc_result.get("variables_provided", [])
+                    }
             
-            # Replace variables in expression
-            substituted_expression = expression
-            for var_name, var_value in variables.items():
-                # Use word boundaries to avoid partial replacements
-                substituted_expression = re.sub(rf'\b{re.escape(var_name)}\b', str(var_value), substituted_expression)
-            
-            # Check if all variables were substituted
-            remaining_vars = re.findall(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', substituted_expression)
-            if remaining_vars:
-                return {
-                    "status": "error", 
-                    "error": f"Undefined variables in expression: {remaining_vars}",
-                    "expression": expression,
-                    "variables_provided": list(variables.keys())
-                }
-            
-            # Evaluate the expression safely
-            result = _safe_eval(substituted_expression)
+            # Determine overall status
+            if successful_calculations == total_calculations:
+                overall_status = "success"
+            elif successful_calculations > 0:
+                overall_status = "partial_success"
+            else:
+                overall_status = "failure"
             
             return {
-                "status": "success",
-                "result": round(result, 6),
-                "expression": expression,
-                "substituted_expression": substituted_expression,
-                "variables_used": variables,
-                "calculation_steps": {
-                    "original": expression,
-                    "substituted": substituted_expression,
-                    "result": result
+                "status": overall_status,
+                "total_calculations": total_calculations,
+                "successful_calculations": successful_calculations,
+                "failed_calculations": total_calculations - successful_calculations,
+                "results": results,
+                "errors": errors,
+                "summary": {
+                    "efficiency_gain": f"Processed {total_calculations} calculations in 1 tool call",
+                    "success_rate": f"{successful_calculations}/{total_calculations}",
+                    "performance": f"{successful_calculations} successful calculations" if successful_calculations > 0 else "No successful calculations"
                 }
             }
             
-        except ZeroDivisionError:
-            return {
-                "status": "error",
-                "error": "Division by zero",
-                "expression": expression
-            }
-        except ValueError as e:
-            return {
-                "status": "error",
-                "error": f"Invalid mathematical expression: {e}",
-                "expression": expression
-            }
         except Exception as e:
             return {
-                "status": "error",
-                "error": f"Calculation failed: {e}",
-                "expression": expression
+                "status": "error", 
+                "error": f"Bulk calculation failed: {e}",
+                "total_calculations": len(bulk_input.calculations) if bulk_input.calculations else 0,
+                "successful_calculations": 0,
+                "failed_calculations": len(bulk_input.calculations) if bulk_input.calculations else 0,
+                "results": {},
+                "errors": {}
             }
 
     @mcp.tool()
@@ -926,6 +1011,77 @@ def _is_safe_expression(expression: str) -> bool:
             return False
     
     return True
+
+def _calculate_single_expression(expression: str, variables: Dict[str, float]) -> Dict[str, Any]:
+    """
+    Core calculation logic extracted for reuse by both single and bulk calculators.
+    
+    Args:
+        expression: Mathematical expression string
+        variables: Dictionary of variable names and values
+        
+    Returns:
+        Dictionary with calculation result and details
+    """
+    try:
+        # Validate expression - only allow safe mathematical operations
+        if not _is_safe_expression(expression):
+            return {
+                "status": "error",
+                "error": "Expression contains unsafe operations. Only basic math operations are allowed.",
+                "expression": expression
+            }
+        
+        # Replace variables in expression
+        substituted_expression = expression
+        for var_name, var_value in variables.items():
+            # Use word boundaries to avoid partial replacements
+            substituted_expression = re.sub(rf'\b{re.escape(var_name)}\b', str(var_value), substituted_expression)
+        
+        # Check if all variables were substituted
+        remaining_vars = re.findall(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', substituted_expression)
+        if remaining_vars:
+            return {
+                "status": "error", 
+                "error": f"Undefined variables in expression: {remaining_vars}",
+                "expression": expression,
+                "variables_provided": list(variables.keys())
+            }
+        
+        # Evaluate the expression safely
+        result = _safe_eval(substituted_expression)
+        
+        return {
+            "status": "success",
+            "result": round(result, 6),
+            "expression": expression,
+            "substituted_expression": substituted_expression,
+            "variables_used": variables,
+            "calculation_steps": {
+                "original": expression,
+                "substituted": substituted_expression,
+                "result": result
+            }
+        }
+        
+    except ZeroDivisionError:
+        return {
+            "status": "error",
+            "error": "Division by zero",
+            "expression": expression
+        }
+    except ValueError as e:
+        return {
+            "status": "error",
+            "error": f"Invalid mathematical expression: {e}",
+            "expression": expression
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": f"Calculation failed: {e}",
+            "expression": expression
+        }
 
 def _safe_eval(expression: str) -> float:
     """

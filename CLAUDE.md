@@ -43,6 +43,7 @@ This is an MCP (Model Context Protocol) server that provides access to Canada's 
 16. `scale_multiple_ingredients` - Bulk scale multiple ingredients with parsed data
 17. `compare_recipe_servings` - Compare recipes by servings, ingredients, or portions
 18. `simple_math_calculator` - Perform arithmetic calculations with string variables
+19. `bulk_math_calculator` - Perform multiple calculations in one operation (3x-10x+ efficiency gain) ✅ NEW!
 
 #### EER (Energy Requirement) Tools  
 19. `get_eer_equations` - Fetch EER equations from Health Canada DRI tables in JSON format
@@ -405,9 +406,11 @@ SET
 WHERE session_id = 'nutrition' AND ingredient_id = 'salmon_001';
 ```
 
-**🧮 STEP 4: Calculate Final Nutrition with simple_math_calculator**
+**🧮 STEP 4: Calculate Final Nutrition Using Math Tools**
+
+**Option A: Individual Calculations (simple_math_calculator)**
 ```javascript
-// Transparent calculations using LLM decisions
+// For single calculations or when processing one ingredient at a time
 simple_math_calculator({
     expression: "cnf_calories * conversion_factor",
     variables: {
@@ -416,6 +419,42 @@ simple_math_calculator({
     }
 });
 // Result: 1644.2 kcal (accurate!) vs old system's 8.24 kcal (wrong!)
+```
+
+**Option B: Bulk Calculations (bulk_math_calculator) ✅ NEW! - RECOMMENDED**
+```javascript
+// For multi-ingredient recipes - 3x-10x+ efficiency improvement!
+bulk_math_calculator({
+    calculations: [
+        {
+            "id": "salmon_cals",
+            "expression": "cnf_calories * conversion_factor",
+            "variables": {"cnf_calories": 291.0, "conversion_factor": 5.65}
+        },
+        {
+            "id": "honey_cals", 
+            "expression": "cnf_calories * conversion_factor",
+            "variables": {"cnf_calories": 22.0, "conversion_factor": 2.0}
+        },
+        {
+            "id": "oil_cals",
+            "expression": "cnf_calories * conversion_factor", 
+            "variables": {"cnf_calories": 885.0, "conversion_factor": 0.1}
+        },
+        {
+            "id": "total_cals",
+            "expression": "salmon + honey + oil",
+            "variables": {"salmon": 1644.2, "honey": 44.0, "oil": 88.5}
+        },
+        {
+            "id": "per_serving",
+            "expression": "total / servings",
+            "variables": {"total": 1776.7, "servings": 4}
+        }
+    ]
+});
+// Result: All calculations in ONE tool call vs 5 separate calls!
+// salmon_cals: 1644.2, honey_cals: 44.0, oil_cals: 88.5, total_cals: 1776.7, per_serving: 444.2
 ```
 
 #### ✅ REVOLUTIONARY BENEFITS:
@@ -437,12 +476,12 @@ simple_math_calculator({
 5. simple_math_calculator → Final nutrition calculations
 ```
 
-**Option B: Bulk Processing (90% Efficiency Gain)**
+**Option B: Bulk Processing (90% Efficiency Gain) ✅ ENHANCED!**
 ```
 1. bulk_get_cnf_macronutrients(food_codes=["3183", "4294", "5067"]) → Batch CNF data
 2. calculate_recipe_nutrition_summary() → Analyze all ingredient units
 3. LLM batch review → Make multiple conversion decisions  
-4. simple_math_calculator → Bulk nutrition calculations
+4. bulk_math_calculator → Process ALL nutrition calculations in ONE call! ✅ NEW!
 ```
 
 #### 🏗️ NEW TECHNICAL ARCHITECTURE:
