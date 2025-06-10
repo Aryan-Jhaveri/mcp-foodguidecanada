@@ -1730,70 +1730,99 @@ def register_cnf_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     def query_recipe_macros_table(input_data: RecipeMacrosQueryInput) -> Dict[str, Any]:
         """
-        Query temp_recipe_macros table to review unit matching status and make conversion decisions.
+        Query temp_recipe_macros table with joined CNF nutrition data for recipe calculations.
         
-        This tool allows the LLM to view the temp_recipe_macros table populated by 
-        calculate_recipe_nutrition_summary, showing unit matching analysis for each ingredient.
-        Use this tool to identify which ingredients need manual conversion decisions and
-        review available CNF serving options before making conversion calculations.
+        This tool retrieves recipe ingredients with their matched Canadian Nutrient File data,
+        including nutrition values (calories, protein, fat, carbohydrates) for each available 
+        serving size. The data enables direct nutrition calculations using bulk_math_calculator
+        without requiring database storage of intermediate results.
         
-        The tool returns detailed unit matching information for each ingredient:
-        - exact_match: Recipe unit exactly matches CNF serving size
-        - conversion_available: Standard unit conversion possible (tsp->ml, etc.)
-        - manual_decision_needed: LLM needs to estimate conversion (e.g., "4 fillets" -> grams)
-        - no_cnf_data: Ingredient not linked to CNF data yet
+        Returns recipe ingredient details, unit matching status, available CNF serving sizes,
+        and complete CNF nutrition values per serving size for each ingredient. Unit matching
+        status indicates: exact_match, conversion_available, manual_decision_needed, or no_cnf_data.
         
         Use this tool to:
-        - Review unit matching status after calculate_recipe_nutrition_summary
-        - Identify ingredients needing manual conversion decisions
-        - See available CNF serving options for conversion estimates
-        - Plan conversion strategy before using simple_math_calculator
+        - Get ingredient data with CNF nutrition values for each serving size
+        - Review unit matching status and available serving options
+        - Select appropriate serving sizes for nutrition calculations
+        - Obtain complete data for bulk_math_calculator operations
         
         Args:
             input_data: Contains session_id, optional recipe_id filter, optional unit_match_status filter
             
         Returns:
-            Dict with ingredient unit matching details and conversion recommendations
+            Dict with ingredient data and CNF nutrition values per serving size
         """
         try:
             with get_db_connection() as conn:
                 cursor = conn.cursor()
                 
-                # Build query with optional filters
+                # Build query with optional filters - JOIN with CNF nutrients for complete data
                 query = """
-                    SELECT 
-                        recipe_id,
-                        ingredient_id,
-                        cnf_food_code,
-                        recipe_ingredient_name,
-                        recipe_amount,
-                        recipe_unit,
-                        unit_match_status,
-                        available_cnf_servings,
-                        recommended_conversion,
-                        confidence_level,
-                        llm_conversion_decision,
-                        llm_conversion_factor,
-                        llm_reasoning,
-                        final_calories,
-                        final_protein,
-                        final_fat,
-                        final_carbs
-                    FROM temp_recipe_macros 
-                    WHERE session_id = ?
+                    SELECT DISTINCT
+                        rm.recipe_id,
+                        rm.ingredient_id,
+                        rm.cnf_food_code,
+                        rm.recipe_ingredient_name,
+                        rm.recipe_amount,
+                        rm.recipe_unit,
+                        rm.unit_match_status,
+                        rm.available_cnf_servings,
+                        rm.recommended_conversion,
+                        rm.confidence_level,
+                        rm.llm_conversion_decision,
+                        rm.llm_conversion_factor,
+                        rm.llm_reasoning,
+                        rm.final_calories,
+                        rm.final_protein,
+                        rm.final_fat,
+                        rm.final_carbs,
+                        -- Add CNF nutrition data for each serving size
+                        GROUP_CONCAT(
+                            CASE WHEN cn.nutrient_name = 'Energy' 
+                            THEN cn.nutrient_value || '|' || cn.per_amount || '|' || cn.unit 
+                            END
+                        ) as cnf_calories_servings,
+                        GROUP_CONCAT(
+                            CASE WHEN cn.nutrient_name = 'Protein' 
+                            THEN cn.nutrient_value || '|' || cn.per_amount || '|' || cn.unit 
+                            END
+                        ) as cnf_protein_servings,
+                        GROUP_CONCAT(
+                            CASE WHEN cn.nutrient_name = 'Total Fat' 
+                            THEN cn.nutrient_value || '|' || cn.per_amount || '|' || cn.unit 
+                            END
+                        ) as cnf_fat_servings,
+                        GROUP_CONCAT(
+                            CASE WHEN cn.nutrient_name = 'Carbohydrate' 
+                            THEN cn.nutrient_value || '|' || cn.per_amount || '|' || cn.unit 
+                            END
+                        ) as cnf_carbs_servings
+                    FROM temp_recipe_macros rm
+                    LEFT JOIN temp_cnf_nutrients cn ON rm.session_id = cn.session_id 
+                        AND rm.cnf_food_code = cn.cnf_food_code
+                        AND cn.nutrient_name IN ('Energy', 'Protein', 'Total Fat', 'Carbohydrate')
+                    WHERE rm.session_id = ?
                 """
                 
                 params = [input_data.session_id]
                 
                 if input_data.recipe_id:
-                    query += " AND recipe_id = ?"
+                    query += " AND rm.recipe_id = ?"
                     params.append(input_data.recipe_id)
                     
                 if input_data.unit_match_status:
-                    query += " AND unit_match_status = ?"
+                    query += " AND rm.unit_match_status = ?"
                     params.append(input_data.unit_match_status)
                     
-                query += " ORDER BY unit_match_status, recipe_ingredient_name"
+                query += """
+                    GROUP BY rm.recipe_id, rm.ingredient_id, rm.cnf_food_code, rm.recipe_ingredient_name,
+                             rm.recipe_amount, rm.recipe_unit, rm.unit_match_status, rm.available_cnf_servings,
+                             rm.recommended_conversion, rm.confidence_level, rm.llm_conversion_decision,
+                             rm.llm_conversion_factor, rm.llm_reasoning, rm.final_calories, rm.final_protein,
+                             rm.final_fat, rm.final_carbs
+                    ORDER BY rm.unit_match_status, rm.recipe_ingredient_name
+                """
                 
                 cursor.execute(query, params)
                 results = cursor.fetchall()
@@ -1811,6 +1840,22 @@ def register_cnf_tools(mcp: FastMCP) -> None:
                 status_summary = {}
                 
                 for row in results:
+                    # Helper function to parse concatenated nutrition data
+                    def parse_nutrition_servings(concat_str):
+                        if not concat_str:
+                            return []
+                        servings = []
+                        for item in concat_str.split(','):
+                            if item and '|' in item:
+                                parts = item.split('|')
+                                if len(parts) == 3:
+                                    servings.append({
+                                        "nutrient_value": float(parts[0]) if parts[0] else 0.0,
+                                        "per_amount": float(parts[1]) if parts[1] else 0.0,
+                                        "unit": parts[2]
+                                    })
+                        return servings
+                    
                     ingredient_data = {
                         "recipe_id": row[0],
                         "ingredient_id": row[1],
@@ -1828,7 +1873,12 @@ def register_cnf_tools(mcp: FastMCP) -> None:
                         "final_calories": row[13],
                         "final_protein": row[14],
                         "final_fat": row[15],
-                        "final_carbs": row[16]
+                        "final_carbs": row[16],
+                        # NEW: CNF nutrition data for LLM calculations
+                        "cnf_calories_per_serving": parse_nutrition_servings(row[17]),
+                        "cnf_protein_per_serving": parse_nutrition_servings(row[18]),
+                        "cnf_fat_per_serving": parse_nutrition_servings(row[19]),
+                        "cnf_carbs_per_serving": parse_nutrition_servings(row[20])
                     }
                     ingredients_data.append(ingredient_data)
                     
