@@ -3,8 +3,6 @@
 <a href="https://opensource.org/licenses/MIT" target="_blank"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
 <a href="https://modelcontextprotocol.io/" target="_blank"><img src="https://img.shields.io/badge/MCP-ModelContextProtocol-green.svg" alt="MCP"></a>
 
-
-Click the image to watch example uses of the mcp server to 1) find themed recipes, and creating an .ics event to block meal prep time; 2) find recipes based on an image of your groceries!
 [![Watch the trailer](https://img.youtube.com/vi/VtKMYpnC2EI/maxresdefault.jpg)](https://youtu.be/VtKMYpnC2EI)
 ## 📝 Description
 
@@ -22,6 +20,8 @@ Instead of LLMs manually parsing multiple government websites and performing com
 📊 **Dietary Reference Intakes (DRI)** - Macronutrient recommendations and adequacy assessment  
 
 Built using <a href="https://github.com/jlowin/fastmcp" target="_blank">FastMCP</a> with custom integrations to Health Canada's <a href="https://food-nutrition.canada.ca/cnf-fce/index-eng.jsp" target="_blank">Canadian Nutrient File (CNF)</a> database, <a href="https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes/tables.html" target="_blank">Dietary Reference Intakes (DRI)</a> tables, and EER equations, this server transforms complex nutrition analysis into simple tool calls for AI assistants.
+
+Check IMPLEMENTATIONS.MD if you'd like to contribute or collaborate! Always looking for suggestions!
 
 ## 📑 Table of Contents
 
@@ -231,10 +231,6 @@ Here's how the comprehensive nutrition platform is organized:
 - **LLM-Dependent Unit Conversion**: Non-standard units like "4 fillets" require LLM reasoning for accurate conversion
 - **Math Verification Recommended**: Complex calculations should be spot-checked for accuracy
 - **Ingredient Parsing Limitations**: Unusual ingredient formats may not parse correctly
-
-### System Limitations
-- **Search Result Caps**: Recipe search results are limited by website pagination
-- **Session Data Temporary**: Virtual session data is lost on server restart (by design for favorites-only persistence)
 
 ## 📋 API Reference
 
