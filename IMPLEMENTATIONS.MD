@@ -3,6 +3,7 @@ Future improvements To-Do list, tasks, Project wishlists, Notes
 
 ## June 10, 2025
 ### TO-DO
+[] Update the outdate CLI to include db, EER, and CNF compatibility. LLM's waste water, and this in itself can have a standalone value too.
 ### -- Improvements
 [] Macros Analysis is the most resource consuming tool set, and it also tends to time out on the Nutrient File's side. An API key here would really efficient.
 [] Combine these tools (potentially), to make tool calling efficient, and reduce tool calls:
