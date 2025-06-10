@@ -5,3 +5,4 @@ requests>=2.25.0
 beautifulsoup4>=4.9.0
 argparse>=1.4.0
 httpx>=0.23.0
+pandas
