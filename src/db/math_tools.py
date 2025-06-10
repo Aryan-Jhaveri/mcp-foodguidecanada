@@ -49,6 +49,8 @@ def register_math_tools(mcp: FastMCP):
         """
         Perform simple mathematical calculations with string variables.
         
+        !!REMEMBER: ALWAYS USE ONLY THE VALUES FROM THE .DB for the given session, NEVER ASSUME VALUES"
+        
         This tool allows you to evaluate mathematical expressions containing variables.
         It supports basic arithmetic operations (+, -, *, /, **, %) and common math functions.
         
@@ -97,6 +99,8 @@ def register_math_tools(mcp: FastMCP):
     def bulk_math_calculator(bulk_input: BulkMathInput) -> Dict[str, Any]:
         """
         Perform multiple mathematical calculations in a single operation.
+        
+        !!REMEMBER: ALWAYS USE ONLY THE VALUES FROM THE .DB for the given session, NEVER ASSUME VALUES"
         
         This tool allows you to evaluate multiple mathematical expressions in one call,
         eliminating the need for repeated tool calls when calculating nutrition data,
