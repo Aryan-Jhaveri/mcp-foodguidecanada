@@ -1241,7 +1241,7 @@ def cleanup_temp_sessions(session_id: str = None, hours_old: int = None, auto_cl
             total_records_cleaned = {}
             
             # Initialize counters
-            for table in ['temp_recipe_ingredients', 'temp_cnf_nutrients', 'temp_cnf_foods', 'temp_recipes', 'temp_recipe_macros', 'temp_sessions']:
+            for table in ['temp_recipe_macros', 'temp_recipe_ingredients', 'temp_cnf_nutrients', 'temp_cnf_foods', 'temp_recipes', 'temp_sessions']:
                 total_records_cleaned[table] = 0
             
             sessions_to_clean = []
@@ -1274,18 +1274,18 @@ def cleanup_temp_sessions(session_id: str = None, hours_old: int = None, auto_cl
                 session_counts = {}
                 
                 # Count records before cleanup for this session
-                for table in ['temp_recipe_ingredients', 'temp_cnf_nutrients', 'temp_cnf_foods', 'temp_recipes', 'temp_recipe_macros']:
+                for table in ['temp_recipe_macros', 'temp_recipe_ingredients', 'temp_cnf_nutrients', 'temp_cnf_foods', 'temp_recipes', 'temp_sessions']:
                     cursor.execute(f"SELECT COUNT(*) FROM {table} WHERE session_id = ?", (cleanup_session_id,))
                     count = cursor.fetchone()[0]
                     session_counts[table] = count
                     total_records_cleaned[table] += count
                 
                 # Delete session data
+                cursor.execute("DELETE FROM temp_recipe_macros WHERE session_id = ?", (cleanup_session_id,))
                 cursor.execute("DELETE FROM temp_recipe_ingredients WHERE session_id = ?", (cleanup_session_id,))
                 cursor.execute("DELETE FROM temp_cnf_nutrients WHERE session_id = ?", (cleanup_session_id,))
                 cursor.execute("DELETE FROM temp_cnf_foods WHERE session_id = ?", (cleanup_session_id,))
                 cursor.execute("DELETE FROM temp_recipes WHERE session_id = ?", (cleanup_session_id,))
-                cursor.execute("DELETE FROM temp_recipe_macros WHERE session_id = ?", (cleanup_session_id,))
                 cursor.execute("DELETE FROM temp_sessions WHERE session_id = ?", (cleanup_session_id,))
                 
                 total_records_cleaned['temp_sessions'] += 1

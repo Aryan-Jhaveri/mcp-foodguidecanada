@@ -49,7 +49,7 @@ def register_math_tools(mcp: FastMCP):
         """
         Perform simple mathematical calculations with string variables.
         
-        !!REMEMBER: ALWAYS USE ONLY THE VALUES FROM THE .DB for the given session, NEVER ASSUME VALUES"
+        !!REMEMBER: ALWAYS USE ONLY THE FETCHED VALUES, USE QUERY TOOLS TO GET THE LATEST DATA!!"
         
         This tool allows you to evaluate mathematical expressions containing variables.
         It supports basic arithmetic operations (+, -, *, /, **, %) and common math functions.
@@ -100,7 +100,7 @@ def register_math_tools(mcp: FastMCP):
         """
         Perform multiple mathematical calculations in a single operation.
         
-        !!REMEMBER: ALWAYS USE ONLY THE VALUES FROM THE .DB for the given session, NEVER ASSUME VALUES"
+        !!REMEMBER: ALWAYS USE ONLY THE FETCHED VALUES, USE QUERY TOOLS TO GET THE LATEST DATA!!"
         
         This tool allows you to evaluate multiple mathematical expressions in one call,
         eliminating the need for repeated tool calls when calculating nutrition data,
