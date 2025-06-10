@@ -6,10 +6,10 @@
 
 | Example  | Video |
 | ------------- | ------------- |
-| Find Themed recipes for a week  | ![themed-recipe-spedup](https://github.com/user-attachments/assets/284795c7-17df-4715-a7b2-98a7c6b1241a) |
-| Suggest recipes from an image of your groceries  | ![from-image-to-show-recipes-spedup](https://github.com/user-attachments/assets/75bc1976-2a3c-4b5e-b1cd-45006b190b5b) |
-| Calculate your estimated macros intake and energy requirements | ![calculate-eer-spedup](https://github.com/user-attachments/assets/ba30be42-e4d0-4d86-a379-35fe51cdeb40) |
-| Calculate Macros for a recipe | ![calculate-macros-spedup](https://github.com/user-attachments/assets/c7912d00-773f-4781-959b-56d0b8d86727) |
+| Find Themed recipes for a week  | <a href="https://youtu.be/CjWSxeWg-O0?t=223" target="_blank"> ![themed-recipe-spedup](https://github.com/user-attachments/assets/284795c7-17df-4715-a7b2-98a7c6b1241a) </a>|
+| Suggest recipes from an image of your groceries  | <a href="https://youtu.be/CjWSxeWg-O0?t=307" target="_blank"> ![from-image-to-show-recipes-spedup](https://github.com/user-attachments/assets/75bc1976-2a3c-4b5e-b1cd-45006b190b5b) </a> |
+| Calculate your estimated macros intake and energy requirements | <a href="https://youtu.be/CjWSxeWg-O0?t=40" target="_blank"> ![calculate-eer-spedup](https://github.com/user-attachments/assets/ba30be42-e4d0-4d86-a379-35fe51cdeb40) </a> |
+| Calculate Macros for a recipe | <a href ="https://youtu.be/CjWSxeWg-O0?t=116" target="_blank">![calculate-macros-spedup](https://github.com/user-attachments/assets/c7912d00-773f-4781-959b-56d0b8d86727) </a> |
 
 
 
