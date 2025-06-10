@@ -34,6 +34,20 @@ if project_root not in sys.path:
 # Global flag for whether CNF tools are available
 CNF_TOOLS_AVAILABLE = False
 
+# Import config first to ensure constants are available
+try:
+    from src.config import CNF_RATE_LIMIT, CNF_MAX_CONCURRENT, CNF_CACHE_TTL, BULK_OPERATION_TIMEOUT, PROGRESS_REPORT_INTERVAL
+except ImportError:
+    try:
+        from config import CNF_RATE_LIMIT, CNF_MAX_CONCURRENT, CNF_CACHE_TTL, BULK_OPERATION_TIMEOUT, PROGRESS_REPORT_INTERVAL
+    except ImportError:
+        # Set defaults if config not available
+        CNF_RATE_LIMIT = 0.5
+        CNF_MAX_CONCURRENT = 3
+        CNF_CACHE_TTL = 1800
+        BULK_OPERATION_TIMEOUT = 60
+        PROGRESS_REPORT_INTERVAL = 3
+
 try:
     from src.models.cnf_models import (
         CNFSearchInput, CNFProfileInput, CNFMacronutrientsInput, CNFBulkMacronutrientsInput, CNFSearchAndGetInput,
@@ -47,7 +61,6 @@ try:
     from src.db.schema import get_virtual_session_data, store_recipe_in_virtual_session
     from src.db.sql_engine import VirtualSQLEngine, get_available_tables_info
     from src.db.connection import get_db_connection
-    from src.config import CNF_RATE_LIMIT, CNF_MAX_CONCURRENT, CNF_CACHE_TTL, BULK_OPERATION_TIMEOUT, PROGRESS_REPORT_INTERVAL
     CNF_TOOLS_AVAILABLE = True
 except ImportError:
     try:
@@ -62,7 +75,6 @@ except ImportError:
         from db.schema import get_virtual_session_data, store_recipe_in_virtual_session
         from db.sql_engine import VirtualSQLEngine, get_available_tables_info
         from db.connection import get_db_connection
-        from config import CNF_RATE_LIMIT, CNF_MAX_CONCURRENT, CNF_CACHE_TTL, BULK_OPERATION_TIMEOUT, PROGRESS_REPORT_INTERVAL
         CNF_TOOLS_AVAILABLE = True
     except ImportError as e:
         print(f"Warning: CNF tools not available due to import error: {e}", file=sys.stderr)
