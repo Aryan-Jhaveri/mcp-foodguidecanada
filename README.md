@@ -331,21 +331,6 @@ Assess nutritional adequacy against Health Canada standards.
 
 ---
 
-### 🔄 Complete Workflow Example
-
-```
-1. search_recipes(search_text="salmon") → Find recipes
-2. get_recipe(url="recipe_url") → Extract details  
-3. store_recipe_in_session(session_id="nutrition", recipe_data=...) → Store in memory
-4. search_and_get_cnf_macronutrients(food_name="salmon") → Get nutrition data
-5. calculate_recipe_nutrition_summary(session_id="nutrition") → Analyze unit matching
-6. scale_recipe_servings(target_servings=6) → Scale for family dinner
-7. get_eer_equations(equation_type="adult") → Calculate energy needs
-8. compare_intake_to_dri(age_range="19-30 y", gender="males") → Assess adequacy
-```
-
----
-
 <div align="center">
 <p>Made with ❤️ for Canada's Food Guide</p>
 <p>
