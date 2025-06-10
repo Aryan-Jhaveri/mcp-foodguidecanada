@@ -1,9 +1,18 @@
-# 🍲 <a href="https://food-guide.canada.ca/en/" target="_blank">Canada's Food Guide - MCP Server</a>
+ # 🍲 <a href="https://food-guide.canada.ca/en/" target="_blank">Canada's Food Guide - MCP Server</a>
+ 
 <a href="https://www.python.org/downloads/" target="_blank"><img src="https://img.shields.io/badge/python-3.8+-blue.svg" alt="Python 3.8+"></a>
 <a href="https://opensource.org/licenses/MIT" target="_blank"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
 <a href="https://modelcontextprotocol.io/" target="_blank"><img src="https://img.shields.io/badge/MCP-ModelContextProtocol-green.svg" alt="MCP"></a>
 
-[![Watch the trailer](https://img.youtube.com/vi/VtKMYpnC2EI/maxresdefault.jpg)](https://youtu.be/VtKMYpnC2EI)
+| Example  | Video |
+| ------------- | ------------- |
+| Find Themed recipes for a week  | ![themed-recipe-spedup](https://github.com/user-attachments/assets/797a72a3-3d4b-4307-918d-04858bc3c87c)  |
+| Suggest recipes from an image of your groceries  | ![from-image-to-show-recipes-spedup](https://github.com/user-attachments/assets/75bc1976-2a3c-4b5e-b1cd-45006b190b5b) |
+| Calculate your estimated macros intake and energy requirements | ![calculate-eer-spedup](https://github.com/user-attachments/assets/ba30be42-e4d0-4d86-a379-35fe51cdeb40) |
+| Calculate Macros for a recipe | ![calculate-macros-spedup](https://github.com/user-attachments/assets/c7912d00-773f-4781-959b-56d0b8d86727) |
+
+
+
 ## 📝 Description
 
 This is a **comprehensive nutrition analysis platform** that integrates <a href="https://food-guide.canada.ca/en/" target="_blank">Canada's Food Guide</a> recipes with Health Canada's official nutrition databases through a <a href="https://modelcontextprotocol.io/" target="_blank">Model Context Protocol (MCP)</a> server.
@@ -21,9 +30,9 @@ Instead of LLMs manually parsing multiple government websites and performing com
 
 Built using <a href="https://github.com/jlowin/fastmcp" target="_blank">FastMCP</a> with custom integrations to Health Canada's <a href="https://food-nutrition.canada.ca/cnf-fce/index-eng.jsp" target="_blank">Canadian Nutrient File (CNF)</a> database, <a href="https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes/tables.html" target="_blank">Dietary Reference Intakes (DRI)</a> tables, and EER equations, this server transforms complex nutrition analysis into simple tool calls for AI assistants.
 
-Check IMPLEMENTATIONS.MD if you'd like to contribute or collaborate! Always looking for suggestions!
+Check **IMPLEMENTATIONS.MD** if you'd like to contribute or collaborate! Always looking for suggestions!
 
-You can use this <a href="https://docs.google.com/spreadsheets/d/1TELVtKLN35yxGFC10751WnByRtpWndYPjC4WKWw4Cgo/edit?usp=sharing" target="_blank">google sheet</a> to verify EER and CNF calculations show in the trailer videos in the current repository.
+You can use this <a href="https://docs.google.com/spreadsheets/d/1TELVtKLN35yxGFC10751WnByRtpWndYPjC4WKWw4Cgo/edit?usp=sharing" target="_blank">**google sheet**</a> to verify EER and CNF calculations shown in the trailer videos in the current repository.
 
 ## 📑 Table of Contents
 
