@@ -42,7 +42,7 @@ You can use this <a href="https://docs.google.com/spreadsheets/d/1TELVtKLN35yxGF
 - [🚀 Running the Server using Claude](#-running-the-server-using-Claude-Desktop-Integration)
 - [🏗️ Project Structure](#️-project-structure)
 - [⚠️ Known Issues](#️-known-issues-and-limitations)
-- [📋 API Reference](#-api-reference)
+- [📋 Reference](#-reference)
 
 ## ✨ Features
 
@@ -243,7 +243,7 @@ Here's how the comprehensive nutrition platform is organized:
 - **Math Verification Recommended**: Complex calculations should be spot-checked for accuracy
 - **Ingredient Parsing Limitations**: Unusual ingredient formats may not parse correctly
 
-## 📋 API Reference
+## 📋 Reference
 
 This platform provides **42+ specialized tools** across 6 major categories. Below are representative examples from each category.
 
