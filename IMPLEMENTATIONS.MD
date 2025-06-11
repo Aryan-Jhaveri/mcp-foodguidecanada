@@ -10,6 +10,7 @@ Future improvements To-Do list, tasks, Project wishlists, Notes
 
 [] refactor and breakdown cnf_tools.py file. The current size is too big, and contains helper functions
 [] Add mermaid diagram to implementations.md to show dataflow.
+[] Simplify installaion with an npm or smithery installation packaging
 
 ### -- Potential ideas
 [] Extend DRI support to include micro nutrients, vitamins and minerals too
