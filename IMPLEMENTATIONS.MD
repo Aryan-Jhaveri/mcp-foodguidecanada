@@ -3,8 +3,8 @@ Future improvements To-Do list, tasks, Project wishlists, Notes
 
 ## June 14, 2025
 [] CNF database updated robot.txt limits web api calls to prevent bloat - Now only 2 of, say 4, recipes are being fetched.
+    
     Alternatives
-
     --> Add mcp.resource or mcp.tool for table values for common foods
 
     --> Possibly add offline database for Canada's nutrient file
