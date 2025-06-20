@@ -34,6 +34,8 @@ Check **IMPLEMENTATIONS.MD** if you'd like to contribute or collaborate! Always 
 
 You can use this <a href="https://docs.google.com/spreadsheets/d/1TELVtKLN35yxGFC10751WnByRtpWndYPjC4WKWw4Cgo/edit?usp=sharing" target="_blank">**google sheet**</a> to verify EER and CNF calculations shown in the trailer videos in the current repository. 
 
+⚠️ The CNF Database has rate limited macronutrient webrequests to prevent server bloat. If you're fetching maacronutrient information, you migth encounter incomplete bulk_get_macronutrient outputs in the first try. **Always try to chunk queries into separate steps to prevent the LLM from overwhelming/being overwhelmed**
+
 ## 📑 Table of Contents
 
 - [📝 Description](#-description)
