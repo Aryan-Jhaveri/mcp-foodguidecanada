@@ -32,7 +32,7 @@ Built using <a href="https://github.com/jlowin/fastmcp" target="_blank">FastMCP<
 
 Check **IMPLEMENTATIONS.MD** if you'd like to contribute or collaborate! Always looking for suggestions!
 
-You can use this <a href="https://docs.google.com/spreadsheets/d/1TELVtKLN35yxGFC10751WnByRtpWndYPjC4WKWw4Cgo/edit?usp=sharing" target="_blank">**google sheet**</a> to verify EER and CNF calculations shown in the trailer videos in the current repository.
+You can use this <a href="https://docs.google.com/spreadsheets/d/1TELVtKLN35yxGFC10751WnByRtpWndYPjC4WKWw4Cgo/edit?usp=sharing" target="_blank">**google sheet**</a> to verify EER and CNF calculations shown in the trailer videos in the current repository. 
 
 ## 📑 Table of Contents
 
