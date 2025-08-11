@@ -32,7 +32,9 @@ Built using <a href="https://github.com/jlowin/fastmcp" target="_blank">FastMCP<
 
 Check **IMPLEMENTATIONS.MD** if you'd like to contribute or collaborate! Always looking for suggestions!
 
-You can use this <a href="https://docs.google.com/spreadsheets/d/1TELVtKLN35yxGFC10751WnByRtpWndYPjC4WKWw4Cgo/edit?usp=sharing" target="_blank">**google sheet**</a> to verify EER and CNF calculations shown in the trailer videos in the current repository.
+You can use this <a href="https://docs.google.com/spreadsheets/d/1TELVtKLN35yxGFC10751WnByRtpWndYPjC4WKWw4Cgo/edit?usp=sharing" target="_blank">**google sheet**</a> to verify EER and CNF calculations shown in the trailer videos in the current repository. 
+
+⚠️ The CNF Database has rate limited macronutrient webrequests to prevent server bloat. If you're fetching maacronutrient information, you migth encounter incomplete bulk_get_macronutrient outputs in the first try. **Always try to chunk queries into separate steps to prevent the LLM from overwhelming/being overwhelmed**
 
 ## 📑 Table of Contents
 
@@ -42,7 +44,7 @@ You can use this <a href="https://docs.google.com/spreadsheets/d/1TELVtKLN35yxGF
 - [🚀 Running the Server using Claude](#-running-the-server-using-Claude-Desktop-Integration)
 - [🏗️ Project Structure](#️-project-structure)
 - [⚠️ Known Issues](#️-known-issues-and-limitations)
-- [📋 API Reference](#-api-reference)
+- [📋 Reference](#-reference)
 
 ## ✨ Features
 
@@ -243,7 +245,7 @@ Here's how the comprehensive nutrition platform is organized:
 - **Math Verification Recommended**: Complex calculations should be spot-checked for accuracy
 - **Ingredient Parsing Limitations**: Unusual ingredient formats may not parse correctly
 
-## 📋 API Reference
+## 📋 Reference
 
 This platform provides **42+ specialized tools** across 6 major categories. Below are representative examples from each category.
 
