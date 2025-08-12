@@ -33,29 +33,29 @@ class FoodGuideCLI:
         """Initialize the recipe database."""
         result = initialize_database()
         if "success" in result:
-            print(f"✅ {result['success']}")
+            #print(f"✅ {result['success']}")
         else:
-            print(f"❌ {result['error']}")
+            #print(f"❌ {result['error']}")
         return result
 
     def create_session(self, session_id: str):
         """Create a virtual recipe session."""
         result = create_virtual_recipe_session(session_id)
         if "success" in result:
-            print(f"✅ {result['success']}")
+            #print(f"✅ {result['success']}")
         else:
-            print(f"❌ {result['error']}")
+            #print(f"❌ {result['error']}")
         return result
 
     def cleanup_session(self, session_id: str):
         """Clean up a virtual recipe session."""
         result = cleanup_virtual_session(session_id)
         if "success" in result:
-            print(f"✅ {result['success']}")
+            #print(f"✅ {result['success']}")
         elif "message" in result:
-            print(f"ℹ️ {result['message']}")
+            #print(f"ℹ️ {result['message']}")
         else:
-            print(f"❌ {result['error']}")
+            #print(f"❌ {result['error']}")
         return result
 
     def list_sessions(self):
@@ -64,23 +64,23 @@ class FoodGuideCLI:
         if "sessions" in result:
             sessions = result["sessions"]
             if sessions:
-                print("📋 Active sessions:")
+                #print("📋 Active sessions:")
                 for session in sessions:
-                    print(f"  • {session['session_id']}: {session['recipe_count']} recipes")
+                    #print(f"  • {session['session_id']}: {session['recipe_count']} recipes")
             else:
-                print("ℹ️ No active sessions found")
+                #print("ℹ️ No active sessions found")
         else:
-            print(f"❌ {result['error']}")
+            #print(f"❌ {result['error']}")
         return result
 
     def store_recipe(self, session_id: str, recipe_url: str):
         """Fetch and store a recipe in a virtual session."""
-        print(f"🔄 Fetching recipe from: {recipe_url}")
+        #print(f"🔄 Fetching recipe from: {recipe_url}")
         
         # Fetch the recipe
         recipe = self.fetcher.fetch_recipe(recipe_url)
         if not recipe:
-            print("❌ Failed to fetch recipe")
+            #print("❌ Failed to fetch recipe")
             return {"error": "Failed to fetch recipe"}
 
         # Convert recipe to dict format
@@ -107,13 +107,13 @@ class FoodGuideCLI:
         result = store_recipe_in_virtual_session(session_id, recipe_id, recipe_data)
         
         if "success" in result:
-            print(f"✅ {result['success']}")
-            print(f"   Recipe ID: {recipe_id}")
-            print(f"   Title: {result.get('title', 'Unknown')}")
-            print(f"   Ingredients: {result.get('ingredients_count', 0)}")
-            print(f"   Instructions: {result.get('instructions_count', 0)}")
+            #print(f"✅ {result['success']}")
+            #print(f"   Recipe ID: {recipe_id}")
+            #print(f"   Title: {result.get('title', 'Unknown')}")
+            #print(f"   Ingredients: {result.get('ingredients_count', 0)}")
+            #print(f"   Instructions: {result.get('instructions_count', 0)}")
         else:
-            print(f"❌ {result['error']}")
+            #print(f"❌ {result['error']}")
         
         return result
 
@@ -124,17 +124,17 @@ class FoodGuideCLI:
         if "recipes" in result:
             recipes = result["recipes"]
             if recipes:
-                print(f"📋 Found {len(recipes)} recipe(s) in session '{session_id}':")
+                #print(f"📋 Found {len(recipes)} recipe(s) in session '{session_id}':")
                 for recipe in recipes:
-                    print(f"\n  🍽️ {recipe.get('title', 'Unknown')}")
-                    print(f"     Recipe ID: {recipe.get('recipe_id', 'Unknown')}")
-                    print(f"     Servings: {recipe.get('base_servings', 'Unknown')}")
-                    print(f"     Ingredients: {len(recipe.get('ingredients', []))}")
-                    print(f"     Instructions: {len(recipe.get('instructions', []))}")
+                    #print(f"\n  🍽️ {recipe.get('title', 'Unknown')}")
+                    #print(f"     Recipe ID: {recipe.get('recipe_id', 'Unknown')}")
+                    #print(f"     Servings: {recipe.get('base_servings', 'Unknown')}")
+                    #print(f"     Ingredients: {len(recipe.get('ingredients', []))}")
+                    #print(f"     Instructions: {len(recipe.get('instructions', []))}")
             else:
-                print(f"ℹ️ No recipes found in session '{session_id}'")
+                #print(f"ℹ️ No recipes found in session '{session_id}'")
         else:
-            print(f"❌ {result['error']}")
+            #print(f"❌ {result['error']}")
         
         return result
 
@@ -147,7 +147,7 @@ class FoodGuideCLI:
             # Get virtual session data
             session = get_virtual_session_data(session_id)
             if not session:
-                print(f"❌ Virtual session {session_id} not found")
+                #print(f"❌ Virtual session {session_id} not found")
                 return {"error": f"Virtual session {session_id} not found"}
             
             # Get ingredients to process
@@ -158,10 +158,10 @@ class FoodGuideCLI:
                 ingredients_to_process.append((ingredient_id, ingredient_data))
             
             if not ingredients_to_process:
-                print("❌ No ingredients found for parsing")
+                #print("❌ No ingredients found for parsing")
                 return {"error": "No ingredients found for parsing"}
             
-            print(f"🔄 Parsing {len(ingredients_to_process)} ingredients...")
+            #print(f"🔄 Parsing {len(ingredients_to_process)} ingredients...")
             
             parsing_results = []
             updated_count = 0
@@ -192,16 +192,16 @@ class FoodGuideCLI:
                 
                 if parsed_data['amount'] is not None:
                     updated_count += 1
-                    print(f"  ✅ {ingredient_text} → {parsed_data['amount']} {parsed_data['unit']} {parsed_data['clean_name']}")
+                    #print(f"  ✅ {ingredient_text} → {parsed_data['amount']} {parsed_data['unit']} {parsed_data['clean_name']}")
                 else:
                     failed_count += 1
-                    print(f"  ⚠️ {ingredient_text} → No amount found")
+                    #print(f"  ⚠️ {ingredient_text} → No amount found")
             
-            print(f"\n📊 Parsing Summary:")
-            print(f"   Total ingredients: {len(ingredients_to_process)}")
-            print(f"   Successfully parsed: {updated_count}")
-            print(f"   Failed to parse: {failed_count}")
-            print(f"   Success rate: {(updated_count/len(ingredients_to_process)*100):.1f}%")
+            #print(f"\n📊 Parsing Summary:")
+            #print(f"   Total ingredients: {len(ingredients_to_process)}")
+            #print(f"   Successfully parsed: {updated_count}")
+            #print(f"   Failed to parse: {failed_count}")
+            #print(f"   Success rate: {(updated_count/len(ingredients_to_process)*100):.1f}%")
             
             return {
                 "success": f"Processed {len(ingredients_to_process)} ingredients",
@@ -212,7 +212,7 @@ class FoodGuideCLI:
             }
                 
         except Exception as e:
-            print(f"❌ Error parsing ingredients: {e}")
+            #print(f"❌ Error parsing ingredients: {e}")
             return {"error": f"Unexpected error parsing ingredients: {e}"}
 
     def scale_recipe(self, session_id: str, recipe_id: str, target_servings: int):
@@ -224,20 +224,20 @@ class FoodGuideCLI:
             # Get virtual session data
             session = get_virtual_session_data(session_id)
             if not session:
-                print(f"❌ Virtual session {session_id} not found")
+                #print(f"❌ Virtual session {session_id} not found")
                 return {"error": f"Virtual session {session_id} not found"}
             
             # Get original recipe data
             if recipe_id not in session['recipes']:
-                print(f"❌ Recipe {recipe_id} not found in session")
+                #print(f"❌ Recipe {recipe_id} not found in session")
                 return {"error": f"Recipe {recipe_id} not found in session {session_id}"}
             
             recipe_data = session['recipes'][recipe_id]
             original_servings = recipe_data.get('base_servings') or 1
             scale_factor = target_servings / original_servings
             
-            print(f"🔄 Scaling '{recipe_data.get('title', 'Unknown')}' from {original_servings} to {target_servings} servings")
-            print(f"   Scale factor: {scale_factor:.3f}")
+            #print(f"🔄 Scaling '{recipe_data.get('title', 'Unknown')}' from {original_servings} to {target_servings} servings")
+            #print(f"   Scale factor: {scale_factor:.3f}")
             
             # Get ingredients for this recipe
             recipe_ingredients = [
@@ -263,17 +263,17 @@ class FoodGuideCLI:
                     scaled_amount_value = float(parsed_amount) * scale_factor
                     scaled_text = f"{scaled_amount_value} {parsed_unit} {ingredient_name}"
                     
-                    print(f"  ✅ {parsed_amount} {parsed_unit} → {scaled_amount_value:.2f} {parsed_unit}: {ingredient_name}")
+                    #print(f"  ✅ {parsed_amount} {parsed_unit} → {scaled_amount_value:.2f} {parsed_unit}: {ingredient_name}")
                     scaling_log.append(f"{parsed_amount} {parsed_unit} → {scaled_amount_value:.2f} {parsed_unit}: {ingredient_name}")
                 else:
                     # Fall back to text parsing
                     scaled_text, amount_info = _scale_ingredient_amount(original_text, scale_factor)
                     
                     if amount_info['found_amount']:
-                        print(f"  ✅ {amount_info['original_amount']} → {amount_info['scaled_amount']}: {amount_info['ingredient_base']}")
+                        #print(f"  ✅ {amount_info['original_amount']} → {amount_info['scaled_amount']}: {amount_info['ingredient_base']}")
                         scaling_log.append(f"{amount_info['original_amount']} → {amount_info['scaled_amount']}: {amount_info['ingredient_base']}")
                     else:
-                        print(f"  ⚠️ No scaling: {original_text}")
+                        #print(f"  ⚠️ No scaling: {original_text}")
                 
                 scaled_ingredients.append({
                     'original_text': original_text,
@@ -281,9 +281,9 @@ class FoodGuideCLI:
                     'ingredient_name': ingredient_name
                 })
             
-            print(f"\n📊 Scaling Summary:")
-            print(f"   Ingredients processed: {len(recipe_ingredients)}")
-            print(f"   Successfully scaled: {len(scaling_log)}")
+            #print(f"\n📊 Scaling Summary:")
+            #print(f"   Ingredients processed: {len(recipe_ingredients)}")
+            #print(f"   Successfully scaled: {len(scaling_log)}")
             
             return {
                 "success": f"Recipe scaled from {original_servings} to {target_servings} servings",
@@ -294,7 +294,7 @@ class FoodGuideCLI:
             }
                 
         except Exception as e:
-            print(f"❌ Error scaling recipe: {e}")
+            #print(f"❌ Error scaling recipe: {e}")
             return {"error": f"Unexpected error scaling recipe: {e}"}
 
     # Favorites management methods
@@ -320,17 +320,17 @@ class FoodGuideCLI:
                 
                 if cursor.rowcount > 0:
                     conn.commit()
-                    print(f"✅ Recipe added to favorites: {recipe_title or recipe_url}")
+                    #print(f"✅ Recipe added to favorites: {recipe_title or recipe_url}")
                     return {"success": f"Recipe added to favorites: {recipe_title}"}
                 else:
-                    print(f"ℹ️ Recipe was already in favorites")
+                    #print(f"ℹ️ Recipe was already in favorites")
                     return {"message": "Recipe was already in favorites"}
                     
         except sqlite3.Error as e:
-            print(f"❌ SQLite error adding favorite: {e}")
+            #print(f"❌ SQLite error adding favorite: {e}")
             return {"error": f"SQLite error adding favorite: {e}"}
         except Exception as e:
-            print(f"❌ Unexpected error adding favorite: {e}")
+            #print(f"❌ Unexpected error adding favorite: {e}")
             return {"error": f"Unexpected error adding favorite: {e}"}
 
     def remove_favorite(self, recipe_url: str, user_session: str = None):
@@ -352,17 +352,17 @@ class FoodGuideCLI:
                 
                 if cursor.rowcount > 0:
                     conn.commit()
-                    print(f"✅ Recipe removed from favorites")
+                    #print(f"✅ Recipe removed from favorites")
                     return {"success": f"Recipe removed from favorites"}
                 else:
-                    print(f"ℹ️ Recipe was not in favorites")
+                    #print(f"ℹ️ Recipe was not in favorites")
                     return {"message": "Recipe was not in favorites"}
                     
         except sqlite3.Error as e:
-            print(f"❌ SQLite error removing favorite: {e}")
+            #print(f"❌ SQLite error removing favorite: {e}")
             return {"error": f"SQLite error removing favorite: {e}"}
         except Exception as e:
-            print(f"❌ Unexpected error removing favorite: {e}")
+            #print(f"❌ Unexpected error removing favorite: {e}")
             return {"error": f"Unexpected error removing favorite: {e}"}
 
     def list_favorites_cmd(self, user_session: str = None):
@@ -386,25 +386,25 @@ class FoodGuideCLI:
                 favorites = [dict(row) for row in cursor.fetchall()]
                 
                 if favorites:
-                    print(f"⭐ Found {len(favorites)} favorite recipe(s):")
+                    #print(f"⭐ Found {len(favorites)} favorite recipe(s):")
                     for i, fav in enumerate(favorites, 1):
-                        print(f"\n{i}. {fav['recipe_title'] or 'Untitled'}")
-                        print(f"   URL: {fav['recipe_url']}")
-                        print(f"   Added: {fav['added_at']}")
+                        #print(f"\n{i}. {fav['recipe_title'] or 'Untitled'}")
+                        #print(f"   URL: {fav['recipe_url']}")
+                        #print(f"   Added: {fav['added_at']}")
                         if fav['custom_notes']:
-                            print(f"   Notes: {fav['custom_notes']}")
+                            #print(f"   Notes: {fav['custom_notes']}")
                         if fav['user_session']:
-                            print(f"   Session: {fav['user_session']}")
+                            #print(f"   Session: {fav['user_session']}")
                 else:
-                    print("ℹ️ No favorites found")
+                    #print("ℹ️ No favorites found")
                 
                 return {"favorites": favorites}
                 
         except sqlite3.Error as e:
-            print(f"❌ SQLite error listing favorites: {e}")
+            #print(f"❌ SQLite error listing favorites: {e}")
             return {"error": f"SQLite error listing favorites: {e}"}
         except Exception as e:
-            print(f"❌ Unexpected error listing favorites: {e}")
+            #print(f"❌ Unexpected error listing favorites: {e}")
             return {"error": f"Unexpected error listing favorites: {e}"}
 
     def create_parser(self):
@@ -447,8 +447,8 @@ class FoodGuideCLI:
                                    help='Download all search results')
         download_parser.add_argument('--format', choices=['json', 'md'], 
                                    default='json', help='Output format')
-        download_parser.add_argument('--print', action='store_true',
-                           help='Print recipe data as JSON to console instead of saving to file')
+        download_parser.add_argument('--#print', action='store_true',
+                           help='#print recipe data as JSON to console instead of saving to file')
         download_parser.add_argument('--fruits', nargs='+', help='Fruit filter IDs')
         download_parser.add_argument('--vegetables', nargs='+', help='Vegetable filter IDs')
         download_parser.add_argument('--collection', help='Collection ID')
@@ -574,10 +574,10 @@ class FoodGuideCLI:
                     if filter_id:
                         filters.add_filter(filter_type, value)
                         valid_filters_added = True
-                        print(f"✓ Added {display_name} filter: {value}")
+                        #print(f"✓ Added {display_name} filter: {value}")
                     else:
                         invalid_filters.append((display_name, value))
-                        print(f"✗ Warning: Filter '{value}' not found in {display_name}")
+                        #print(f"✗ Warning: Filter '{value}' not found in {display_name}")
         
         # Add filters with validation
         add_filter_with_validation('fruits', args.fruits, 'fruits')
@@ -594,38 +594,38 @@ class FoodGuideCLI:
                 if collection_key in filters._collections_data:
                     filters.add_collection(collection)
                     valid_filters_added = True
-                    print(f"✓ Added collection filter: {collection}")
+                    #print(f"✓ Added collection filter: {collection}")
                 else:
                     invalid_filters.append(('collections', collection))
-                    print(f"✗ Warning: Collection '{collection}' not found")
+                    #print(f"✗ Warning: Collection '{collection}' not found")
         
         # Get search text Join search words into a single string
         search_text = ' '.join(args.search_text) if args.search_text else ''
         
         # Check if we have any valid search criteria
         if not search_text.strip() and not valid_filters_added:
-            print("\n❌ Error: No valid search criteria provided!")
+            #print("\n❌ Error: No valid search criteria provided!")
             
             if invalid_filters:
-                print("\nInvalid filters found:")
+                #print("\nInvalid filters found:")
                 for filter_type, value in invalid_filters:
-                    print(f"  • {filter_type}: '{value}'")
+                    #print(f"  • {filter_type}: '{value}'")
                 
-                print("\n💡 Suggestions:")
+                #print("\n💡 Suggestions:")
                 self.show_filter_suggestions(filters, invalid_filters)
             
-            print("\nUsage examples:")
-            print("  python main.py search apple")
-            print("  python main.py search --fruits apple")
-            print("  python main.py search \"healthy breakfast\" --meals breakfast")
-            print("  python main.py search --fruits apple --vegetables carrot")
+            #print("\nUsage examples:")
+            #print("  python main.py search apple")
+            #print("  python main.py search --fruits apple")
+            #print("  python main.py search \"healthy breakfast\" --meals breakfast")
+            #print("  python main.py search --fruits apple --vegetables carrot")
             
             sys.exit(1)  # Exit with error code
         
         # Show what we're searching for
-        print(f"\n🔍 Searching for: '{search_text}'")
+        #print(f"\n🔍 Searching for: '{search_text}'")
         if valid_filters_added:
-            print("📋 Active filters:", filters.get_filters_dict())
+            #print("📋 Active filters:", filters.get_filters_dict())
         
         # Perform search
         recipes = self.searcher.search_recipes(
@@ -636,14 +636,14 @@ class FoodGuideCLI:
         
         # Display results
         if recipes:
-            print(f"\n✅ Found {len(recipes)} recipes:")
+            #print(f"\n✅ Found {len(recipes)} recipes:")
             for i, recipe in enumerate(recipes, 1):
-                print(f"{i}. {recipe['title']}")
-                print(f"   URL: {recipe['url']}")
+                #print(f"{i}. {recipe['title']}")
+                #print(f"   URL: {recipe['url']}")
         else:
-            print("\n❌ No recipes found.")
+            #print("\n❌ No recipes found.")
             if valid_filters_added or search_text:
-                print("💡 Try broadening your search criteria or using different filters.")
+                #print("💡 Try broadening your search criteria or using different filters.")
 
     def show_filter_suggestions(self, filters, invalid_filters):
         """Show suggestions for invalid filters"""
@@ -656,7 +656,7 @@ class FoodGuideCLI:
             invalid_by_type[filter_type].append(value)
         
         for filter_type, invalid_values in invalid_by_type.items():
-            print(f"\nAvailable {filter_type}:")
+            #print(f"\nAvailable {filter_type}:")
             
             if filter_type == 'collections':
                 available = list(filters._collections_data.keys())
@@ -681,16 +681,16 @@ class FoodGuideCLI:
                 # Show first 10 options, sorted
                 available_sorted = sorted(available)[:10]
                 for item in available_sorted:
-                    print(f"    • {item}")
+                    #print(f"    • {item}")
                 
                 if len(available) > 10:
-                    print(f"    ... and {len(available) - 10} more")
+                    #print(f"    ... and {len(available) - 10} more")
                 
                 # Try to suggest similar items
                 for invalid_value in invalid_values:
                     suggestions = self.find_similar_items(invalid_value, available)
                     if suggestions:
-                        print(f"  💡 Did you mean: {', '.join(suggestions[:3])}?")
+                        #print(f"  💡 Did you mean: {', '.join(suggestions[:3])}?")
 
     def find_similar_items(self, invalid_value, available_items, max_suggestions=3):
         """Find similar items using simple string matching"""
@@ -711,7 +711,7 @@ class FoodGuideCLI:
         return suggestions[:max_suggestions]
 
     def download_command(self, args):
-        """Handle download command - UPDATED to support multiple URLs and print option"""
+        """Handle download command - UPDATED to support multiple URLs and #print option"""
         if args.url:
             # Ensure args.url is a list of complete URLs, not split characters
             if isinstance(args.url, str):
@@ -720,14 +720,14 @@ class FoodGuideCLI:
             else:
                 urls = args.url
             
-            # Debug: Print what URLs we're processing
-            print(f"Debug: Processing URLs: {urls}")
+            # Debug: #print what URLs we're processing
+            #print(f"Debug: Processing URLs: {urls}")
             
-            # Download/print multiple recipes
-            if args.print:
-                print(f"Fetching {len(urls)} recipe(s) for display...")
+            # Download/#print multiple recipes
+            if args.#print:
+                #print(f"Fetching {len(urls)} recipe(s) for display...")
             else:
-                print(f"Downloading {len(urls)} recipe(s)...")
+                #print(f"Downloading {len(urls)} recipe(s)...")
             
             successful_operations = 0
             failed_operations = 0
@@ -735,87 +735,87 @@ class FoodGuideCLI:
             for i, url in enumerate(urls, 1):
                 # Validate URL format before processing
                 if not url.startswith(('http://', 'https://')):
-                    print(f"❌ Invalid URL format: {url}")
+                    #print(f"❌ Invalid URL format: {url}")
                     failed_operations += 1
                     continue
                     
-                print(f"\n[{i}/{len(urls)}] Fetching recipe from: {url}")
+                #print(f"\n[{i}/{len(urls)}] Fetching recipe from: {url}")
                 
                 try:
                     recipe = self.fetcher.fetch_recipe(url)
                     
                     if recipe:
-                        if args.print:
-                            # Print to console
-                            print(f"\n📄 Recipe Data for: {recipe.title}")
-                            print("=" * 50)
-                            self.downloader.print_recipe(recipe)
-                            print("=" * 50)
+                        if args.#print:
+                            # #print to console
+                            #print(f"\n📄 Recipe Data for: {recipe.title}")
+                            #print("=" * 50)
+                            self.downloader.#print_recipe(recipe)
+                            #print("=" * 50)
                             successful_operations += 1
                         else:
                             # Save to file
                             filepath = self.downloader.save_recipe(recipe, format=args.format)
-                            print(f"✅ Saved to: {filepath}")
+                            #print(f"✅ Saved to: {filepath}")
                             successful_operations += 1
                     else:
-                        print(f"❌ Failed to fetch recipe from: {url}")
+                        #print(f"❌ Failed to fetch recipe from: {url}")
                         failed_operations += 1
                         
                 except Exception as e:
-                    print(f"❌ Error processing {url}: {e}")
+                    #print(f"❌ Error processing {url}: {e}")
                     failed_operations += 1
             
             # Summary
-            operation_type = "displayed" if args.print else "downloaded"
-            print(f"\n📊 Operation Summary:")
-            print(f"✅ Successfully {operation_type}: {successful_operations}")
+            operation_type = "displayed" if args.#print else "downloaded"
+            #print(f"\n📊 Operation Summary:")
+            #print(f"✅ Successfully {operation_type}: {successful_operations}")
             if failed_operations > 0:
-                print(f"❌ Failed: {failed_operations}")
+                #print(f"❌ Failed: {failed_operations}")
         
         elif args.search:
-            # Search and download/print
+            # Search and download/#print
             results = self.search_command(args)
             
             if results and args.download_all:
-                if args.print:
-                    print(f"\nFetching {len(results)} recipes for display...")
+                if args.#print:
+                    #print(f"\nFetching {len(results)} recipes for display...")
                 else:
-                    print(f"\nDownloading {len(results)} recipes...")
+                    #print(f"\nDownloading {len(results)} recipes...")
                 
                 successful_operations = 0
                 failed_operations = 0
                 
                 for i, recipe_meta in enumerate(results, 1):
-                    print(f"\n[{i}/{len(results)}] Processing: {recipe_meta['title']}")
+                    #print(f"\n[{i}/{len(results)}] Processing: {recipe_meta['title']}")
                     
                     try:
                         recipe = self.fetcher.fetch_recipe(recipe_meta['url'])
                         if recipe:
-                            if args.print:
-                                # Print to console
-                                print(f"\n📄 Recipe Data for: {recipe.title}")
-                                print("=" * 50)
-                                self.downloader.print_recipe(recipe)
-                                print("=" * 50)
+                            if args.#print:
+                                # #print to console
+                                #print(f"\n📄 Recipe Data for: {recipe.title}")
+                                #print("=" * 50)
+                                self.downloader.#print_recipe(recipe)
+                                #print("=" * 50)
                                 successful_operations += 1
                             else:
                                 # Save to file
                                 filepath = self.downloader.save_recipe(recipe, format=args.format)
-                                print(f"✅ Saved to: {filepath}")
+                                #print(f"✅ Saved to: {filepath}")
                                 successful_operations += 1
                         else:
-                            print(f"❌ Failed to fetch: {recipe_meta['title']}")
+                            #print(f"❌ Failed to fetch: {recipe_meta['title']}")
                             failed_operations += 1
                     except Exception as e:
-                        print(f"❌ Error processing {recipe_meta['title']}: {e}")
+                        #print(f"❌ Error processing {recipe_meta['title']}: {e}")
                         failed_operations += 1
                 
                 # Summary
-                operation_type = "displayed" if args.print else "downloaded"
-                print(f"\n📊 Operation Summary:")
-                print(f"✅ Successfully {operation_type}: {successful_operations}")
+                operation_type = "displayed" if args.#print else "downloaded"
+                #print(f"\n📊 Operation Summary:")
+                #print(f"✅ Successfully {operation_type}: {successful_operations}")
                 if failed_operations > 0:
-                    print(f"❌ Failed: {failed_operations}")
+                    #print(f"❌ Failed: {failed_operations}")
 
     def list_filters_command(self, args):
         """List all available filters."""
@@ -825,24 +825,24 @@ class FoodGuideCLI:
             # Show specific filter type
             available = filters.get_available_filters(args.filter_type)
             if available:
-                print(f"\nAvailable {args.filter_type}:")
+                #print(f"\nAvailable {args.filter_type}:")
                 for item in sorted(available):
-                    print(f"  - {item}")
+                    #print(f"  - {item}")
             else:
-                print(f"Unknown filter type: {args.filter_type}")
+                #print(f"Unknown filter type: {args.filter_type}")
         else:
             # Show all filter types
-            print("\nAvailable filter types:")
+            #print("\nAvailable filter types:")
             for category in ["vegetables", "fruits", "proteins", "whole grains", 
                             "meal", "cooking appliance"]:
-                print(f"\n{category.title()}:")
+                #print(f"\n{category.title()}:")
                 items = filters.get_available_filters(category)
                 for item in sorted(items[:]):  
-                    print(f"  - {item}")
+                    #print(f"  - {item}")
             
-            print("\nCollections:")
+            #print("\nCollections:")
             for collection in filters.get_available_collections():
-                print(f"  - {collection.replace('_', ' ').title()}")
+                #print(f"  - {collection.replace('_', ' ').title()}")
 
     def run(self):
         """Run the CLI application."""
@@ -858,7 +858,7 @@ class FoodGuideCLI:
         elif args.command == 'db':
             self.handle_db_command(args)
         else:
-            parser.print_help()
+            parser.#print_help()
 
 def main():
     """Main entry point"""

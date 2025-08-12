@@ -90,15 +90,15 @@ class SearchFilters:
                 key = self._normalize_key(collection['name'])
                 self._collections_data[key] = collection['id']
                 
-            print(f"Loaded filters from cache (last updated: {self._last_updated})")
+            #print(f"Loaded filters from cache (last updated: {self._last_updated})")
             
         except Exception as e:
-            print(f"Error loading from cache: {e}")
+            #print(f"Error loading from cache: {e}")
             self.update_filters_from_website()
     
     def update_filters_from_website(self):
         """Fetch and update filters from the Canada Food Guide website."""
-        print("Updating filters from website...")
+        #print("Updating filters from website...")
         
         try:
             session = requests.Session()
@@ -140,10 +140,10 @@ class SearchFilters:
             # Save to cache
             self._save_to_cache(filters_raw, collections_raw)
             
-            print(f"Successfully updated filters from website")
+            #print(f"Successfully updated filters from website")
             
         except Exception as e:
-            print(f"Error updating filters from website: {e}")
+            #print(f"Error updating filters from website: {e}")
             # Fall back to hardcoded defaults if needed
             self._load_defaults()
     
@@ -482,7 +482,8 @@ class SearchFilters:
             if filter_id not in self.active_filters[filter_type]:
                 self.active_filters[filter_type].append(filter_id)
         else:
-            print(f"Warning: Filter '{filter_value}' not found in {filter_type}")
+            #print(f"Warning: Filter '{filter_value}' not found in {filter_type}")
+            pass
     
     def add_collection(self, collection_name: str):
         """Add a collection filter.
@@ -494,7 +495,8 @@ class SearchFilters:
         if key in self._collections_data:
             self.add_filter("collection", self._collections_data[key])
         else:
-            print(f"Warning: Collection '{collection_name}' not found")
+            #print(f"Warning: Collection '{collection_name}' not found")
+            pass
     
     def _resolve_filter_id(self, filter_type: str, filter_value: str) -> Optional[str]:
         """Resolve a filter value to its ID."""

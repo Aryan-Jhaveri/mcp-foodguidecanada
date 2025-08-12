@@ -9,7 +9,7 @@ import logging
 import os
 LOG_LEVEL = os.getenv('FOODGUIDE_LOG_LEVEL', 'ERROR')
 logging.basicConfig(level=getattr(logging, LOG_LEVEL))
-logger = logging.getLogger(__name__)
+#logger = logging.get#logger(__name__)
 
 # Core macronutrients for streamlined LLM-optimized analysis
 CORE_MACRONUTRIENTS = [
@@ -71,7 +71,7 @@ class NutrientFileScraper:
                 return True
             return False
         except Exception as e:
-            logger.error(f"Error extracting CSRF token: {e}")
+            #logger.error(f"Error extracting CSRF token: {e}")
             return False
 
     def search_food(self, food_name: str) -> Optional[List[Dict[str, str]]]:
@@ -85,14 +85,14 @@ class NutrientFileScraper:
             List of dictionaries with 'food_code' and 'food_name' keys, or None if error
         """
         if not food_name or not food_name.strip():
-            logger.error("Food name cannot be empty")
+            #logger.error("Food name cannot be empty")
             return None
 
         search_page_url = f"{self.BASE_URL}/newSearch"
         
         try:
             self._rate_limit_wait()
-            logger.info(f"Searching CNF for: '{food_name}'")
+            #logger.info(f"Searching CNF for: '{food_name}'")
             
             # Get search page to obtain CSRF token
             get_response = self.session.get(search_page_url)
@@ -100,7 +100,7 @@ class NutrientFileScraper:
 
             soup = BeautifulSoup(get_response.text, 'html.parser')
             if not self._get_csrf_token(soup):
-                logger.error("Could not find CSRF token on search page")
+                #logger.error("Could not find CSRF token on search page")
                 return None
 
             # Submit search request with DataTables parameters to get all results
@@ -137,14 +137,14 @@ class NutrientFileScraper:
             # Update CSRF token for subsequent requests
             self._get_csrf_token(results_soup)
             
-            logger.info(f"Found {len(results)} food matches")
+            #logger.info(f"Found {len(results)} food matches")
             return results
             
         except requests.exceptions.RequestException as e:
-            logger.error(f"Network error during food search: {e}")
+            #logger.error(f"Network error during food search: {e}")
             return None
         except Exception as e:
-            logger.error(f"Unexpected error during food search: {e}")
+            #logger.error(f"Unexpected error during food search: {e}")
             return None
 
     def get_serving_info(self, food_code: str) -> tuple[Optional[Dict[str, str]], Optional[str]]:
@@ -158,21 +158,21 @@ class NutrientFileScraper:
             Tuple of (serving_options_dict, refuse_info_string), or (None, None) if error
         """
         if not food_code or not food_code.strip():
-            logger.error("Food code cannot be empty")
+            #logger.error("Food code cannot be empty")
             return None, None
 
         serving_page_url = f"{self.BASE_URL}/serving-portion?id={food_code}"
         
         try:
             self._rate_limit_wait()
-            logger.info(f"Getting serving info for food code: {food_code}")
+            #logger.info(f"Getting serving info for food code: {food_code}")
             
             response = self.session.get(serving_page_url)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, 'html.parser')
             
             if not self._get_csrf_token(soup):
-                logger.error("Could not find CSRF token on serving info page")
+                #logger.error("Could not find CSRF token on serving info page")
                 return None, None
 
             # Extract ALL serving options (including unchecked ones)
@@ -206,14 +206,14 @@ class NutrientFileScraper:
             if refuse_div and 'Refuse:' in refuse_div.text:
                 refuse_info = ' '.join(refuse_div.text.strip().split())
 
-            logger.info(f"Found {len(serving_options)} serving options")
+            #logger.info(f"Found {len(serving_options)} serving options")
             return serving_options, refuse_info
             
         except requests.exceptions.RequestException as e:
-            logger.error(f"Network error getting serving info: {e}")
+            #logger.error(f"Network error getting serving info: {e}")
             return None, None
         except Exception as e:
-            logger.error(f"Unexpected error getting serving info: {e}")
+            #logger.error(f"Unexpected error getting serving info: {e}")
             return None, None
 
     def get_nutrient_profile(
@@ -237,7 +237,7 @@ class NutrientFileScraper:
             Dictionary with nutrient data (filtered if requested) and metadata, or None if error
         """
         if not food_code or not serving_options:
-            logger.error("Food code and serving options are required")
+            #logger.error("Food code and serving options are required")
             return None
 
         report_url = f"{self.BASE_URL}/report-rapport"
@@ -260,7 +260,7 @@ class NutrientFileScraper:
 
         try:
             self._rate_limit_wait()
-            logger.info(f"Getting nutrient profile for food code: {food_code}")
+            #logger.info(f"Getting nutrient profile for food code: {food_code}")
             
             response = self.session.post(report_url, data=payload)
             response.raise_for_status()
@@ -269,7 +269,7 @@ class NutrientFileScraper:
             # Find the nutrient report table
             table = soup.find('table', id='nutrReport')
             if not table:
-                logger.error("Nutrient report table not found")
+                #logger.error("Nutrient report table not found")
                 return {"error": "Nutrient report table not found"}
 
             # Parse the complex nutrient table structure
@@ -305,7 +305,7 @@ class NutrientFileScraper:
                                 nutrient_data[current_group] = []
                             nutrient_data[current_group].append(nutrient_entry)
 
-            logger.info(f"Successfully parsed nutrient profile with {len(nutrient_data)} categories")
+            #logger.info(f"Successfully parsed nutrient profile with {len(nutrient_data)} categories")
             
             # Apply post-fetch filtering (EER-style approach)
             original_data = nutrient_data.copy()
@@ -327,10 +327,10 @@ class NutrientFileScraper:
             }
             
         except requests.exceptions.RequestException as e:
-            logger.error(f"Network error generating nutrient profile: {e}")
+            #logger.error(f"Network error generating nutrient profile: {e}")
             return None
         except Exception as e:
-            logger.error(f"Unexpected error generating nutrient profile: {e}")
+            #logger.error(f"Unexpected error generating nutrient profile: {e}")
             return None
 
     def get_complete_food_profile(self, food_code: str) -> Optional[Dict[str, Any]]:
@@ -346,13 +346,13 @@ class NutrientFileScraper:
         serving_options, refuse_info = self.get_serving_info(food_code)
         
         if not serving_options:
-            logger.error(f"Could not get serving info for food code: {food_code}")
+            #logger.error(f"Could not get serving info for food code: {food_code}")
             return None
             
         nutrient_profile = self.get_nutrient_profile(food_code, serving_options)
         
         if not nutrient_profile:
-            logger.error(f"Could not get nutrient profile for food code: {food_code}")
+            #logger.error(f"Could not get nutrient profile for food code: {food_code}")
             return None
             
         return {
@@ -376,13 +376,13 @@ class NutrientFileScraper:
         search_results = self.search_food(food_name)
         
         if not search_results or len(search_results) <= food_index:
-            logger.error(f"No food found at index {food_index} for search: {food_name}")
+            #logger.error(f"No food found at index {food_index} for search: {food_name}")
             return None
             
         selected_food = search_results[food_index]
         food_code = selected_food['food_code']
         
-        logger.info(f"Selected food: {selected_food['food_name']} (Code: {food_code})")
+        #logger.info(f"Selected food: {selected_food['food_name']} (Code: {food_code})")
         
         profile = self.get_complete_food_profile(food_code)
         if profile:

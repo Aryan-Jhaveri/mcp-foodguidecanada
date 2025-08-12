@@ -1,3 +1,13 @@
+# Suppress Pydantic deprecation warnings to reduce server startup noise
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="pydantic")
+warnings.filterwarnings("ignore", message=".*PydanticDeprecatedSince20.*")
+warnings.filterwarnings("ignore", message=".*min_items.*deprecated.*", category=DeprecationWarning)
+warnings.filterwarnings("ignore", message=".*max_items.*deprecated.*", category=DeprecationWarning)
+warnings.filterwarnings("ignore", message=".*@validator.*deprecated.*", category=DeprecationWarning)
+warnings.filterwarnings("ignore", message=".*class-based.*config.*deprecated.*", category=DeprecationWarning)
+warnings.filterwarnings("ignore", message=".*Valid config keys have changed.*", category=UserWarning, module="pydantic")
+
 from fastmcp import FastMCP
 import sys
 import os
@@ -5,7 +15,8 @@ import logging
 import traceback
 import signal
 from typing import List, Dict, Any, Optional
-from contextlib import contextmanager
+from contextlib import contextmanager, redirect_stderr, redirect_stdout
+from io import StringIO
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(script_dir)
@@ -39,15 +50,47 @@ except ImportError:
         print(f"Error importing modules: {e}", file=sys.stderr)
         sys.exit(1)
 
-# Configure logging with environment-based level control
-LOG_LEVEL = os.getenv('FOODGUIDE_LOG_LEVEL', 'WARNING')
-logging.basicConfig(
-    level=getattr(logging, LOG_LEVEL),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stderr)
-    ]
-)
+# Configure logging suppression based on environment variables
+SUPPRESS_MCP_LOGS = os.getenv('SUPPRESS_MCP_LOGS', 'true').lower() == 'true'
+LOG_LEVEL = os.getenv('FOODGUIDE_LOG_LEVEL', 'CRITICAL')
+
+if SUPPRESS_MCP_LOGS:
+    # Completely disable logging to prevent FastMCP protocol leakage
+    logging.basicConfig(
+        level=logging.CRITICAL,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[]  # No handlers = no output
+    )
+    
+    # Suppress ALL framework logging completely
+    logging.getLogger('fastmcp').disabled = True
+    logging.getLogger('mcp').disabled = True
+    logging.getLogger('rich').disabled = True
+    logging.getLogger('uvicorn').disabled = True
+    logging.getLogger('uvicorn.access').disabled = True
+    logging.getLogger('uvicorn.error').disabled = True
+    logging.getLogger('asyncio').disabled = True
+    
+    # Disable all logging below CRITICAL globally
+    logging.disable(logging.CRITICAL)
+else:
+    # Standard logging configuration for debugging
+    logging.basicConfig(
+        level=getattr(logging, LOG_LEVEL),
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[logging.StreamHandler(sys.stderr)]
+    )
+
+# Redirect stdout/stderr to suppress protocol communication leakage
+class QuietStream:
+    def write(self, data): pass
+    def flush(self): pass
+    def isatty(self): return False
+
+# Create quiet stderr for FastMCP stdio handling
+_original_stderr = sys.stderr
+_quiet_stderr = QuietStream() if SUPPRESS_MCP_LOGS else sys.stderr
+
 #logger = logging.getLogger(__name__)
 
 # Global flag to track if server should shutdown gracefully
@@ -85,8 +128,12 @@ def connection_error_handler(operation_name: str):
 
 def create_server() -> FastMCP:
     """Create and configure the MCP server with all tools registered."""
-    # Remove all metadata from constructor
-    mcp = FastMCP()
+    # Conditionally suppress stderr during FastMCP creation to prevent protocol leakage
+    if SUPPRESS_MCP_LOGS:
+        with redirect_stderr(_quiet_stderr):
+            mcp = FastMCP()
+    else:
+        mcp = FastMCP()
     
     try:
         with connection_error_handler("tool registration"):
@@ -94,22 +141,17 @@ def create_server() -> FastMCP:
             register_db_tools(mcp)
             try:
                 register_eer_tools(mcp)
-                #logger.info("EER tools registered successfully")
             except Exception as e:
-                #logger.warning(f"EER tools not available: {e}")
                 pass
             try:
                 register_cnf_tools(mcp)
-                #logger.info("CNF tools registered successfully")
             except Exception as e:
-                #logger.warning(f"CNF tools not available: {e}")
                 pass
     except Exception as e:
-        #logger.error(f"ERROR during tool registration: {e}")
-        #logger.error(traceback.format_exc())
+        # Only output critical errors to original stderr
+        print(f"CRITICAL: Tool registration failed: {e}", file=_original_stderr)
         raise
     
-    #logger.info("MCP server created successfully with all available tools")
     return mcp
 
 if __name__ == "__main__":
@@ -118,27 +160,26 @@ if __name__ == "__main__":
     signal.signal(signal.SIGTERM, signal_handler)
     
     try:
-        #logger.info(f"Starting MCP server with database: {os.path.abspath(DB_FILE)}")
-        #logger.info(f"Tool timeout configured: {TOOL_TIMEOUT_SECONDS} seconds")
-        
+        # Create server with conditionally suppressed output
         mcp = create_server()
         
-        # Use connection error handler around the main server run
-        with connection_error_handler("server execution"):
-            #logger.info("MCP server starting...")
-            mcp.run()
+        # Conditionally suppress stderr during server execution to prevent protocol leakage
+        # but keep original stderr available for critical errors
+        if SUPPRESS_MCP_LOGS:
+            with redirect_stderr(_quiet_stderr):
+                with connection_error_handler("server execution"):
+                    mcp.run()
+        else:
+            with connection_error_handler("server execution"):
+                mcp.run()
             
     except KeyboardInterrupt:
-        #logger.info("Server shutdown requested by user")
         pass
     except Exception as e:
         if "BrokenResourceError" in str(type(e)) or "broken" in str(e).lower():
-            #logger.warning(f"Client connection lost, shutting down gracefully: {e}")
             pass
         else:
-            #logger.error(f"Server error: {e}")
-            #logger.error(traceback.format_exc())
+            print(f"CRITICAL: Server error: {e}", file=_original_stderr)
             sys.exit(1)
     finally:
-        #logger.info("MCP server shutdown complete")
         pass
