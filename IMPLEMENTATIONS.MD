@@ -1,6 +1,33 @@
 # IMPLEMENTATIONS.md
 Future improvements To-Do list, tasks, Project wishlists, Notes
 
+## August 12, 2025
+### -- Rate Limiting & Web Scraping Improvements
+[] Implement exponential backoff with jitter for CNF web scraping
+    - Current 0.5s fixed delay insufficient for bulk operations
+    - Add randomized delays (2-4 seconds) to mimic human behavior
+    - Implement exponential backoff on HTTP 429 responses
+
+[] Add request chunking for bulk_get_cnf_macronutrients operations  
+    - Break large bulk requests (20 foods) into smaller chunks (3-5 foods)
+    - Add progressive delays between chunks
+    - Reduce concurrent workers from 3 to 1-2 for better server respect
+
+[] Enhanced error handling and retry mechanisms
+    - Distinguish between rate limits, network errors, and data errors
+    - Implement circuit breaker pattern for repeated failures  
+    - Better caching strategy for failed requests
+
+[] Configuration improvements for production stability
+    - Increase CNF_RATE_LIMIT from 0.5s to 2-3s
+    - Add environment variables for rate limit customization
+    - Add monitoring for rate limit hit frequency
+
+[] Long-term solutions to reduce web scraping dependency
+    - Investigate Health Canada official API access
+    - Build offline CNF database cache for common foods
+    - Implement MCP resources for frequently requested nutrients
+
 ## June 14, 2025
 [] CNF database updated robot.txt limits web api calls to prevent bloat - Now only 2 of, say 4, recipes are being fetched.
     
