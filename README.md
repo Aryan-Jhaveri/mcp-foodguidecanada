@@ -1,6 +1,6 @@
  # 🍲 <a href="https://food-guide.canada.ca/en/" target="_blank">Canada's Food Guide - MCP Server</a>
  
-<a href="https://www.python.org/downloads/" target="_blank"><img src="https://img.shields.io/badge/python-3.8+-blue.svg" alt="Python 3.8+"></a>
+<a href="https://www.python.org/downloads/" target="_blank"><img src="https://img.shields.io/badge/python-3.10+-blue.svg" alt="Python 3.10+"></a>
 <a href="https://opensource.org/licenses/MIT" target="_blank"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
 <a href="https://modelcontextprotocol.io/" target="_blank"><img src="https://img.shields.io/badge/MCP-ModelContextProtocol-green.svg" alt="MCP"></a>
 
@@ -19,7 +19,7 @@ This is a **comprehensive nutrition analysis platform** that integrates <a href=
 
 **What makes this powerful:**
 
-Instead of LLMs manually parsing multiple government websites and performing complex nutrition calculations, this server provides **42+ specialized tools** organized into six major categories:
+Instead of LLMs manually parsing multiple government websites and performing complex nutrition calculations, this server provides **46 specialized tools** organized into six major categories:
 
 🍲 **Recipe Discovery & Management** - Smart search, detailed extraction, favorites storage  
 🗄️ **Database & Session Management** - Virtual sessions, persistent storage, bulk operations  
@@ -29,6 +29,13 @@ Instead of LLMs manually parsing multiple government websites and performing com
 📊 **Dietary Reference Intakes (DRI)** - Macronutrient recommendations and adequacy assessment  
 
 Built using <a href="https://github.com/jlowin/fastmcp" target="_blank">FastMCP</a> with custom integrations to Health Canada's <a href="https://food-nutrition.canada.ca/cnf-fce/index-eng.jsp" target="_blank">Canadian Nutrient File (CNF)</a> database, <a href="https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes/tables.html" target="_blank">Dietary Reference Intakes (DRI)</a> tables, and EER equations, this server transforms complex nutrition analysis into simple tool calls for AI assistants.
+
+#### Two setup modes:
+
+| Mode | Tools available | DB/Storage? | Best for |
+|---|---|---|---|
+| **HTTP** (remote/self-hosted) | Scraping + calculation tools (24 tools) | No | Most users -- nutrition lookups, recipe search, EER/DRI calculations |
+| **stdio** (full) | All tools incl. SQLite (46 tools) | Yes | Power users -- recipe macro analysis, favorites, user profiles |
 
 Check **IMPLEMENTATIONS.MD** if you'd like to contribute or collaborate! Always looking for suggestions!
 
@@ -41,14 +48,14 @@ You can use this <a href="https://docs.google.com/spreadsheets/d/1TELVtKLN35yxGF
 - [📝 Description](#-description)
 - [✨ Features](#-features)
 - [📥 Installation](#-installation)
-- [🚀 Running the Server using Claude](#-running-the-server-using-Claude-Desktop-Integration)
+- [🚀 Setup by Client](#-setup-by-client)
 - [🏗️ Project Structure](#️-project-structure)
 - [⚠️ Known Issues](#️-known-issues-and-limitations)
 - [📋 Reference](#-reference)
 
 ## ✨ Features
 
-This comprehensive nutrition analysis platform provides **42+ specialized tools** organized into six major categories:
+This comprehensive nutrition analysis platform provides **46 specialized tools** organized into six major categories:
 
 ### 🍲 Recipe Discovery & Management (Core Tools)
 * **Smart Recipe Search** - Text queries with advanced filtering by ingredients, meal types, appliances, and collections
@@ -90,11 +97,12 @@ This comprehensive nutrition analysis platform provides **42+ specialized tools*
 * **EER Integration** - Convert energy requirements to macronutrient targets for meal planning
 
 ## 📥 Installation
-Click the image to Watch the setup tutorial!
+
+Click the image to watch the setup tutorial!
 [![Watch the setup tutorial](https://img.youtube.com/vi/FWH9_HMKwro/maxresdefault.jpg)](https://youtu.be/FWH9_HMKwro)
 
 1. **Prerequisites**:
-   - <a href="https://www.python.org/#:~:text=Download" target="_blank">Python 3.8 or higher</a>
+   - <a href="https://www.python.org/#:~:text=Download" target="_blank">Python 3.10 or higher</a>
    - <a href="https://pip.pypa.io/en/stable/installation/" target="_blank">pip (Python package installer)</a>
 
 2. **Clone the repository**:
@@ -108,60 +116,193 @@ Click the image to Watch the setup tutorial!
    pip3 install -r requirements.txt
    ```
 
-## 🚀 Running the Server using Claude Desktop Integration
-
-To use this server with Claude Desktop:
-
-1. **Find your Python path**:
-   Open your terminal and run:
+4. **Find your Python path** (needed for client config):
    ```bash
    which python3
    ```
-   This will show the full path to your Python installation (e.g., `/usr/bin/python3`, `/opt/homebrew/bin/python3`, or `/opt/anaconda3/bin/python3`)
 
-2. **Get the absolute path to your project**:
-   In your terminal, navigate to the project directory and run:
+5. **Get the absolute path to the project**:
    ```bash
    pwd
    ```
-   This shows your full project path (e.g., `mcp-foodguidecanada`)
 
-3. **Open Claude Desktop settings**:
-   - Navigate to Settings (⌘ + ,) → Developer → Edit Config
+### HTTP mode -- scraping + calculation, no DB (24 tools)
 
-4. **Add the server configuration**:
-   Replace the paths below with your actual paths from steps 1 and 2:
-   ```json
-   {
-     "mcpServers": {
-       "FoodGuideSousChef": {
-         "command": "/opt/homebrew/bin/python3",
-         "args": [
-           "path/to/mcp-foodguidecanada/src/server.py"
-         ],
-         "cwd": "path/to/mcp-foodguidecanada"
-       }
-     }
-   }
-   ```
+Start the server in a terminal and leave it running:
 
-   **Common Python paths by system**:
-   - **Homebrew (Mac)**: `/opt/homebrew/bin/python3`
-   - **System Python (Mac)**: `/usr/bin/python3`
-   - **Anaconda**: `/opt/anaconda3/bin/python3`
-   - **Linux**: `/usr/bin/python3`
+```bash
+python3 src/server.py --transport http --port 8000
+# Server running at http://0.0.0.0:8000/mcp
+```
 
-5. **Save and restart Claude Desktop**:
-   - Save the configuration file
-   - Completely quit and restart Claude Desktop
-   - The server will now be available in your conversations
+Then configure your client to connect to `http://localhost:8000/mcp` -- see [Setup by Client](#-setup-by-client) below.
+
+### Full mode -- all tools incl. SQLite (46 tools)
+
+Run via stdio -- no separate server process needed. Configure your client with the stdio snippets in [Setup by Client](#-setup-by-client).
+
+---
+
+## 🚀 Setup by Client
+
+| Mode | DB tools? | Tools available |
+|---|---|---|
+| **HTTP** (start server first) | No | Scraping + calculation (24 tools) |
+| **stdio** (full) | Yes | All tools incl. SQLite (46 tools) |
+
+---
+
+### HTTP mode -- scraping + calculation (no DB)
+
+> **Before configuring your client:** start the server in a separate terminal:
+> ```bash
+> python3 src/server.py --transport http --port 8000
+> ```
+> Keep it running while using your client.
+
+Most clients use <a href="https://github.com/sparfenyuk/mcp-proxy" target="_blank">`mcp-proxy`</a> to bridge stdio to HTTP. Claude Code connects natively.
+
+**Claude Desktop**
+
+Navigate to: Claude Desktop → Settings (⌘,) → Developer → Edit Config
+
+```json
+{
+  "mcpServers": {
+    "FoodGuideSousChef": {
+      "command": "uvx",
+      "args": ["mcp-proxy", "--transport", "streamablehttp", "http://localhost:8000/mcp"]
+    }
+  }
+}
+```
+
+Restart Claude Desktop after saving.
+
+**Claude Code**
+
+```bash
+claude mcp add FoodGuideSousChef --transport http http://localhost:8000/mcp
+```
+
+**Cursor**
+
+In `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global):
+
+```json
+{
+  "mcpServers": {
+    "FoodGuideSousChef": {
+      "command": "uvx",
+      "args": ["mcp-proxy", "--transport", "streamablehttp", "http://localhost:8000/mcp"]
+    }
+  }
+}
+```
+
+**VS Code (GitHub Copilot)**
+
+In `.vscode/mcp.json`:
+
+```json
+{
+  "servers": {
+    "FoodGuideSousChef": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["mcp-proxy", "--transport", "streamablehttp", "http://localhost:8000/mcp"]
+    }
+  }
+}
+```
+
+---
+
+### Full mode -- all tools incl. SQLite DB
+
+No separate server process needed. The client launches the server directly via stdio.
+
+Replace `<python-path>` and `<project-path>` with your actual paths from the [Installation](#-installation) steps.
+
+**Common Python paths by system**:
+- **Homebrew (Mac)**: `/opt/homebrew/bin/python3`
+- **System Python (Mac)**: `/usr/bin/python3`
+- **Anaconda**: `/opt/anaconda3/bin/python3`
+- **Linux**: `/usr/bin/python3`
+
+**Claude Desktop**
+
+Navigate to: Claude Desktop → Settings (⌘,) → Developer → Edit Config
+
+```json
+{
+  "mcpServers": {
+    "FoodGuideSousChef": {
+      "command": "<python-path>",
+      "args": ["<project-path>/src/server.py"],
+      "cwd": "<project-path>"
+    }
+  }
+}
+```
+
+Restart Claude Desktop after saving.
+
+**Claude Code**
+
+```bash
+claude mcp add FoodGuideSousChef -- <python-path> <project-path>/src/server.py
+```
+
+**Cursor**
+
+In `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global):
+
+```json
+{
+  "mcpServers": {
+    "FoodGuideSousChef": {
+      "command": "<python-path>",
+      "args": ["<project-path>/src/server.py"],
+      "cwd": "<project-path>"
+    }
+  }
+}
+```
+
+**VS Code (GitHub Copilot)**
+
+In `.vscode/mcp.json`:
+
+```json
+{
+  "servers": {
+    "FoodGuideSousChef": {
+      "type": "stdio",
+      "command": "<python-path>",
+      "args": ["<project-path>/src/server.py"],
+      "cwd": "<project-path>"
+    }
+  }
+}
+```
+
+---
+
+### Optional flags
+
+```bash
+# HTTP mode with custom port
+python3 src/server.py --transport http --port 9000 --host 0.0.0.0
+
+# Environment variable alternative (for deployment)
+MCP_TRANSPORT=http PORT=8000 python3 src/server.py
+```
 
 ### Troubleshooting
 - If the server doesn't appear, check the Claude Desktop logs for error messages
-- Verify Python 3.8+ is installed: `python3 --version`
-
-4. **Restart Claude Desktop**:
-   - The server will now be available in your conversations
+- Verify Python 3.10+ is installed: `python3 --version`
+- For HTTP mode, verify the server is running: `curl http://localhost:8000/mcp/`
 
 ## 🏗️ Project Structure
 
@@ -174,7 +315,7 @@ Here's how the comprehensive nutrition platform is organized:
 
 ### 📁 **`src/` Folder - Core Platform**
 
-* **`server.py`**: Main MCP server with **42+ specialized tools** across 6 categories:
+* **`server.py`**: Main MCP server with **46 specialized tools** across 6 categories (supports stdio + HTTP transport):
   - Recipe discovery and management tools
   - Database and session management tools
   - Math and calculation tools
@@ -221,7 +362,7 @@ Here's how the comprehensive nutrition platform is organized:
 * **`foodguide_data.db`**: SQLite database for persistent favorites storage
 
 ### 🔄 **Platform Architecture**:
-1. **MCP Server Layer**: `server.py` exposes 42+ tools to AI assistants
+1. **MCP Server Layer**: `server.py` exposes 46 tools to AI assistants (24 in HTTP mode, 46 in stdio mode)
 2. **Health Canada APIs**: Live integration with CNF, DRI, and recipe databases
 3. **Database Layer**: Virtual sessions (memory) + persistent favorites (SQLite)
 4. **Calculation Engine**: Math tools for scaling, nutrition analysis, and comparisons
@@ -247,7 +388,7 @@ Here's how the comprehensive nutrition platform is organized:
 
 ## 📋 Reference
 
-This platform provides **42+ specialized tools** across 6 major categories. Below are representative examples from each category.
+This platform provides **46 specialized tools** across 6 major categories. Below are representative examples from each category.
 
 ### 🍲 Recipe Discovery Tools
 
