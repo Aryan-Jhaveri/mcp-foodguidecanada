@@ -14,6 +14,7 @@ import os
 import logging
 import traceback
 import signal
+import argparse
 from typing import List, Dict, Any, Optional
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from io import StringIO
@@ -33,6 +34,8 @@ try:
     from src.api.search import RecipeSearcher
     from src.models.filters import SearchFilters
     from src.db.queries import register_db_tools
+    from src.db.math_tools import register_math_tools
+    from src.db.dri_tools import register_dri_tools, register_session_dri_tools
     from src.db.eer_tools import register_eer_tools
     from src.db.cnf_tools import register_cnf_tools
     from src.config import DB_FILE, TOOL_TIMEOUT_SECONDS
@@ -43,6 +46,8 @@ except ImportError:
         from api.search import RecipeSearcher
         from models.filters import SearchFilters
         from db.queries import register_db_tools
+        from db.math_tools import register_math_tools
+        from db.dri_tools import register_dri_tools, register_session_dri_tools
         from db.eer_tools import register_eer_tools
         from db.cnf_tools import register_cnf_tools
         from config import DB_FILE, TOOL_TIMEOUT_SECONDS
@@ -126,53 +131,109 @@ def connection_error_handler(operation_name: str):
             #logger.error(traceback.format_exc())
             raise
 
-def create_server() -> FastMCP:
-    """Create and configure the MCP server with all tools registered."""
+def create_server(enable_db: bool = True) -> FastMCP:
+    """Create and configure the MCP server with all tools registered.
+
+    Args:
+        enable_db: When True (stdio mode), all tools including SQLite-dependent ones
+                   are registered. When False (HTTP mode), only web-scraping, in-memory,
+                   and pure calculation tools are registered.
+    """
     # Conditionally suppress stderr during FastMCP creation to prevent protocol leakage
     if SUPPRESS_MCP_LOGS:
         with redirect_stderr(_quiet_stderr):
             mcp = FastMCP()
     else:
         mcp = FastMCP()
-    
+
     try:
         with connection_error_handler("tool registration"):
+            # Always available: recipe scraping tools
             register_recipe_tools(mcp)
-            register_db_tools(mcp)
+
+            # Always available: pure math/calculation tools
             try:
-                register_eer_tools(mcp)
-            except Exception as e:
+                register_math_tools(mcp)
+            except Exception:
                 pass
+
+            # Always available: DRI web scraping + in-memory session tools
             try:
-                register_cnf_tools(mcp)
-            except Exception as e:
+                register_dri_tools(mcp)
+                register_session_dri_tools(mcp)
+            except Exception:
                 pass
+
+            # EER tools: calc always, profile tools gated by enable_db
+            try:
+                register_eer_tools(mcp, enable_db=enable_db)
+            except Exception:
+                pass
+
+            # CNF tools: search/scrape always, recipe-analysis gated by enable_db
+            try:
+                register_cnf_tools(mcp, enable_db=enable_db)
+            except Exception:
+                pass
+
+            # DB-dependent tools: favorites, sessions, schema management
+            if enable_db:
+                register_db_tools(mcp)
     except Exception as e:
         # Only output critical errors to original stderr
         print(f"CRITICAL: Tool registration failed: {e}", file=_original_stderr)
         raise
-    
+
     return mcp
 
 if __name__ == "__main__":
+    # Parse CLI arguments
+    parser = argparse.ArgumentParser(description="MCP Food Guide Canada Server")
+    parser.add_argument(
+        '--transport', choices=['stdio', 'http'], default=None,
+        help='Transport type (default: stdio). Env var: MCP_TRANSPORT'
+    )
+    parser.add_argument(
+        '--host', type=str, default=None,
+        help='Host for HTTP transport (default: 0.0.0.0). Env var: HOST'
+    )
+    parser.add_argument(
+        '--port', type=int, default=None,
+        help='Port for HTTP transport (default: 8000). Env var: PORT'
+    )
+    args = parser.parse_args()
+
+    # Resolve settings: CLI flag > env var > default
+    transport = args.transport or os.getenv('MCP_TRANSPORT', 'stdio')
+    host = args.host or os.getenv('HOST', '0.0.0.0')
+    port = args.port or int(os.getenv('PORT', '8000'))
+    enable_db = (transport == 'stdio')
+
+    # In HTTP mode, logs can safely go to stderr (no protocol leakage concern)
+    if transport == 'http':
+        SUPPRESS_MCP_LOGS = False
+        logging.disable(logging.NOTSET)
+
     # Register signal handlers for graceful shutdown
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
-    
+
     try:
-        # Create server with conditionally suppressed output
-        mcp = create_server()
-        
-        # Conditionally suppress stderr during server execution to prevent protocol leakage
-        # but keep original stderr available for critical errors
-        if SUPPRESS_MCP_LOGS:
-            with redirect_stderr(_quiet_stderr):
-                with connection_error_handler("server execution"):
-                    mcp.run()
+        # Create server with DB gating based on transport mode
+        mcp = create_server(enable_db=enable_db)
+
+        if transport == 'http':
+            mcp.run(transport='streamable-http', host=host, port=port)
         else:
-            with connection_error_handler("server execution"):
-                mcp.run()
-            
+            # stdio mode: suppress stderr to prevent protocol leakage
+            if SUPPRESS_MCP_LOGS:
+                with redirect_stderr(_quiet_stderr):
+                    with connection_error_handler("server execution"):
+                        mcp.run(transport='stdio')
+            else:
+                with connection_error_handler("server execution"):
+                    mcp.run(transport='stdio')
+
     except KeyboardInterrupt:
         pass
     except Exception as e:

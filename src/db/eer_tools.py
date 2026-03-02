@@ -72,9 +72,15 @@ def get_profile_manager(use_persistent_storage=False):
     # Create new instance with specified storage type instead of using global
     return EERProfileManager(use_persistent_storage=use_persistent_storage)
 
-def register_eer_tools(mcp: FastMCP):
-    """Register EER calculation and profile management tools with the MCP server."""
-    
+def register_eer_tools(mcp: FastMCP, enable_db: bool = True):
+    """Register EER calculation and profile management tools with the MCP server.
+
+    Args:
+        mcp: The FastMCP server instance.
+        enable_db: When True, registers profile management tools that require SQLite.
+                   When False (HTTP mode), only calculation/reference tools are registered.
+    """
+
     if not EER_TOOLS_AVAILABLE:
         print("EER tools not available due to import errors", file=sys.stderr)
         return
@@ -191,6 +197,10 @@ def register_eer_tools(mcp: FastMCP):
                 "error_code": "DESCRIPTION_ERROR"
             }
     
+    # Profile management tools require SQLite persistent storage
+    if not enable_db:
+        return
+
     @mcp.tool()
     def create_user_profile(input_data: CreateUserProfileInput) -> Dict[str, Any]:
         """

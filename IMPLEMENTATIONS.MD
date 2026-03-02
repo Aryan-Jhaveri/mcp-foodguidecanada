@@ -9,23 +9,24 @@ Future improvements, tasks, project roadmap, and notes.
 Make the server deployable as a remote MCP app on Render (free tier) via Streamable HTTP transport, while keeping stdio for local Claude Desktop use.
 
 ### -- HTTP Transport Migration
-- [ ] Update `fastmcp` to v2.3+ (Streamable HTTP support built-in)
-- [ ] Add `--transport` CLI flag to `src/server.py` (`stdio` default, `http` option)
-- [ ] Add `--port` and `--host` flags with `$PORT`/`$HOST` env var fallbacks (Render sets `$PORT`)
-- [ ] Switch `mcp.run()` call based on transport flag:
-  - `stdio`: `mcp.run()` (current behavior, all features)
-  - `http`: `mcp.run(transport="http", host=args.host, port=args.port)`
+- [x] Update `fastmcp` to v2.3+ (Streamable HTTP support built-in)
+- [x] Add `--transport` CLI flag to `src/server.py` (`stdio` default, `http` option)
+- [x] Add `--port` and `--host` flags with `$PORT`/`$HOST` env var fallbacks (Render sets `$PORT`)
+- [x] Switch `mcp.run()` call based on transport flag:
+  - `stdio`: `mcp.run(transport='stdio')` (current behavior, all features)
+  - `http`: `mcp.run(transport='streamable-http', host=host, port=port)`
 
 ### -- DB Feature Gating (HTTP Mode)
 SQLite is not viable for stateless HTTP hosting. Gate DB-dependent tools behind the transport flag.
 
-- [ ] Add `enable_db` flag derived from transport mode (`True` for stdio, `False` for http)
-- [ ] Skip `register_db_tools(mcp)` in HTTP mode — covers: favorites, temp sessions, temp tables
-- [ ] Split `register_eer_tools()` — DB-dependent: `create_user_profile`, `get_user_profile`, `delete_user_profile`, `list_user_profiles`; always available: `calculate_eer`, `get_eer_equations`, `get_pal_descriptions`
-- [ ] Split `register_cnf_tools()` — DB-dependent: session storage tools; always available: search/fetch tools
-- [ ] Split `register_dri_tools()` — Review session-aware tools; core DRI lookups are web-only
-- [ ] Guard `src/db/schema.py` DB initialization behind `enable_db`
-- [ ] Ensure virtual sessions (in-memory dicts) still work in HTTP mode — no SQLite dependency
+- [x] Add `enable_db` flag derived from transport mode (`True` for stdio, `False` for http)
+- [x] Skip `register_db_tools(mcp)` in HTTP mode — covers: favorites, temp sessions, temp tables
+- [x] Split `register_eer_tools()` — DB-dependent: `create_user_profile`, `get_user_profile`, `delete_user_profile`, `list_user_profiles`; always available: `get_eer_equations`, `get_pal_descriptions`
+- [x] Split `register_cnf_tools()` — DB-dependent: recipe analysis tools (simple_recipe_setup, calculate_recipe_nutrition_summary, query_recipe_macros_table, update_recipe_macros_decisions); always available: search/fetch tools (with DB writes gated internally)
+- [x] Extract `register_math_tools`, `register_dri_tools`, `register_session_dri_tools` from `register_db_tools` — now registered directly from server.py (always available, no DB dependency)
+- [x] Guard DB writes in CNF search tools behind `enable_db` (scrape data still returned)
+- [x] Ensure virtual sessions (in-memory dicts) still work in HTTP mode — DRI session tools confirmed transport-agnostic
+- Tool availability: **46 tools (stdio)** / **24 tools (HTTP)**
 
 ### -- MCP Resources (Static Reference Data)
 Convert static/semi-static data to MCP Resources to reduce unnecessary tool calls.

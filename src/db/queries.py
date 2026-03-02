@@ -65,14 +65,8 @@ def register_db_tools(mcp: FastMCP):
     mcp.tool()(cleanup_temp_sessions)  # Combined cleanup function
     mcp.tool()(list_temp_sessions)
     
-    # Register math and calculation tools
-    register_math_tools(mcp)
-    
-    # Register DRI macronutrient tools
-    register_dri_tools(mcp)
-    
-    # Register session-aware DRI tools
-    register_session_dri_tools(mcp)
+    # Math, DRI, and session DRI tools are now registered directly from server.py
+    # (they have no DB dependency and should always be available)
 
     @mcp.tool()
     def store_recipe_in_session(recipe_input: RecipeInput) -> Dict[str, Any]:
