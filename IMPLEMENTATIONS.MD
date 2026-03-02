@@ -1,68 +1,107 @@
 # IMPLEMENTATIONS.md
-Future improvements To-Do list, tasks, Project wishlists, Notes
+Future improvements, tasks, project roadmap, and notes.
 
-## August 12, 2025
-### -- Rate Limiting & Web Scraping Improvements
-[] Implement exponential backoff with jitter for CNF web scraping
-    - Current 0.5s fixed delay insufficient for bulk operations
-    - Add randomized delays (2-4 seconds) to mimic human behavior
-    - Implement exponential backoff on HTTP 429 responses
+---
 
-[] Add request chunking for bulk_get_cnf_macronutrients operations  
-    - Break large bulk requests (20 foods) into smaller chunks (3-5 foods)
-    - Add progressive delays between chunks
-    - Reduce concurrent workers from 3 to 1-2 for better server respect
+## March 2026 — HTTP Transport & Remote Deployment
 
-[] Enhanced error handling and retry mechanisms
-    - Distinguish between rate limits, network errors, and data errors
-    - Implement circuit breaker pattern for repeated failures  
-    - Better caching strategy for failed requests
+### Goal
+Make the server deployable as a remote MCP app on Render (free tier) via Streamable HTTP transport, while keeping stdio for local Claude Desktop use.
 
-[] Configuration improvements for production stability
-    - Increase CNF_RATE_LIMIT from 0.5s to 2-3s
-    - Add environment variables for rate limit customization
-    - Add monitoring for rate limit hit frequency
+### -- HTTP Transport Migration
+- [ ] Update `fastmcp` to v2.3+ (Streamable HTTP support built-in)
+- [ ] Add `--transport` CLI flag to `src/server.py` (`stdio` default, `http` option)
+- [ ] Add `--port` and `--host` flags with `$PORT`/`$HOST` env var fallbacks (Render sets `$PORT`)
+- [ ] Switch `mcp.run()` call based on transport flag:
+  - `stdio`: `mcp.run()` (current behavior, all features)
+  - `http`: `mcp.run(transport="http", host=args.host, port=args.port)`
 
-[] Long-term solutions to reduce web scraping dependency
-    - Investigate Health Canada official API access
-    - Build offline CNF database cache for common foods
-    - Implement MCP resources for frequently requested nutrients
+### -- DB Feature Gating (HTTP Mode)
+SQLite is not viable for stateless HTTP hosting. Gate DB-dependent tools behind the transport flag.
 
-## June 14, 2025
-[] CNF database updated robot.txt limits web api calls to prevent bloat - Now only 2 of, say 4, recipes are being fetched.
-    
-    Alternatives
-    --> Add mcp.resource or mcp.tool for table values for common foods
+- [ ] Add `enable_db` flag derived from transport mode (`True` for stdio, `False` for http)
+- [ ] Skip `register_db_tools(mcp)` in HTTP mode — covers: favorites, temp sessions, temp tables
+- [ ] Split `register_eer_tools()` — DB-dependent: `create_user_profile`, `get_user_profile`, `delete_user_profile`, `list_user_profiles`; always available: `calculate_eer`, `get_eer_equations`, `get_pal_descriptions`
+- [ ] Split `register_cnf_tools()` — DB-dependent: session storage tools; always available: search/fetch tools
+- [ ] Split `register_dri_tools()` — Review session-aware tools; core DRI lookups are web-only
+- [ ] Guard `src/db/schema.py` DB initialization behind `enable_db`
+- [ ] Ensure virtual sessions (in-memory dicts) still work in HTTP mode — no SQLite dependency
 
-    --> Possibly add offline database for Canada's nutrient file
+### -- MCP Resources (Static Reference Data)
+Convert static/semi-static data to MCP Resources to reduce unnecessary tool calls.
 
-    --> Update rate for api calls.
+- [ ] Create `src/resources.py` with resource registrations
+- [ ] `eer://pal-categories` — PAL category descriptions (currently hardcoded in `eer_tools.py`)
+- [ ] `dri://macronutrients` — DRI reference tables (cached, from `MacronutrientScraper`)
+- [ ] `eer://equations` — Health Canada EER equations (from `EERCalculator`)
+- [ ] Register resources in both stdio and HTTP modes
 
-## June 10, 2025
-### TO-DO
-[] Update the outdate CLI to include db, EER, and CNF compatibility. LLM's waste water, and this in itself can have a standalone value too.
+### -- Render Deployment
+- [ ] Create `Dockerfile` (python:3.11-slim, install deps, run with `--transport http`)
+- [ ] Create `render.yaml` (web service, free plan, `TRANSPORT=http` env var)
+- [ ] Test deployment end-to-end with MCP Inspector against HTTP endpoint
+- [ ] Document remote connection URL in README
 
-### -- Improvements
-[] Macros Analysis is the most resource consuming tool set, and it also tends to time out on the Nutrient File's side. An API key here would really efficient.
+---
 
-[] Combine these tools (potentially), to make tool calling efficient, and reduce tool calls:
+## Backlog — Rate Limiting & Web Scraping (from Aug 2025)
+- [ ] Exponential backoff with jitter for CNF scraping (fixed 0.5s delay is insufficient for bulk ops)
+- [ ] Request chunking for `bulk_get_cnf_macronutrients` (break 20-food requests into 3-5 food chunks)
+- [ ] Circuit breaker pattern for repeated CNF failures
+- [ ] Increase default `CNF_RATE_LIMIT` from 0.5s to 2-3s
+- [ ] Investigate Health Canada official API access to reduce scraping dependency
 
-    - [] calculate_recipe_nutrition_summary and query_recipe_macros_table. The first tool simple parses and sets up the table for query recipes
-    
-    - [] store_recipe_in_temp_tables and simple_recipe_setup. the setup function parses the stored ingredients, they should be ideally combined, so to reduce LLM tool calls.
+## Backlog — Tool Consolidation (from Jun 2025)
+- [ ] Merge `calculate_recipe_nutrition_summary` + `query_recipe_macros_table` (first sets up table for second)
+- [ ] Merge `store_recipe_in_temp_tables` + `simple_recipe_setup` (setup parses stored ingredients)
 
-[] refactor and breakdown cnf_tools.py file. The current size is too big, and contains helper functions
+### -- `cnf_tools.py` Refactor (2,325 lines → ~4 focused modules)
 
-[] Add mermaid diagram to implementations.md to show dataflow.
-[] Simplify installaion with an npm or smithery installation packaging
+The file contains 8 MCP tools, a cache class, a bulk worker, 3 unit-matching helpers, 3 SQLite utility functions, and a status function. The nutrient parsing/storing logic is copy-pasted 3 times across `get_cnf_macronutrients_only`, `bulk_get_cnf_macronutrients`, and `get_cnf_nutrient_profile` (marked with inline comments "COPIED FROM get_cnf_nutrient_profile").
 
-### -- Potential ideas
-[] Extend DRI support to include micro nutrients, vitamins and minerals too
-[] add tools to allow users to store temp_recipe_ info to permanent database for ingredients they keep in stock
-[] add functionality to vary how long you like to store recipe information
+**Extraction plan:**
 
+- [ ] **`src/utils/cnf_helpers.py`** (~350 lines) — general-purpose CNF utilities
+  - `CNFCache` class (thread-safe TTL cache, lines 92–129)
+  - `get_cnf_scraper()` singleton factory (lines 134–139)
+  - `process_single_food_code()` bulk worker (lines 141–239)
+  - **New `parse_and_store_cnf_nutrients()`** — deduplicates the ~100-line nutrient parsing block copied 3x (handles 100g baseline parsing, trace/`<value` cleaning, serving size column detection, fraction handling, `temp_cnf_foods` + `temp_cnf_nutrients` INSERT)
+  - Move `import re` to module-level (currently re-imported inside loops)
+
+- [ ] **`src/db/cnf_unit_matching.py`** (~150 lines) — unit analysis (stays in db/, used by tools)
+  - `_normalize_unit()` (lines 2055–2081)
+  - `_can_convert_units()` (lines 2162–2185)
+  - `_analyze_unit_matching()` (lines 2083–2160)
+
+- [ ] **`src/utils/cnf_sqlite_utils.py`** (~150 lines) — standalone SQLite helpers
+  - `populate_cnf_food_in_sqlite()` (lines 2190–2229) — currently unused externally
+  - `populate_cnf_nutrient_in_sqlite()` (lines 2231–2264) — currently unused externally
+  - `clear_cnf_data_from_sqlite()` (lines 2266–2301) — currently unused externally
+  - `get_cnf_tools_status()` (lines 2303–2326) — fix stale tool names (lists deprecated names like `link_ingredient_to_cnf_simple`, count says 7 but actual is 8)
+
+- [ ] **Slim `src/db/cnf_tools.py`** (~600 lines) — tools only
+  - Keep all 8 `@mcp.tool()` definitions inside `register_cnf_tools(mcp)`
+  - Replace 3 copy-pasted nutrient parsing blocks with `parse_and_store_cnf_nutrients()` calls
+  - Import helpers from new modules
+  - Keep `CNF_TOOLS_AVAILABLE` flag and dual import try/except pattern
+  - Keep all tool docstrings unchanged (they guide LLM behavior)
+  - `server.py` unchanged — still calls `register_cnf_tools(mcp)` from `src.db.cnf_tools`
+
+**What does NOT change:** tool names, signatures, docstrings, models (`cnf_models.py`), `server.py`, `__init__.py`. Pure structural refactor.
+
+## Backlog — Feature Ideas
+- [ ] Extend DRI support to include micronutrients, vitamins, and minerals
+- [ ] Allow users to persist `temp_recipe_` data to permanent DB for pantry/stock tracking
+- [ ] Configurable retention periods for stored recipe information
+- [ ] Update CLI (`cli.py`) to include DB, EER, and CNF compatibility
+- [ ] Add tests and tool-call frequency evaluation for sustainability
+- [ ] Simplify installation with npm/Smithery packaging
+
+---
 
 ## Notes
--> Current LLM clients already have great web crawlers, though the current mcp idea is a good example of using html webscraping, it might be an outdated feature in light of current crawlers and their developments. Maybe a good justification of using a smaller model on a phone in a kitchen. 
-
--> Need to think of tests, and evaluating tool call frequencies to make this server more sustainable.
+- Current LLM clients (Claude, ChatGPT) have strong built-in web crawlers. The HTML scraping approach may become redundant — but remains valuable for smaller/local models without web access (e.g., phone in a kitchen).
+- CNF robot.txt limits affect bulk operations — macronutrient analysis is the most resource-consuming toolset.
+- FastMCP v2.3+ makes Streamable HTTP the default HTTP transport, replacing deprecated SSE.
+- Virtual sessions (Python dicts) are transport-agnostic and work in both stdio and HTTP modes.
+- Render free tier supports Docker web services with `$PORT` injection.
