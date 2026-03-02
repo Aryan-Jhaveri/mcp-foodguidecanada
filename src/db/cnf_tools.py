@@ -36,17 +36,14 @@ CNF_TOOLS_AVAILABLE = False
 
 # Import config first to ensure constants are available
 try:
-    from src.config import CNF_RATE_LIMIT, CNF_MAX_CONCURRENT, CNF_CACHE_TTL, BULK_OPERATION_TIMEOUT, PROGRESS_REPORT_INTERVAL
+    from src.config import CNF_MAX_CONCURRENT, CNF_CACHE_TTL, BULK_OPERATION_TIMEOUT
 except ImportError:
     try:
-        from config import CNF_RATE_LIMIT, CNF_MAX_CONCURRENT, CNF_CACHE_TTL, BULK_OPERATION_TIMEOUT, PROGRESS_REPORT_INTERVAL
+        from config import CNF_MAX_CONCURRENT, CNF_CACHE_TTL, BULK_OPERATION_TIMEOUT
     except ImportError:
-        # Set defaults if config not available
-        CNF_RATE_LIMIT = 0.5
         CNF_MAX_CONCURRENT = 3
         CNF_CACHE_TTL = 1800
         BULK_OPERATION_TIMEOUT = 60
-        PROGRESS_REPORT_INTERVAL = 3
 
 try:
     from src.models.cnf_models import (
@@ -57,7 +54,7 @@ try:
         IngredientNutritionBreakdownInput, DailyNutritionComparisonInput,
         RecipeMacrosQueryInput, RecipeMacrosUpdateInput
     )
-    from src.api.cnf import NutrientFileScraper, CORE_MACRONUTRIENTS
+    from src.api.cnf_api import get_cnf_api_client, CORE_MACRONUTRIENT_IDS, parse_measure_name
     from src.db.schema import get_virtual_session_data, store_recipe_in_virtual_session
     from src.db.sql_engine import VirtualSQLEngine, get_available_tables_info
     from src.db.connection import get_db_connection
@@ -71,7 +68,7 @@ except ImportError:
             AnalyzeRecipeNutritionInput, RecipeNutritionCalculationInput,
             IngredientNutritionBreakdownInput, DailyNutritionComparisonInput
         )
-        from api.cnf import NutrientFileScraper, CORE_MACRONUTRIENTS
+        from api.cnf_api import get_cnf_api_client, CORE_MACRONUTRIENT_IDS, parse_measure_name
         from db.schema import get_virtual_session_data, store_recipe_in_virtual_session
         from db.sql_engine import VirtualSQLEngine, get_available_tables_info
         from db.connection import get_db_connection
@@ -84,8 +81,7 @@ LOG_LEVEL = os.getenv('FOODGUIDE_LOG_LEVEL', 'ERROR')
 logging.basicConfig(level=getattr(logging, LOG_LEVEL))
 #logger = logging.getLogger(__name__)
 
-# Global CNF scraper instance and caching
-_cnf_scraper = None
+# Global caching
 _cnf_cache = {}
 _cache_lock = threading.Lock()
 
@@ -131,41 +127,87 @@ class CNFCache:
 # Global cache instance
 _cnf_cache_instance = CNFCache()
 
-def get_cnf_scraper() -> NutrientFileScraper:
-    """Get or create the global CNF scraper instance with optimized rate limiting."""
-    global _cnf_scraper
-    if _cnf_scraper is None:
-        _cnf_scraper = NutrientFileScraper(rate_limit=CNF_RATE_LIMIT)
-    return _cnf_scraper
+def _store_nutrients_in_db(
+    cursor,
+    session_id: str,
+    food_code: str,
+    nutrients: List[Dict],
+    servings: List[Dict],
+    macros_only: bool = True,
+) -> int:
+    """Shared helper: store nutrient data from the CNF API into SQLite.
+
+    Args:
+        cursor: SQLite cursor
+        session_id: Session identifier
+        food_code: CNF food code
+        nutrients: Raw nutrient list from api.get_nutrient_amounts()
+        servings: Parsed serving list from api.get_serving_sizes()
+        macros_only: If True, only store CORE_MACRONUTRIENT_IDS
+
+    Returns:
+        Number of nutrient rows stored.
+    """
+    count = 0
+
+    for n in nutrients:
+        nid = n.get("nutrient_name_id")
+
+        if macros_only and nid not in CORE_MACRONUTRIENT_IDS:
+            continue
+
+        value_per_100g = n.get("nutrient_value", 0.0) or 0.0
+
+        # Determine name/unit/symbol — prefer CORE_MACRONUTRIENT_IDS lookup, fall back to API fields
+        if nid in CORE_MACRONUTRIENT_IDS:
+            info = CORE_MACRONUTRIENT_IDS[nid]
+            nutrient_name = info["name"]
+            nutrient_symbol = info["unit"]
+        else:
+            nutrient_name = n.get("nutrient_web_name", "")
+            nutrient_symbol = n.get("nutrient_web_unit", "")
+
+        # Store 100g baseline
+        cursor.execute("""
+            INSERT OR REPLACE INTO temp_cnf_nutrients
+            (session_id, cnf_food_code, nutrient_name, nutrient_value,
+             per_amount, unit, nutrient_symbol)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (session_id, food_code, nutrient_name, value_per_100g, 100.0, 'g', nutrient_symbol))
+        count += 1
+
+        # Store per-serving values
+        for s in servings:
+            factor = s.get("conversion_factor_value", 1.0)
+            serving_value = value_per_100g * factor
+            amount, unit = parse_measure_name(s.get("measure_name", ""))
+            cursor.execute("""
+                INSERT OR REPLACE INTO temp_cnf_nutrients
+                (session_id, cnf_food_code, nutrient_name, nutrient_value,
+                 per_amount, unit, nutrient_symbol)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (session_id, food_code, nutrient_name, serving_value, amount, unit, nutrient_symbol))
+            count += 1
+
+    return count
+
 
 def process_single_food_code(
-    food_code: str, 
-    session_id: str, 
+    food_code: str,
+    session_id: str,
     preferred_units: Optional[List[str]] = None,
     progress_callback: Optional[Callable[[str, str], None]] = None
 ) -> Dict[str, Any]:
-    """
-    Process a single food code with caching and error handling.
-    
-    Args:
-        food_code: CNF food code to process
-        session_id: Session identifier
-        preferred_units: Preferred serving units
-        progress_callback: Optional callback for progress updates
-        
-    Returns:
-        Dict with processing result including success/failure status
-    """
+    """Process a single food code via the CNF API with caching."""
     try:
         if progress_callback:
             progress_callback(food_code, "starting")
-            
+
         # Check cache first
         cache_key = f"{food_code}_{preferred_units or 'default'}"
         cached_result = _cnf_cache_instance.get(cache_key)
-        
+
         if cached_result:
-            #logger.debug(f"Using cached data for food code {food_code}")
             if progress_callback:
                 progress_callback(food_code, "cached")
             return {
@@ -174,69 +216,51 @@ def process_single_food_code(
                 "cached": True,
                 "data": cached_result
             }
-        
-        scraper = get_cnf_scraper()
-        
-        if progress_callback:
-            progress_callback(food_code, "fetching_serving_info")
-            
-        # Step 1: Get serving info
-        serving_options, refuse_info = scraper.get_serving_info(food_code)
-        
-        if not serving_options:
-            return {
-                "status": "failed",
-                "food_code": food_code,
-                "error": "Could not retrieve serving information",
-                "suggestion": "Verify food code is valid"
-            }
-        
+
+        api = get_cnf_api_client()
+
         if progress_callback:
             progress_callback(food_code, "fetching_nutrients")
-            
-        # Step 2: Get nutrient profile
-        nutrient_profile = scraper.get_nutrient_profile(
-            food_code=food_code,
-            serving_options=serving_options,
-            nutrient_filter="macronutrients",
-            preferred_units=preferred_units
-        )
-        
-        if not nutrient_profile or nutrient_profile.get('error'):
+
+        nutrients = api.get_nutrient_amounts(food_code)
+        servings = api.get_serving_sizes(food_code)
+        refuse = api.get_refuse_amount(food_code)
+        food_info = api.get_food(food_code)
+
+        if not nutrients:
             return {
                 "status": "failed",
                 "food_code": food_code,
-                "error": "Could not retrieve nutrient profile",
-                "suggestion": "Food code may be invalid or CNF website temporarily unavailable"
+                "error": "Could not retrieve nutrient data",
+                "suggestion": "Verify food code is valid"
             }
-        
-        # Cache the successful result
+
         result_data = {
-            "serving_options": serving_options,
-            "refuse_info": refuse_info,
-            "nutrient_profile": nutrient_profile
+            "nutrients": nutrients,
+            "servings": servings,
+            "refuse": refuse,
+            "food_info": food_info,
         }
         _cnf_cache_instance.set(cache_key, result_data)
-        
+
         if progress_callback:
             progress_callback(food_code, "completed")
-            
+
         return {
             "status": "success",
             "food_code": food_code,
             "cached": False,
             "data": result_data
         }
-        
+
     except Exception as e:
-        #logger.error(f"Error processing food code {food_code}: {e}")
         if progress_callback:
             progress_callback(food_code, f"error: {str(e)}")
         return {
             "status": "failed",
             "food_code": food_code,
             "error": str(e),
-            "suggestion": "Check network connection and CNF website availability"
+            "suggestion": "Check network connection and CNF API availability"
         }
 
 def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
@@ -283,14 +307,11 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
             number of matches found
         """
         try:
-            scraper = get_cnf_scraper()
-            
-            # Step 1: Search for foods
-            search_results = scraper.search_food(input_data.food_name)
-            
-            if search_results is None:
-                return {"error": f"Failed to search for food: {input_data.food_name}"}
-            
+            api = get_cnf_api_client()
+
+            # Step 1: Search for foods (cached food list — zero network calls after first)
+            search_results = api.search_food(input_data.food_name, max_results=input_data.max_results or 10)
+
             if not search_results:
                 return {
                     "message": f"No foods found matching: '{input_data.food_name}'",
@@ -301,42 +322,26 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                         "Search for base ingredients without brands or preparation methods"
                     ]
                 }
-            
-            # Limit results for LLM efficiency
-            if input_data.max_results and len(search_results) > input_data.max_results:
-                search_results = search_results[:input_data.max_results]
-            
+
             # Step 2: If single result, auto-fetch macronutrients
             if len(search_results) == 1:
                 selected_food = search_results[0]
                 food_code = selected_food['food_code']
-                
-                # Get serving information
-                serving_options, refuse_info = scraper.get_serving_info(food_code)
-                
-                if serving_options is None:
+                food_description = selected_food['food_name']
+
+                # Fetch nutrient + serving data from API
+                nutrients = api.get_nutrient_amounts(food_code)
+                servings = api.get_serving_sizes(food_code)
+                refuse = api.get_refuse_amount(food_code)
+
+                if not nutrients:
                     return {
-                        "error": f"Found food '{selected_food['food_name']}' but failed to get serving info",
+                        "error": f"Found food '{food_description}' but failed to get nutrient data",
                         "food_code": food_code,
                         "search_results": search_results
                     }
-                
-                # Get macronutrient profile (filtered)
-                nutrient_profile = scraper.get_nutrient_profile(
-                    food_code, 
-                    serving_options,
-                    nutrient_filter="macronutrients",
-                    preferred_units=input_data.preferred_units
-                )
-                
-                if nutrient_profile is None:
-                    return {
-                        "error": f"Found food '{selected_food['food_name']}' but failed to get macronutrient profile",
-                        "food_code": food_code,
-                        "search_results": search_results
-                    }
-                
-                # Store in SQL tables (same logic as get_cnf_macronutrients_only)
+
+                # Store in SQL tables
                 nutrients_stored = 0
                 if enable_db:
                     from .schema import create_temp_nutrition_session, update_session_access_time
@@ -347,72 +352,36 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                     with get_db_connection() as conn:
                         cursor = conn.cursor()
 
-                        # Get food description from first nutrient category
-                        food_description = selected_food['food_name']
-                        for category_data in nutrient_profile.values():
-                            if category_data and len(category_data) > 0:
-                                food_description = selected_food['food_name']
-                                break
-
-                        # Insert/update CNF food entry
                         cursor.execute("""
                             INSERT OR REPLACE INTO temp_cnf_foods
-                            (session_id, food_code, food_description, food_group, food_source, refuse_flag, refuse_amount)
-                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                            (session_id, cnf_food_code, food_description, ingredient_name, refuse_flag, refuse_amount)
+                            VALUES (?, ?, ?, ?, ?, ?)
                         """, (
-                            input_data.session_id,
-                            food_code,
-                            food_description,
-                            "Unknown",  # Could be enhanced to extract from profile
-                            "CNF Database",
-                            False,
-                            0.0
+                            input_data.session_id, food_code, food_description,
+                            None, bool(refuse), None
                         ))
 
-                        # Store macronutrients in temp_cnf_nutrients table
-                        for category_name, category_data in nutrient_profile.items():
-                            if not category_data:
-                                continue
+                        cursor.execute("""
+                            DELETE FROM temp_cnf_nutrients
+                            WHERE session_id = ? AND cnf_food_code = ?
+                        """, (input_data.session_id, food_code))
 
-                            for nutrient_entry in category_data:
-                                if not nutrient_entry:
-                                    continue
-
-                                nutrient_name = nutrient_entry.get('Nutrient name', '')
-
-                                # Only store core macronutrients for efficiency
-                                if nutrient_name in CORE_MACRONUTRIENTS:
-                                    cursor.execute("""
-                                        INSERT OR REPLACE INTO temp_cnf_nutrients
-                                        (session_id, food_code, nutrient_name, nutrient_symbol, nutrient_unit,
-                                         nutrient_value, standard_error, number_observations, serving_values)
-                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                                    """, (
-                                        input_data.session_id,
-                                        food_code,
-                                        nutrient_name,
-                                        nutrient_entry.get('Nutrient symbol', ''),
-                                        nutrient_entry.get('Unit', ''),
-                                        nutrient_entry.get('100 g edible portion', ''),
-                                        nutrient_entry.get('Standard Error', ''),
-                                        nutrient_entry.get('Number of Observations', ''),
-                                        json.dumps({k: v for k, v in nutrient_entry.items()
-                                                   if k not in ['Nutrient name', 'Nutrient symbol', 'Unit',
-                                                              '100 g edible portion', 'Standard Error', 'Number of Observations']})
-                                    ))
-                                    nutrients_stored += 1
-
+                        nutrients_stored = _store_nutrients_in_db(
+                            cursor, input_data.session_id, food_code,
+                            nutrients, servings, macros_only=True
+                        )
                         conn.commit()
-                
+
                 return {
                     "success": True,
                     "action": "auto_fetched_macronutrients",
-                    "message": f"✅ Found single match and automatically fetched macronutrients",
+                    "message": f"Found single match and automatically fetched macronutrients",
                     "food_selected": {
                         "food_code": food_code,
-                        "food_name": selected_food['food_name']
+                        "food_name": food_description
                     },
                     "macronutrients_stored": nutrients_stored,
+                    "serving_options_available": len(servings),
                     "efficiency_stats": {
                         "search_results_count": 1,
                         "macronutrients_stored": nutrients_stored,
@@ -424,11 +393,11 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                         "Calculate recipe totals using sophisticated unit conversion queries"
                     ]
                 }
-            
-            # Step 3: Multiple results - let LLM choose
+
+            # Step 3: Multiple results — let LLM choose
             else:
                 return {
-                    "action": "multiple_results_found", 
+                    "action": "multiple_results_found",
                     "message": f"Found {len(search_results)} foods matching '{input_data.food_name}' - LLM should select best match",
                     "search_term": input_data.food_name,
                     "search_results": [
@@ -448,7 +417,7 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                     ],
                     "efficiency_note": f"For maximum efficiency, collect multiple food codes and use bulk_get_cnf_macronutrients()"
                 }
-                
+
         except Exception as e:
             return {"error": f"Error in combined search and macronutrient fetch: {str(e)}"}
     
@@ -515,214 +484,75 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
         """
         try:
             from .schema import update_session_access_time
-            
-            # Update session access time
             update_session_access_time(input_data.session_id)
-            
-            scraper = get_cnf_scraper()
-            
-            # Step 1: Get serving info for the food code
-            serving_options, refuse_info = scraper.get_serving_info(input_data.food_code)
-            
-            if not serving_options:
+
+            api = get_cnf_api_client()
+
+            # Fetch nutrient + serving data from API
+            nutrients = api.get_nutrient_amounts(input_data.food_code)
+            servings = api.get_serving_sizes(input_data.food_code)
+            refuse = api.get_refuse_amount(input_data.food_code)
+            food_info = api.get_food(input_data.food_code)
+
+            if not nutrients:
                 return {
-                    "error": f"Could not retrieve serving information for food code '{input_data.food_code}'",
+                    "error": f"Could not retrieve nutrient data for food code '{input_data.food_code}'",
                     "food_code": input_data.food_code,
                     "suggestion": "Verify the food code is valid - try searching with search_and_get_cnf_macronutrients first"
                 }
-            
-            # Step 2: Get nutrient profile with macronutrients filter
-            nutrient_profile = scraper.get_nutrient_profile(
-                food_code=input_data.food_code,
-                serving_options=serving_options,
-                nutrient_filter="macronutrients",  # Apply 91% data reduction filter
-                preferred_units=input_data.preferred_units
-            )
-            
-            if not nutrient_profile or nutrient_profile.get('error'):
-                return {
-                    "error": f"Could not retrieve nutrient profile for food code '{input_data.food_code}'",
-                    "food_code": input_data.food_code,
-                    "serving_options_found": len(serving_options) if serving_options else 0,
-                    "suggestion": "Food code may be invalid or CNF website may be temporarily unavailable"
-                }
-            
-            # Step 3: Store macronutrients in SQLite temp tables WITH CORRECT SCHEMA
+
+            food_description = food_info["food_description"] if food_info else f"CNF Food {input_data.food_code}"
             nutrients_stored = 0
-            food_description = f"CNF Food {input_data.food_code}"
             linking_status = "no_linking_requested"
 
             if enable_db:
-             with get_db_connection() as conn:
-                cursor = conn.cursor()
-                
-                # Extract food description from profile data
-                food_description = f"CNF Food {input_data.food_code}"
-                if isinstance(nutrient_profile, dict):
-                    for category_name, nutrients in nutrient_profile.items():
-                        if isinstance(nutrients, list) and nutrients:
-                            first_nutrient = nutrients[0]
-                            if isinstance(first_nutrient, dict):
-                                for key, value in first_nutrient.items():
-                                    if 'food' in key.lower() and isinstance(value, str) and len(value) > 10:
-                                        food_description = value[:100]
-                                        break
-                                break
-                
-                # Insert/update CNF food entry with CORRECT column names
-                cursor.execute("""
-                    INSERT OR REPLACE INTO temp_cnf_foods 
-                    (session_id, cnf_food_code, food_description, ingredient_name, refuse_flag, refuse_amount)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """, (
-                    input_data.session_id,
-                    input_data.food_code,
-                    food_description,
-                    None,  # ingredient_name - to be populated when linking ingredients
-                    bool(refuse_info),
-                    None  # refuse_amount
-                ))
-                
-                # Clear existing nutrients for this food code (in case of re-fetch)
-                cursor.execute("""
-                    DELETE FROM temp_cnf_nutrients 
-                    WHERE session_id = ? AND cnf_food_code = ?
-                """, (input_data.session_id, input_data.food_code))
-                
-                # Store macronutrients with CORRECT schema (matching get_cnf_nutrient_profile logic)
-                nutrients_stored = 0
-                
-                if isinstance(nutrient_profile, dict):
-                    for category_name, nutrients in nutrient_profile.items():
-                        if isinstance(nutrients, list):
-                            for nutrient_idx, nutrient in enumerate(nutrients):
-                                if not isinstance(nutrient, dict):
-                                    continue
-                                
-                                nutrient_name = nutrient.get('Nutrient name', '').strip()
-                                if not nutrient_name:
-                                    continue
-                                
-                                # Store 100g baseline value
-                                baseline_value = None
-                                for key in ['Value per 100 g of edible portion', 'Per 100 g', '100g', 'Value/100g']:
-                                    if key in nutrient:
-                                        baseline_value = nutrient[key]
-                                        break
-                                
-                                if baseline_value and str(baseline_value).strip():
-                                    try:
-                                        # Clean the value
-                                        clean_value = str(baseline_value).strip()
-                                        if clean_value.lower() in ['trace', 'tr', '']:
-                                            baseline_float = 0.0
-                                        elif clean_value.startswith('<'):
-                                            baseline_float = 0.0
-                                        else:
-                                            import re
-                                            numeric_value = re.sub(r'[^\d\.\-]', '', clean_value)
-                                            baseline_float = float(numeric_value) if numeric_value else 0.0
-                                        
-                                        cursor.execute("""
-                                            INSERT OR REPLACE INTO temp_cnf_nutrients 
-                                            (session_id, cnf_food_code, nutrient_name, nutrient_value, 
-                                             per_amount, unit, nutrient_symbol)
-                                            VALUES (?, ?, ?, ?, ?, ?, ?)
-                                        """, (
-                                            input_data.session_id,
-                                            input_data.food_code,
-                                            nutrient_name,
-                                            baseline_float,
-                                            100.0,
-                                            'g',
-                                            nutrient.get('Unit see footnote1', '') or ''
-                                        ))
-                                        nutrients_stored += 1
-                                    except (ValueError, TypeError):
-                                        continue
-                                
-                                # Store serving size values - COPIED FROM get_cnf_nutrient_profile
-                                for key, value in nutrient.items():
-                                    # Look for serving size columns (e.g., "5ml / 5 g", "15ml / 14 g") 
-                                    # More robust serving size detection
-                                    if ('/' in key and any(unit in key.lower() for unit in ['ml', 'g', 'tsp', 'tbsp', 'cup', 'oz'])) or \
-                                       (any(unit in key.lower() for unit in ['ml', 'tsp', 'tbsp', 'cup', 'oz']) and any(char.isdigit() for char in key)):
-                                        
-                                        if value and str(value).strip() and str(value).strip() != '':
-                                            try:
-                                                # Clean and parse serving value
-                                                clean_serving_value = str(value).strip()
-                                                if clean_serving_value.lower() in ['trace', 'tr']:
-                                                    serving_value = 0.0
-                                                elif clean_serving_value.startswith('<'):
-                                                    serving_value = 0.0
-                                                else:
-                                                    import re
-                                                    numeric_serving = re.sub(r'[^\d\.\-]', '', clean_serving_value)
-                                                    serving_value = float(numeric_serving) if numeric_serving else 0.0
-                                                
-                                                # Extract serving amount and unit from key
-                                                import re
-                                                # Try to match patterns like "5ml", "15ml", "1 tsp", "1/2 cup", etc.
-                                                match = re.search(r'(\d+(?:\.\d+)?|\d+/\d+)\s*([a-zA-Z]+)', key)
-                                                if match:
-                                                    serving_amount_str = match.group(1)
-                                                    serving_unit = match.group(2).lower()
-                                                    
-                                                    # Handle fractions in serving amounts
-                                                    if '/' in serving_amount_str:
-                                                        parts = serving_amount_str.split('/')
-                                                        serving_amount = float(parts[0]) / float(parts[1])
-                                                    else:
-                                                        serving_amount = float(serving_amount_str)
-                                                    
-                                                    cursor.execute("""
-                                                        INSERT OR REPLACE INTO temp_cnf_nutrients 
-                                                        (session_id, cnf_food_code, nutrient_name, nutrient_value, 
-                                                         per_amount, unit, nutrient_symbol)
-                                                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                                                    """, (
-                                                        input_data.session_id,
-                                                        input_data.food_code,
-                                                        nutrient_name,
-                                                        serving_value,
-                                                        serving_amount,
-                                                        serving_unit or '',
-                                                        nutrient.get('Unit see footnote1', '') or ''
-                                                    ))
-                                                    nutrients_stored += 1
-                                            except (ValueError, TypeError) as e:
-                                                # Skip serving values that can't be parsed
-                                                continue
-                
-                # Step 4: CRITICAL FIX - Link ingredient if provided
-                linking_status = "no_linking_requested"
-                if input_data.ingredient_id and input_data.recipe_id:
-                    # Update the cnf_food_code in temp_recipe_ingredients
+                with get_db_connection() as conn:
+                    cursor = conn.cursor()
+
                     cursor.execute("""
-                        UPDATE temp_recipe_ingredients 
-                        SET cnf_food_code = ?
-                        WHERE session_id = ? AND recipe_id = ? AND ingredient_id = ?
-                    """, (input_data.food_code, input_data.session_id, input_data.recipe_id, input_data.ingredient_id))
-                    
-                    rows_updated = cursor.rowcount
-                    if rows_updated > 0:
-                        linking_status = f"linked_ingredient_{input_data.ingredient_id}"
-                    else:
-                        linking_status = f"ingredient_not_found_{input_data.ingredient_id}"
-                
-                conn.commit()
-            
-            # Step 5: Return success with linking confirmation
+                        INSERT OR REPLACE INTO temp_cnf_foods
+                        (session_id, cnf_food_code, food_description, ingredient_name, refuse_flag, refuse_amount)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    """, (
+                        input_data.session_id, input_data.food_code, food_description,
+                        None, bool(refuse), None
+                    ))
+
+                    cursor.execute("""
+                        DELETE FROM temp_cnf_nutrients
+                        WHERE session_id = ? AND cnf_food_code = ?
+                    """, (input_data.session_id, input_data.food_code))
+
+                    nutrients_stored = _store_nutrients_in_db(
+                        cursor, input_data.session_id, input_data.food_code,
+                        nutrients, servings, macros_only=True
+                    )
+
+                    # Link ingredient if provided
+                    if input_data.ingredient_id and input_data.recipe_id:
+                        cursor.execute("""
+                            UPDATE temp_recipe_ingredients
+                            SET cnf_food_code = ?
+                            WHERE session_id = ? AND recipe_id = ? AND ingredient_id = ?
+                        """, (input_data.food_code, input_data.session_id, input_data.recipe_id, input_data.ingredient_id))
+
+                        rows_updated = cursor.rowcount
+                        if rows_updated > 0:
+                            linking_status = f"linked_ingredient_{input_data.ingredient_id}"
+                        else:
+                            linking_status = f"ingredient_not_found_{input_data.ingredient_id}"
+
+                    conn.commit()
+
             return {
                 "success": True,
                 "action": "macronutrients_fetched_and_linked",
-                "message": f"✅ Successfully fetched {nutrients_stored} core macronutrients for food code '{input_data.food_code}'",
+                "message": f"Successfully fetched {nutrients_stored} core macronutrient records for food code '{input_data.food_code}'",
                 "food_code": input_data.food_code,
                 "food_description": food_description,
                 "session_id": input_data.session_id,
                 "macronutrients_stored": nutrients_stored,
-                "serving_options_available": len(serving_options),
+                "serving_options_available": len(servings),
                 "ingredient_linking": {
                     "status": linking_status,
                     "ingredient_id": input_data.ingredient_id,
@@ -735,7 +565,7 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                 ],
                 "storage_location": "temp_cnf_foods and temp_cnf_nutrients tables in SQLite"
             }
-            
+
         except Exception as e:
             return {
                 "error": f"Error fetching macronutrients for food code '{input_data.food_code}': {str(e)}",
@@ -779,51 +609,32 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                 from .schema import update_session_access_time
                 update_session_access_time(input_data.session_id)
 
-            # Initialize tracking variables
             total_foods = len(input_data.food_codes)
             successful_foods = []
             failed_foods = []
             total_nutrients_stored = 0
-            
-            # Setup progress tracking
-            progress_data = {"completed": 0, "total": total_foods, "current": None}
             start_time = time.time()
-            
-            def progress_callback(food_code: str, status: str):
-                """Progress callback for concurrent processing."""
-                if status == "completed":
-                    progress_data["completed"] += 1
-                progress_data["current"] = f"{food_code}: {status}"
-                elapsed = time.time() - start_time
-                if elapsed > PROGRESS_REPORT_INTERVAL:
-                    raise
-                    #logger.info(f"Bulk CNF Progress: {progress_data['completed']}/{progress_data['total']} completed. Current: {progress_data['current']}")
-                    
-            # Process food codes concurrently
-            #logger.info(f"Starting concurrent processing of {total_foods} food codes with max {CNF_MAX_CONCURRENT} workers")
-            
+
+            # Fetch data concurrently via API
             fetch_results = []
             with ThreadPoolExecutor(max_workers=min(CNF_MAX_CONCURRENT, total_foods)) as executor:
-                # Submit all tasks
                 future_to_food_code = {
                     executor.submit(
-                        process_single_food_code, 
-                        food_code, 
-                        input_data.session_id, 
+                        process_single_food_code,
+                        food_code,
+                        input_data.session_id,
                         input_data.preferred_units,
-                        progress_callback
-                    ): food_code 
+                        None
+                    ): food_code
                     for food_code in input_data.food_codes
                 }
-                
-                # Collect results as they complete
+
                 for future in as_completed(future_to_food_code, timeout=BULK_OPERATION_TIMEOUT):
                     try:
                         result = future.result()
                         fetch_results.append(result)
                     except Exception as e:
                         food_code = future_to_food_code[future]
-                        #logger.error(f"Failed to process food code {food_code}: {e}")
                         fetch_results.append({
                             "status": "failed",
                             "food_code": food_code,
@@ -832,256 +643,105 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                         })
                         if not input_data.continue_on_error:
                             break
-            
-            #logger.info(f"Concurrent fetching completed in {time.time() - start_time:.2f} seconds")
-            
-            # Now process results and optionally store in database
+
+            # Process results and store in DB
             for result in fetch_results:
                 if result["status"] == "failed":
                     failed_foods.append({
                         "food_code": result["food_code"],
                         "error": result["error"],
-                        "suggestion": result["suggestion"]
+                        "suggestion": result.get("suggestion", "Try again")
                     })
                     if not input_data.continue_on_error:
                         break
                     continue
 
-                try:
-                    food_code = result["food_code"]
-                    result_data = result["data"]
-                    serving_options = result_data["serving_options"]
-                    nutrient_profile = result_data["nutrient_profile"]
+                food_code = result["food_code"]
+                result_data = result["data"]
+                food_info = result_data.get("food_info")
+                food_description = food_info["food_description"] if food_info else f"CNF Food {food_code}"
 
-                    food_description = f"CNF Food {food_code}"
-                    description_data = nutrient_profile
-                    if isinstance(nutrient_profile, dict) and "nutrient_data" in nutrient_profile:
-                        description_data = nutrient_profile["nutrient_data"]
-
-                    if isinstance(description_data, dict):
-                        for category_name, nutrients in description_data.items():
-                            if isinstance(nutrients, list) and nutrients:
-                                first_nutrient = nutrients[0]
-                                if isinstance(first_nutrient, dict):
-                                    for key, value in first_nutrient.items():
-                                        if 'food' in key.lower() and isinstance(value, str) and len(value) > 10:
-                                            food_description = value[:100]
-                                            break
-                                    break
-
-                    nutrients_stored_this_food = 0
-                    linking_status = "no_linking_requested"
-
-                    successful_foods.append({
-                        "food_code": food_code,
-                        "food_description": food_description,
-                        "nutrients_stored": nutrients_stored_this_food,
-                        "serving_options": len(serving_options),
-                        "ingredient_linking": linking_status
-                    })
-
-                except Exception as e:
-                    failed_foods.append({
-                        "food_code": result.get("food_code", "unknown"),
-                        "error": f"Processing error: {str(e)}",
-                        "suggestion": "Try again or process individually"
-                    })
-                    if not input_data.continue_on_error:
-                        break
+                successful_foods.append({
+                    "food_code": food_code,
+                    "food_description": food_description,
+                    "nutrients_stored": 0,
+                    "serving_options": len(result_data.get("servings", [])),
+                    "ingredient_linking": "no_linking_requested"
+                })
 
             # Store in SQLite when DB is available
             if enable_db:
-             with get_db_connection() as conn:
-                cursor = conn.cursor()
+                with get_db_connection() as conn:
+                    cursor = conn.cursor()
 
-                # Re-process successful results for DB storage
-                for result in fetch_results:
-                    if result["status"] == "failed":
-                        continue
+                    for result in fetch_results:
+                        if result["status"] == "failed":
+                            continue
 
-                    try:
-                        food_code = result["food_code"]
-                        result_data = result["data"]
-                        serving_options = result_data["serving_options"]
-                        refuse_info = result_data["refuse_info"]
-                        nutrient_profile = result_data["nutrient_profile"]
+                        try:
+                            food_code = result["food_code"]
+                            result_data = result["data"]
+                            raw_nutrients = result_data["nutrients"]
+                            raw_servings = result_data["servings"]
+                            refuse = result_data.get("refuse")
+                            food_info = result_data.get("food_info")
+                            food_description = food_info["food_description"] if food_info else f"CNF Food {food_code}"
 
-                        food_description = f"CNF Food {food_code}"
-                        description_data = nutrient_profile
-                        if isinstance(nutrient_profile, dict) and "nutrient_data" in nutrient_profile:
-                            description_data = nutrient_profile["nutrient_data"]
+                            cursor.execute("""
+                                INSERT OR REPLACE INTO temp_cnf_foods
+                                (session_id, cnf_food_code, food_description, ingredient_name, refuse_flag, refuse_amount)
+                                VALUES (?, ?, ?, ?, ?, ?)
+                            """, (input_data.session_id, food_code, food_description, None, bool(refuse), None))
 
-                        if isinstance(description_data, dict):
-                            for category_name, nutrients in description_data.items():
-                                if isinstance(nutrients, list) and nutrients:
-                                    first_nutrient = nutrients[0]
-                                    if isinstance(first_nutrient, dict):
-                                        for key, value in first_nutrient.items():
-                                            if 'food' in key.lower() and isinstance(value, str) and len(value) > 10:
-                                                food_description = value[:100]
-                                                break
-                                        break
+                            cursor.execute("""
+                                DELETE FROM temp_cnf_nutrients
+                                WHERE session_id = ? AND cnf_food_code = ?
+                            """, (input_data.session_id, food_code))
 
-                        cursor.execute("""
-                            INSERT OR REPLACE INTO temp_cnf_foods
-                            (session_id, cnf_food_code, food_description, ingredient_name, refuse_flag, refuse_amount)
-                            VALUES (?, ?, ?, ?, ?, ?)
-                        """, (
-                            input_data.session_id,
-                            food_code,
-                            food_description,
-                            None,
-                            bool(refuse_info),
-                            None
-                        ))
+                            nutrients_stored_this_food = _store_nutrients_in_db(
+                                cursor, input_data.session_id, food_code,
+                                raw_nutrients, raw_servings, macros_only=True
+                            )
 
-                        cursor.execute("""
-                            DELETE FROM temp_cnf_nutrients
-                            WHERE session_id = ? AND cnf_food_code = ?
-                        """, (input_data.session_id, food_code))
+                            # Link ingredient if mapping provided
+                            linking_status = "no_linking_requested"
+                            if hasattr(input_data, 'ingredient_mappings') and input_data.ingredient_mappings and input_data.recipe_id:
+                                ingredient_id = input_data.ingredient_mappings.get(food_code)
+                                if ingredient_id:
+                                    cursor.execute("""
+                                        UPDATE temp_recipe_ingredients
+                                        SET cnf_food_code = ?
+                                        WHERE session_id = ? AND recipe_id = ? AND ingredient_id = ?
+                                    """, (food_code, input_data.session_id, input_data.recipe_id, ingredient_id))
 
-                        nutrients_stored_this_food = 0
+                                    rows_updated = cursor.rowcount
+                                    if rows_updated > 0:
+                                        linking_status = f"linked_to_{ingredient_id}"
+                                    else:
+                                        linking_status = f"ingredient_not_found_{ingredient_id}"
 
-                        actual_nutrient_data = nutrient_profile
-                        if isinstance(nutrient_profile, dict) and "nutrient_data" in nutrient_profile:
-                            actual_nutrient_data = nutrient_profile["nutrient_data"]
+                            for entry in successful_foods:
+                                if entry["food_code"] == food_code:
+                                    entry["nutrients_stored"] = nutrients_stored_this_food
+                                    entry["ingredient_linking"] = linking_status
+                                    break
+                            total_nutrients_stored += nutrients_stored_this_food
 
-                        if isinstance(actual_nutrient_data, dict):
-                            for category_name, nutrients in actual_nutrient_data.items():
-                                if isinstance(nutrients, list):
-                                    for nutrient_idx, nutrient in enumerate(nutrients):
-                                        if not isinstance(nutrient, dict):
-                                            continue
+                        except Exception:
+                            pass
 
-                                        nutrient_name = nutrient.get('Nutrient name', '').strip()
-                                        if not nutrient_name:
-                                            continue
+                    conn.commit()
 
-                                        baseline_value = None
-                                        for key in ['Value per 100 g of edible portion', 'Per 100 g', '100g', 'Value/100g']:
-                                            if key in nutrient:
-                                                baseline_value = nutrient[key]
-                                                break
-
-                                        if baseline_value and str(baseline_value).strip():
-                                            try:
-                                                clean_value = str(baseline_value).strip()
-                                                if clean_value.lower() in ['trace', 'tr', '']:
-                                                    baseline_float = 0.0
-                                                elif clean_value.startswith('<'):
-                                                    baseline_float = 0.0
-                                                else:
-                                                    import re
-                                                    numeric_value = re.sub(r'[^\d\.\-]', '', clean_value)
-                                                    baseline_float = float(numeric_value) if numeric_value else 0.0
-
-                                                cursor.execute("""
-                                                    INSERT OR REPLACE INTO temp_cnf_nutrients
-                                                    (session_id, cnf_food_code, nutrient_name, nutrient_value,
-                                                    per_amount, unit, nutrient_symbol)
-                                                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                                                """, (
-                                                    input_data.session_id,
-                                                    food_code,
-                                                    nutrient_name,
-                                                    baseline_float,
-                                                    100.0,
-                                                    'g',
-                                                    nutrient.get('Unit see footnote1', '') or ''
-                                                ))
-                                                nutrients_stored_this_food += 1
-                                            except (ValueError, TypeError):
-                                                continue
-
-                                        for key, value in nutrient.items():
-                                            if ('/' in key and any(unit in key.lower() for unit in ['ml', 'g', 'tsp', 'tbsp', 'cup', 'oz'])) or \
-                                               (any(unit in key.lower() for unit in ['ml', 'tsp', 'tbsp', 'cup', 'oz']) and any(char.isdigit() for char in key)):
-
-                                                if value and str(value).strip() and str(value).strip() != '':
-                                                    try:
-                                                        clean_serving_value = str(value).strip()
-                                                        if clean_serving_value.lower() in ['trace', 'tr']:
-                                                            serving_value = 0.0
-                                                        elif clean_serving_value.startswith('<'):
-                                                            serving_value = 0.0
-                                                        else:
-                                                            import re
-                                                            numeric_serving = re.sub(r'[^\d\.\-]', '', clean_serving_value)
-                                                            serving_value = float(numeric_serving) if numeric_serving else 0.0
-
-                                                        import re
-                                                        match = re.search(r'(\d+(?:\.\d+)?|\d+/\d+)\s*([a-zA-Z]+)', key)
-                                                        if match:
-                                                            serving_amount_str = match.group(1)
-                                                            serving_unit = match.group(2).lower()
-
-                                                            if '/' in serving_amount_str:
-                                                                parts = serving_amount_str.split('/')
-                                                                serving_amount = float(parts[0]) / float(parts[1])
-                                                            else:
-                                                                serving_amount = float(serving_amount_str)
-
-                                                            cursor.execute("""
-                                                                INSERT OR REPLACE INTO temp_cnf_nutrients
-                                                                (session_id, cnf_food_code, nutrient_name, nutrient_value,
-                                                                 per_amount, unit, nutrient_symbol)
-                                                                VALUES (?, ?, ?, ?, ?, ?, ?)
-                                                            """, (
-                                                                input_data.session_id,
-                                                                food_code,
-                                                                nutrient_name,
-                                                                serving_value,
-                                                                serving_amount,
-                                                                serving_unit or '',
-                                                                nutrient.get('Unit see footnote1', '') or ''
-                                                            ))
-                                                            nutrients_stored_this_food += 1
-                                                    except (ValueError, TypeError) as e:
-                                                        continue
-
-                        # Link ingredient if mapping provided
-                        linking_status = "no_linking_requested"
-                        if hasattr(input_data, 'ingredient_mappings') and input_data.ingredient_mappings and input_data.recipe_id:
-                            ingredient_id = input_data.ingredient_mappings.get(food_code)
-                            if ingredient_id:
-                                cursor.execute("""
-                                    UPDATE temp_recipe_ingredients
-                                    SET cnf_food_code = ?
-                                    WHERE session_id = ? AND recipe_id = ? AND ingredient_id = ?
-                                """, (food_code, input_data.session_id, input_data.recipe_id, ingredient_id))
-
-                                rows_updated = cursor.rowcount
-                                if rows_updated > 0:
-                                    linking_status = f"linked_to_{ingredient_id}"
-                                else:
-                                    linking_status = f"ingredient_not_found_{ingredient_id}"
-
-                        # Update the successful_foods entry with DB storage counts
-                        for entry in successful_foods:
-                            if entry["food_code"] == food_code:
-                                entry["nutrients_stored"] = nutrients_stored_this_food
-                                entry["ingredient_linking"] = linking_status
-                                break
-                        total_nutrients_stored += nutrients_stored_this_food
-
-                    except Exception as e:
-                        # DB storage failed but scrape data was already recorded as successful
-                        pass
-
-                conn.commit()
-                
-            # Calculate efficiency metrics
+            # Calculate metrics
             success_rate = (len(successful_foods) / total_foods) * 100 if total_foods > 0 else 0
             avg_nutrients_per_food = total_nutrients_stored / len(successful_foods) if successful_foods else 0
-            
-            # Calculate ingredient linking statistics
             linked_ingredients = sum(1 for food in successful_foods if food["ingredient_linking"].startswith("linked_to_"))
             linking_requested = bool(hasattr(input_data, 'ingredient_mappings') and input_data.ingredient_mappings and input_data.recipe_id)
-            
+
             return {
                 "success": True,
                 "action": "bulk_macronutrients_processed_with_linking" if linking_requested else "bulk_macronutrients_processed",
-                "message": f"✅ Concurrently processed {len(successful_foods)}/{total_foods} food codes successfully in {time.time() - start_time:.2f}s" + (f" with {linked_ingredients} ingredients linked" if linking_requested else ""),
+                "message": f"Processed {len(successful_foods)}/{total_foods} food codes in {time.time() - start_time:.2f}s" + (f" with {linked_ingredients} ingredients linked" if linking_requested else ""),
                 "session_id": input_data.session_id,
                 "processing_summary": {
                     "total_foods_requested": total_foods,
@@ -1100,29 +760,26 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                 },
                 "efficiency_gains": {
                     "tool_calls_saved": f"Processed {total_foods} foods in 1 call vs {total_foods} individual calls",
-                    "efficiency_improvement": f"{max(0, total_foods - 1)} fewer tool calls ({round((total_foods - 1) / total_foods * 100, 1)}% reduction)" if total_foods > 1 else "No efficiency gain for single food",
-                    "concurrent_processing": f"Used {min(CNF_MAX_CONCURRENT, total_foods)} concurrent workers with {CNF_RATE_LIMIT}s rate limiting",
-                    "performance_improvement": f"Concurrent processing vs sequential (estimated {total_foods * CNF_RATE_LIMIT:.1f}s sequential time)",
+                    "concurrent_processing": f"Used {min(CNF_MAX_CONCURRENT, total_foods)} concurrent workers",
                     "caching_efficiency": f"Cache hits: {sum(1 for r in fetch_results if r.get('cached', False))}/{total_foods}",
-                    "linking_efficiency": f"Linked {linked_ingredients} ingredients automatically vs separate linking steps" if linking_requested else "No ingredient linking requested"
                 },
                 "successful_foods": successful_foods,
                 "failed_foods": failed_foods,
                 "next_steps": [
                     "calculate_recipe_nutrition_summary() should now work for linked ingredients" if linking_requested and linked_ingredients > 0 else "Use calculate_recipe_nutrition_summary() for nutrition analysis",
-                    "Continue linking remaining ingredients if needed" if linking_requested and linked_ingredients < (len(input_data.ingredient_mappings) if linking_requested else 0) else "Or link individual foods to recipe ingredients using get_cnf_macronutrients_only() with ingredient_id",
+                    "Or link individual foods to recipe ingredients using get_cnf_macronutrients_only() with ingredient_id",
                     "Failed foods can be retried individually if needed"
                 ],
                 "storage_location": "temp_cnf_foods and temp_cnf_nutrients tables in SQLite"
             }
-        
+
         except Exception as e:
-                return {
-                    "error": f"Bulk processing error: {str(e)}",
-                    "session_id": input_data.session_id,
-                    "food_codes_attempted": input_data.food_codes,
-                    "suggestion": "Try processing smaller batches or individual food codes"
-                }   
+            return {
+                "error": f"Bulk processing error: {str(e)}",
+                "session_id": input_data.session_id,
+                "food_codes_attempted": input_data.food_codes,
+                "suggestion": "Try processing smaller batches or individual food codes"
+            }
 
     @mcp.tool()
     def get_cnf_nutrient_profile(input_data: CNFProfileInput) -> Dict[str, Any]:
@@ -1152,23 +809,19 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
             Dict with complete nutrient profile data and storage confirmation
         """
         try:
-            scraper = get_cnf_scraper()
-            
-            # Get serving information first
-            serving_options, refuse_info = scraper.get_serving_info(input_data.food_code)
-            
-            if serving_options is None:
-                return {"error": f"Failed to get serving info for food code: {input_data.food_code}"}
-            
-            # Get complete nutrient profile
-            nutrient_profile = scraper.get_nutrient_profile(input_data.food_code, serving_options)
-            
-            if nutrient_profile is None:
-                return {"error": f"Failed to get nutrient profile for food code: {input_data.food_code}"}
-            
-            # Store directly in persistent SQLite tables when DB is available
+            api = get_cnf_api_client()
+
+            # Fetch all nutrients + servings from API
+            nutrients = api.get_nutrient_amounts(input_data.food_code)
+            servings = api.get_serving_sizes(input_data.food_code)
+            refuse = api.get_refuse_amount(input_data.food_code)
+            food_info = api.get_food(input_data.food_code)
+
+            if not nutrients:
+                return {"error": f"Failed to get nutrient data for food code: {input_data.food_code}"}
+
+            food_description = food_info["food_description"] if food_info else f"CNF Food {input_data.food_code}"
             nutrient_count = 0
-            errors_encountered = []
 
             if enable_db:
                 from .schema import create_temp_nutrition_session, update_session_access_time
@@ -1176,231 +829,62 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                 create_temp_nutrition_session(input_data.session_id)
                 update_session_access_time(input_data.session_id)
 
-                # MIGRATION FIX: Update table schema to handle multiple serving sizes
                 with get_db_connection() as conn:
                     cursor = conn.cursor()
 
-                    cursor.execute("PRAGMA table_info(temp_cnf_nutrients)")
-                    columns = cursor.fetchall()
+                    cursor.execute("""
+                        INSERT OR REPLACE INTO temp_cnf_foods
+                        (session_id, cnf_food_code, food_description, ingredient_name, refuse_flag, refuse_amount)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    """, (
+                        input_data.session_id, input_data.food_code, food_description,
+                        None, bool(refuse), None
+                    ))
 
-                    cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='temp_cnf_nutrients'")
-                    table_sql = cursor.fetchone()
+                    cursor.execute("""
+                        DELETE FROM temp_cnf_nutrients
+                        WHERE session_id = ? AND cnf_food_code = ?
+                    """, (input_data.session_id, input_data.food_code))
 
-                    if table_sql and 'PRIMARY KEY (session_id, cnf_food_code, nutrient_name)' in table_sql[0]:
-                        cursor.execute("DROP TABLE IF EXISTS temp_cnf_nutrients")
-                        cursor.execute("""
-                            CREATE TABLE temp_cnf_nutrients (
-                                session_id TEXT NOT NULL,
-                                cnf_food_code TEXT NOT NULL,
-                                nutrient_name TEXT NOT NULL,
-                                nutrient_value REAL,
-                                per_amount REAL,
-                                unit TEXT,
-                                nutrient_symbol TEXT,
-                                standard_error TEXT,
-                                number_observations INTEGER,
-                                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                                PRIMARY KEY (session_id, cnf_food_code, nutrient_name, per_amount, unit),
-                                FOREIGN KEY (session_id, cnf_food_code) REFERENCES temp_cnf_foods(session_id, cnf_food_code)
-                            )
-                        """)
+                    # Store ALL nutrients (not just macros)
+                    nutrient_count = _store_nutrients_in_db(
+                        cursor, input_data.session_id, input_data.food_code,
+                        nutrients, servings, macros_only=False
+                    )
+                    conn.commit()
 
-                        cursor.execute("CREATE INDEX IF NOT EXISTS idx_temp_cnf_nutrients_food_code ON temp_cnf_nutrients(session_id, cnf_food_code)")
-
-                        conn.commit()
-
-            # Extract food description from profile
-            food_description = f"CNF Food {input_data.food_code}"
-            if isinstance(nutrient_profile, dict):
-                # Try to extract a better description from profile data
-                for category_name, nutrients in nutrient_profile.items():
-                    if isinstance(nutrients, list) and nutrients:
-                        first_nutrient = nutrients[0]
-                        if isinstance(first_nutrient, dict):
-                            # Look for food name in the nutrient data
-                            for key, value in first_nutrient.items():
-                                if 'food' in key.lower() and isinstance(value, str) and len(value) > 10:
-                                    food_description = value[:100]  # Truncate to reasonable length
-                                    break
-                            break
-            
-            # Populate persistent SQLite tables
-            if enable_db:
-             with get_db_connection() as conn:
-                cursor = conn.cursor()
-                
-                # Insert/update CNF food entry
-                cursor.execute("""
-                    INSERT OR REPLACE INTO temp_cnf_foods 
-                    (session_id, cnf_food_code, food_description, ingredient_name, refuse_flag, refuse_amount)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """, (
-                    input_data.session_id,
-                    input_data.food_code,
-                    food_description,
-                    None,  # ingredient_name - to be populated when linking ingredients
-                    bool(refuse_info),
-                    None  # TODO: Parse refuse amount from refuse_info if needed
-                ))
-                
-                # Clear existing nutrients for this food code (in case of re-fetch)
-                cursor.execute("""
-                    DELETE FROM temp_cnf_nutrients 
-                    WHERE session_id = ? AND cnf_food_code = ?
-                """, (input_data.session_id, input_data.food_code))
-                
-                # Extract and store nutrient data in persistent SQLite
-                nutrient_count = 0
-                errors_encountered = []
-                
-                if isinstance(nutrient_profile, dict):
-                    for category_name, nutrients in nutrient_profile.items():
-                        if isinstance(nutrients, list):
-                            for nutrient_idx, nutrient in enumerate(nutrients):
-                                if not isinstance(nutrient, dict):
-                                    continue
-                                
-                                nutrient_name = nutrient.get('Nutrient name', '').strip()
-                                if not nutrient_name:
-                                    continue
-                                
-                                # Store 100g baseline value - KEY FIX: Handle various possible column names
-                                baseline_value = None
-                                for key in ['Value per 100 g of edible portion', 'Per 100 g', '100g', 'Value/100g']:
-                                    if key in nutrient:
-                                        baseline_value = nutrient[key]
-                                        break
-                                
-                                if baseline_value and str(baseline_value).strip() and str(baseline_value).strip() != '':
-                                    try:
-                                        # Clean the value - remove any non-numeric characters except decimal point
-                                        clean_value = str(baseline_value).strip()
-                                        # Handle cases like "trace", "0", "<0.1", etc.
-                                        if clean_value.lower() in ['trace', 'tr', '']:
-                                            baseline_float = 0.0
-                                        elif clean_value.startswith('<'):
-                                            baseline_float = 0.0  # Treat "less than" values as 0
-                                        else:
-                                            # Remove any non-numeric characters except decimal point and negative sign
-                                            import re
-                                            numeric_value = re.sub(r'[^\d\.\-]', '', clean_value)
-                                            baseline_float = float(numeric_value) if numeric_value else 0.0
-                                        
-                                        cursor.execute("""
-                                            INSERT OR REPLACE INTO temp_cnf_nutrients 
-                                            (session_id, cnf_food_code, nutrient_name, nutrient_value, 
-                                             per_amount, unit, nutrient_symbol)
-                                            VALUES (?, ?, ?, ?, ?, ?, ?)
-                                        """, (
-                                            input_data.session_id,
-                                            input_data.food_code,
-                                            nutrient_name,
-                                            baseline_float,
-                                            100.0,
-                                            'g',
-                                            nutrient.get('Unit see footnote1', '') or ''
-                                        ))
-                                        nutrient_count += 1
-                                    except (ValueError, TypeError) as e:
-                                        error_msg = f"Failed to parse 100g value for {nutrient_name}: {baseline_value} -> {str(e)}"
-                                        errors_encountered.append(error_msg)
-                                
-                                # Store serving size values - IMPROVED PARSING
-                                for key, value in nutrient.items():
-                                    # Look for serving size columns (e.g., "5ml / 5 g", "15ml / 14 g") 
-                                    # FIXED: More robust serving size detection
-                                    if ('/' in key and any(unit in key.lower() for unit in ['ml', 'g', 'tsp', 'tbsp', 'cup', 'oz'])) or \
-                                       (any(unit in key.lower() for unit in ['ml', 'tsp', 'tbsp', 'cup', 'oz']) and any(char.isdigit() for char in key)):
-                                        
-                                        if value and str(value).strip() and str(value).strip() != '':
-                                            try:
-                                                # Clean and parse serving value
-                                                clean_serving_value = str(value).strip()
-                                                if clean_serving_value.lower() in ['trace', 'tr']:
-                                                    serving_value = 0.0
-                                                elif clean_serving_value.startswith('<'):
-                                                    serving_value = 0.0
-                                                else:
-                                                    import re
-                                                    numeric_serving = re.sub(r'[^\d\.\-]', '', clean_serving_value)
-                                                    serving_value = float(numeric_serving) if numeric_serving else 0.0
-                                                
-                                                # IMPROVED: Extract serving amount and unit from key
-                                                import re
-                                                # Try to match patterns like "5ml", "15ml", "1 tsp", "1/2 cup", etc.
-                                                match = re.search(r'(\d+(?:\.\d+)?|\d+/\d+)\s*([a-zA-Z]+)', key)
-                                                if match:
-                                                    serving_amount_str = match.group(1)
-                                                    serving_unit = match.group(2).lower()
-                                                    
-                                                    # Handle fractions in serving amounts
-                                                    if '/' in serving_amount_str:
-                                                        parts = serving_amount_str.split('/')
-                                                        serving_amount = float(parts[0]) / float(parts[1])
-                                                    else:
-                                                        serving_amount = float(serving_amount_str)
-                                                    
-                                                    cursor.execute("""
-                                                        INSERT OR REPLACE INTO temp_cnf_nutrients 
-                                                        (session_id, cnf_food_code, nutrient_name, nutrient_value, 
-                                                         per_amount, unit, nutrient_symbol)
-                                                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                                                    """, (
-                                                        input_data.session_id,
-                                                        input_data.food_code,
-                                                        nutrient_name,
-                                                        serving_value,
-                                                        serving_amount,
-                                                        serving_unit or '',
-                                                        nutrient.get('Unit see footnote1', '') or ''
-                                                    ))
-                                                    nutrient_count += 1
-                                            except (ValueError, TypeError) as e:
-                                                error_msg = f"Failed to parse serving value for {nutrient_name} ({key}): {value} -> {str(e)}"
-                                                errors_encountered.append(error_msg)
-                
-                conn.commit()
-            
-            # BACKWARD COMPATIBILITY: Also store in virtual session for legacy tools
+            # Backward compatibility: store in virtual session for legacy tools
             session_data = get_virtual_session_data(input_data.session_id)
             if session_data is None:
                 from src.db.schema import create_virtual_recipe_session
                 create_virtual_recipe_session(input_data.session_id)
                 session_data = get_virtual_session_data(input_data.session_id)
-            
-            # Store legacy format
+
             if 'nutrient_profiles' not in session_data:
                 session_data['nutrient_profiles'] = {}
-            
+
             session_data['nutrient_profiles'][input_data.food_code] = {
                 'food_code': input_data.food_code,
-                'serving_options': serving_options,
-                'refuse_info': refuse_info,
-                'nutrient_profile': nutrient_profile,
-                'retrieved_at': str(json.dumps(None))
+                'food_description': food_description,
+                'total_nutrients': len(nutrients),
+                'serving_sizes': len(servings),
+                'refuse': refuse,
             }
-            
+
             return {
-                "success": f"✅ FIXED: CNF data stored in persistent SQLite tables",
+                "success": True,
                 "food_code": input_data.food_code,
                 "food_description": food_description,
                 "session_id": input_data.session_id,
                 "storage_type": "persistent_sqlite",
                 "nutrient_records_stored": nutrient_count,
-                "serving_options": len(serving_options) if serving_options else 0,
-                "nutrient_categories": list(nutrient_profile.keys()) if isinstance(nutrient_profile, dict) else [],
-                "parsing_errors": len(errors_encountered),
-                "debug_info": {
-                    "profile_type": str(type(nutrient_profile)),
-                    "category_count": len(nutrient_profile) if isinstance(nutrient_profile, dict) else 0,
-                    "first_few_errors": errors_encountered[:3] if errors_encountered else []
-                },
+                "total_nutrients_from_api": len(nutrients),
+                "serving_options": len(servings),
                 "next_step": "Use get_cnf_macronutrients_only() with ingredient_id to link ingredients",
-                "workflow_status": "✅ Ready for nutrition analysis" if nutrient_count > 0 else "❌ No nutrients stored - check debug info"
+                "data_source": "Health Canada CNF REST API"
             }
-            
+
         except Exception as e:
-            ###logger.error(f"Error getting CNF nutrient profile: {e}")
             return {"error": f"Failed to get CNF nutrient profile: {str(e)}"}
 
     # Recipe analysis tools require SQLite for temp table storage
@@ -2344,23 +1828,16 @@ def get_cnf_tools_status() -> Dict[str, Any]:
     """Get status of CNF tools availability."""
     return {
         "cnf_tools_available": CNF_TOOLS_AVAILABLE,
-        "tools_count": 7 if CNF_TOOLS_AVAILABLE else 0,
+        "data_source": "Health Canada CNF REST API (food-nutrition.canada.ca)",
+        "tools_count": 8 if CNF_TOOLS_AVAILABLE else 0,
         "tools": [
-            "simple_recipe_setup",            # 🛠️ Manual recipe setup (reliable)
-            "search_cnf_foods",               # Core search functionality
-            "get_cnf_nutrient_profile",       # Core profile retrieval (NOW: auto-populates SQLite)
-            "link_ingredient_to_cnf_simple",  # Simplified linking for SQL
-            "get_nutrition_tables_info",      # SQL table schema documentation
-            "get_ingredient_nutrition_matches" # Match status viewer
+            "search_and_get_cnf_macronutrients",
+            "get_cnf_macronutrients_only",
+            "bulk_get_cnf_macronutrients",
+            "get_cnf_nutrient_profile",
+            "simple_recipe_setup",
+            "calculate_recipe_nutrition_summary",
+            "query_recipe_macros_table",
+            "update_recipe_macros_decisions",
         ] if CNF_TOOLS_AVAILABLE else [],
-        "architecture_improvement": {
-            "issue_fixed": "CNF linking failures due to dual virtual/persistent architecture",
-            "solution_implemented": "Full SQLite architecture - CNF data goes directly to persistent tables",
-            "benefits": [
-                "✅ CNF data and ingredient updates use SAME SQLite tables",
-                "✅ No more virtual/persistent sync issues",
-                "✅ Transparent, debuggable nutrition analysis",
-                "✅ Single source of truth for all data"
-            ],
-        }
     }
