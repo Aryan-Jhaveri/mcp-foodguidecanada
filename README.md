@@ -9,7 +9,7 @@
 The **FoodGuide MCP Server** bundles three powerful Health Canada resources into a single toolset for comprehensive nutritional analysis:
 
 *   **Official Recipes:** Search and scrape the [Canada's Food Guide](https://food-guide.canada.ca/en/recipes/) recipe database.
-*   **CNF Database:** Fetch exact nutrient data for ingredients from the [Canadian Nutrient File](https://produits-sante.canada.ca/api/documentation/cnf-documentation-en.html).
+*   **CNF Database:** Fetch exact nutrient data for ingredients from the [Canadian Nutrient File API](https://produits-sante.canada.ca/api/documentation/cnf-documentation-en.html).
 *   **DRI Calculations:** Use cached [Dietary Reference Intake](https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes.html) tables to calculate demographic-specific macronutrient targets and energy requirements (EER).
 
 
