@@ -38,6 +38,7 @@ try:
     from src.db.dri_tools import register_dri_tools, register_session_dri_tools
     from src.db.eer_tools import register_eer_tools
     from src.db.cnf_tools import register_cnf_tools
+    from src.resources import register_resources
     from src.config import DB_FILE, TOOL_TIMEOUT_SECONDS
 except ImportError:
     try:
@@ -50,6 +51,7 @@ except ImportError:
         from db.dri_tools import register_dri_tools, register_session_dri_tools
         from db.eer_tools import register_eer_tools
         from db.cnf_tools import register_cnf_tools
+        from resources import register_resources
         from config import DB_FILE, TOOL_TIMEOUT_SECONDS
     except ImportError as e:
         print(f"Error importing modules: {e}", file=sys.stderr)
@@ -150,6 +152,12 @@ def create_server(enable_db: bool = True) -> FastMCP:
         with connection_error_handler("tool registration"):
             # Always available: recipe scraping tools
             register_recipe_tools(mcp)
+
+            # Always available: MCP Resources (bundled DRI/EER reference data)
+            try:
+                register_resources(mcp)
+            except Exception:
+                pass
 
             # Always available: pure math/calculation tools
             try:

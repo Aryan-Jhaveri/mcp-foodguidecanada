@@ -11,6 +11,7 @@ This module provides tools for:
 
 import json
 import os
+import re
 import sys
 from typing import Dict, Any, List, Optional
 from fastmcp import FastMCP
@@ -30,13 +31,13 @@ if project_root not in sys.path:
 # Global flag for whether DRI tools are available
 DRI_TOOLS_AVAILABLE = False
 SCHEMA_FUNCTIONS_AVAILABLE = False
+DATA_MANAGER_AVAILABLE = False
 
 try:
     from src.models.dri_models import (
         GetMacronutrientDRIInput, GetAMDRInput, CompareIntakeToDRIInput,
         DRIMacronutrientData, DRIError, MacronutrientType, LifeStageCategory
     )
-    from src.api.dri import MacronutrientScraper, get_macronutrient_dri_data
     DRI_TOOLS_AVAILABLE = True
 except ImportError:
     try:
@@ -44,11 +45,24 @@ except ImportError:
             GetMacronutrientDRIInput, GetAMDRInput, CompareIntakeToDRIInput,
             DRIMacronutrientData, DRIError, MacronutrientType, LifeStageCategory
         )
-        from api.dri import MacronutrientScraper, get_macronutrient_dri_data
         DRI_TOOLS_AVAILABLE = True
     except ImportError as e:
-        print(f"Error importing DRI modules: {e}", file=sys.stderr)
+        print(f"Error importing DRI models: {e}", file=sys.stderr)
         DRI_TOOLS_AVAILABLE = False
+
+# Import data manager (bundled data + lazy refresh)
+_dri_data_manager_factory = None
+try:
+    from src.data_manager import get_dri_data_manager as _dri_dm_import
+    _dri_data_manager_factory = _dri_dm_import
+except ImportError:
+    try:
+        from data_manager import get_dri_data_manager as _dri_dm_import
+        _dri_data_manager_factory = _dri_dm_import
+    except ImportError as e:
+        print(f"Error importing data manager: {e}", file=sys.stderr)
+
+DATA_MANAGER_AVAILABLE = _dri_data_manager_factory is not None
 
 # Import schema functions for session-aware tools
 try:
@@ -66,17 +80,48 @@ except ImportError:
         print(f"Error importing schema functions: {e}", file=sys.stderr)
         SCHEMA_FUNCTIONS_AVAILABLE = False
 
-# Global instance
-_dri_scraper = None
 
-def get_dri_scraper():
-    """Get or create DRI scraper instance"""
-    if not DRI_TOOLS_AVAILABLE:
-        return None
-    global _dri_scraper
-    if _dri_scraper is None:
-        _dri_scraper = MacronutrientScraper()
-    return _dri_scraper
+def _normalize_age_text(text: str) -> str:
+    """Normalize age range text by handling non-breaking spaces and Unicode."""
+    if not text:
+        return text
+    text = text.replace('\u00a0', ' ').replace('\xa0', ' ')
+    text = re.sub(r'\s+', ' ', text)
+    return text.strip()
+
+
+def _flexible_age_match(target_age: str, available_age: str) -> bool:
+    """Perform flexible matching of age ranges to handle text variations."""
+    target_norm = _normalize_age_text(target_age).lower()
+    available_norm = _normalize_age_text(available_age).lower()
+
+    if target_norm == available_norm:
+        return True
+
+    variations = [
+        (re.sub(r'\s*-\s*', '-', target_norm), re.sub(r'\s*-\s*', '-', available_norm)),
+        (re.sub(r'\byears?\b', 'y', target_norm), re.sub(r'\byears?\b', 'y', available_norm)),
+        (re.sub(r'\bmonths?\b', 'mo', target_norm), re.sub(r'\bmonths?\b', 'mo', available_norm)),
+        (re.sub(r'\s+', '', target_norm), re.sub(r'\s+', '', available_norm)),
+    ]
+
+    for target_var, available_var in variations:
+        if target_var == available_var:
+            return True
+
+    return False
+
+
+def _get_dri_data(force_refresh: bool = False) -> Dict[str, Any]:
+    """Get DRI data from the data manager (bundled data + optional live refresh)."""
+    if not DATA_MANAGER_AVAILABLE or _dri_data_manager_factory is None:
+        return {
+            "status": "error",
+            "error": "DRI data manager not available",
+            "error_type": "initialization_error"
+        }
+    manager = _dri_data_manager_factory()
+    return manager.get_dri_data(force_refresh=force_refresh)
 
 def register_dri_tools(mcp: FastMCP):
     """Register DRI macronutrient tools with the MCP server."""
@@ -89,33 +134,33 @@ def register_dri_tools(mcp: FastMCP):
     def get_macronutrient_dri_tables(force_refresh: bool = False) -> Dict[str, Any]:
         """
         Get complete DRI macronutrient reference tables from Health Canada.
-        
+
         REMEMBER! ALWAYS USE THIS TOOL BY DEFULT BEFORE USING get_specific_macronutrient_dri!!
 
-        This tool fetches comprehensive macronutrient DRI data directly from Health Canada's
-        official DRI tables website. It provides structured access to all reference values
-        including EAR, RDA, AI, and UL values for macronutrients across all age groups.
-        
+        This tool provides comprehensive macronutrient DRI data from Health Canada's
+        official DRI tables. Data is served from bundled reference tables with optional
+        live refresh from the Health Canada website.
+
         The data includes:
         - Reference values for carbohydrate, protein, fat, essential fatty acids, fibre, water
-        - Additional recommendations for saturated fats, trans fats, cholesterol, added sugars  
+        - Additional recommendations for saturated fats, trans fats, cholesterol, added sugars
         - Amino acid patterns for protein quality evaluation (PDCAAS)
         - Acceptable Macronutrient Distribution Ranges (AMDRs) by age group
         - Complete footnotes and explanatory notes from official tables
-        
+
         Use this tool when:
         - Setting up comprehensive nutrition analysis systems
         - Building meal planning applications with DRI compliance
         - Research requiring official Health Canada reference values
         - Developing nutrition education materials
         - Creating nutrition assessment tools
-        
-        Data is cached for 24 hours to minimize website requests while ensuring access
-        to current official Health Canada recommendations.
-        
+
+        Data is available immediately from bundled snapshots. A background refresh
+        from the live website is attempted on first use to verify freshness.
+
         Args:
-            force_refresh: If True, bypass cache and fetch fresh data from website
-            
+            force_refresh: If True, attempt to fetch fresh data from website
+
         Returns:
             Complete DRI macronutrient data structure with:
             - status: "success" or "error"
@@ -124,29 +169,27 @@ def register_dri_tools(mcp: FastMCP):
             - amino_acid_patterns: Essential amino acid patterns for protein quality
             - amdrs: Acceptable Macronutrient Distribution Ranges
             - footnotes: Complete footnotes from Health Canada tables
-            - data_quality: Parsing metrics and validation information
-            
+            - _data_freshness: Source and timestamp of the data
+
         CRITICAL: This tool provides reference data only. For ALL calculations use simple_math_calculator:
         - Adequacy assessment: simple_math_calculator(expression="(intake/rda)*100", variables={"intake": actual, "rda": from_this_tool})
         - AMDR compliance: simple_math_calculator(expression="(protein_cals/total_cals)*100", variables={"protein_cals": value, "total_cals": total})
         - Deficit calculations: simple_math_calculator(expression="rda - intake", variables={"rda": from_this_tool, "intake": actual})
         """
         try:
-            scraper = get_dri_scraper()
-            if scraper is None:
-                return {
-                    "status": "error",
-                    "error": "DRI scraper not available",
-                    "error_type": "initialization_error"
-                }
-            
-            return scraper.fetch_macronutrient_data(force_refresh=force_refresh)
-            
+            result = _get_dri_data(force_refresh=force_refresh)
+
+            # Trigger background refresh on first use (non-blocking)
+            if _dri_data_manager_factory is not None:
+                _dri_data_manager_factory().try_background_refresh()
+
+            return result
+
         except Exception as e:
             return {
                 "status": "error",
-                "error": f"Failed to fetch DRI macronutrient data: {str(e)}",
-                "error_type": "scraping_error"
+                "error": f"Failed to get DRI macronutrient data: {str(e)}",
+                "error_type": "data_error"
             }
 
     @mcp.tool()
@@ -191,28 +234,20 @@ def register_dri_tools(mcp: FastMCP):
         """
         try:
             # Get complete DRI data
-            scraper = get_dri_scraper()
-            if scraper is None:
-                return {
-                    "status": "error", 
-                    "error": "DRI scraper not available"
-                }
-            
-            dri_data = scraper.fetch_macronutrient_data(force_refresh=input_data.force_refresh)
-            
+            dri_data = _get_dri_data(force_refresh=input_data.force_refresh)
+
             if dri_data["status"] != "success":
                 return dri_data
-            
+
             # Find matching age group and gender
             target_nutrient = input_data.macronutrient.value
             target_age = input_data.age_range
             target_gender = input_data.gender
-            
+
             matching_groups = []
-            scraper = get_dri_scraper()
             for group in dri_data["reference_values"]:
-                # Use flexible age matching from scraper
-                age_match = scraper._flexible_age_match(target_age, group["age_range"])
+                # Use flexible age matching
+                age_match = _flexible_age_match(target_age, group["age_range"])
                 gender_match = (target_gender is None or 
                               target_gender.lower() in group.get("category", "").lower())
                 
@@ -297,31 +332,23 @@ def register_dri_tools(mcp: FastMCP):
         """
         try:
             # Get complete DRI data
-            scraper = get_dri_scraper()
-            if scraper is None:
-                return {
-                    "status": "error",
-                    "error": "DRI scraper not available"
-                }
-            
-            dri_data = scraper.fetch_macronutrient_data(force_refresh=input_data.force_refresh)
-            
+            dri_data = _get_dri_data(force_refresh=input_data.force_refresh)
+
             if dri_data["status"] != "success":
                 return dri_data
-            
+
             # Find matching AMDR data using flexible matching
             amdrs = dri_data.get("amdrs", {})
             target_age = input_data.age_range
-            
+
             # Try direct match first
             if target_age in amdrs:
                 matched_key = target_age
             else:
                 # Use flexible age matching to handle Unicode characters
-                scraper = get_dri_scraper()
                 matched_key = None
                 for amdr_key in amdrs.keys():
-                    if scraper._flexible_age_match(target_age, amdr_key):
+                    if _flexible_age_match(target_age, amdr_key):
                         matched_key = amdr_key
                         break
             
@@ -389,18 +416,11 @@ def register_dri_tools(mcp: FastMCP):
         """
         try:
             # Get complete DRI data
-            scraper = get_dri_scraper()
-            if scraper is None:
-                return {
-                    "status": "error",
-                    "error": "DRI scraper not available"
-                }
-            
-            dri_data = scraper.fetch_macronutrient_data()
-            
+            dri_data = _get_dri_data()
+
             if dri_data["status"] != "success":
                 return dri_data
-            
+
             amino_acid_data = dri_data.get("amino_acid_patterns", {})
             
             if amino_acid_data:
@@ -466,28 +486,20 @@ def register_dri_tools(mcp: FastMCP):
         """
         try:
             # Get DRI data for the specified age/gender
-            scraper = get_dri_scraper()
-            if scraper is None:
-                return {
-                    "status": "error",
-                    "error": "DRI scraper not available"
-                }
-            
-            dri_data = scraper.fetch_macronutrient_data()
-            
+            dri_data = _get_dri_data()
+
             if dri_data["status"] != "success":
                 return dri_data
-            
+
             # Find matching DRI values
             target_age = input_data.age_range
             target_gender = input_data.gender
             intake_data = input_data.intake_data
-            
+
             matching_dri = None
-            scraper = get_dri_scraper()
             for group in dri_data["reference_values"]:
-                # Use flexible age matching from scraper
-                age_match = scraper._flexible_age_match(target_age, group["age_range"])
+                # Use flexible age matching from
+                age_match = _flexible_age_match(target_age, group["age_range"])
                 gender_match = (target_gender is None or 
                               target_gender.lower() in group.get("category", "").lower())
                 
@@ -635,18 +647,11 @@ def register_session_dri_tools(mcp: FastMCP):
                 }
             
             # Fetch DRI data
-            scraper = get_dri_scraper()
-            if scraper is None:
-                return {
-                    "status": "error",
-                    "error": "DRI scraper not available"
-                }
-            
-            dri_data = scraper.fetch_macronutrient_data(force_refresh=force_refresh)
-            
+            dri_data = _get_dri_data(force_refresh=force_refresh)
+
             if dri_data["status"] != "success":
                 return dri_data
-            
+
             # Store in session
             session_data = get_virtual_session_data(session_id)
             if session_data is None:
@@ -753,10 +758,9 @@ def register_session_dri_tools(mcp: FastMCP):
             dri_data = dri_tables[latest_key]["data"]
             
             # Use flexible age matching for lookups
-            scraper = get_dri_scraper()
             matching_groups = []
             for group in dri_data["reference_values"]:
-                age_match = scraper._flexible_age_match(age_range, group["age_range"])
+                age_match = _flexible_age_match(age_range, group["age_range"])
                 gender_match = (gender is None or 
                               gender.lower() in group.get("category", "").lower())
                 

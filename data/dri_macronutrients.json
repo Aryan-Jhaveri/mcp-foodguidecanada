@@ -1,0 +1,1049 @@
+{
+  "status": "success",
+  "source": "Health Canada DRI Tables",
+  "url": "https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes/tables/reference-values-macronutrients.html",
+  "last_updated": "2025-06-06T12:30:25.632713",
+  "reference_values": [
+    {
+      "age_range": "0–6 mo",
+      "category": "Infants",
+      "nutrients": {
+        "carbohydrate": {
+          "ear_g_day": null,
+          "rda_ai_g_day": 60.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "protein": {
+          "ear_g_kg_day": null,
+          "rda_ai_g_kg_day": 1.52,
+          "rda_ai_g_day": 9.1,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_fat": {
+          "ai_g_day": 31.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "linoleic_acid": {
+          "ai_g_day": 4.4,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "alpha_linolenic_acid": {
+          "ai_g_day": 0.5,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_fibre": {
+          "ai_g_day": null,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_water": {
+          "ai_litres_day": 0.7,
+          "ul_litres_day": null,
+          "is_ai": true
+        }
+      }
+    },
+    {
+      "age_range": "7–12 mo",
+      "category": "Infants",
+      "nutrients": {
+        "carbohydrate": {
+          "ear_g_day": null,
+          "rda_ai_g_day": 95.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "protein": {
+          "ear_g_kg_day": 1.0,
+          "rda_ai_g_kg_day": 1.2,
+          "rda_ai_g_day": 11.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "total_fat": {
+          "ai_g_day": 30.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "linoleic_acid": {
+          "ai_g_day": 4.6,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "alpha_linolenic_acid": {
+          "ai_g_day": 0.5,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_fibre": {
+          "ai_g_day": null,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_water": {
+          "ai_litres_day": 0.8,
+          "ul_litres_day": null,
+          "is_ai": true
+        }
+      }
+    },
+    {
+      "age_range": "1–3 y",
+      "category": "Children",
+      "nutrients": {
+        "carbohydrate": {
+          "ear_g_day": 100.0,
+          "rda_ai_g_day": 130.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "protein": {
+          "ear_g_kg_day": 0.87,
+          "rda_ai_g_kg_day": 1.05,
+          "rda_ai_g_day": 13.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "total_fat": {
+          "ai_g_day": null,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "linoleic_acid": {
+          "ai_g_day": 7.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "alpha_linolenic_acid": {
+          "ai_g_day": 0.7,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_fibre": {
+          "ai_g_day": 19.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_water": {
+          "ai_litres_day": 1.3,
+          "ul_litres_day": null,
+          "is_ai": true
+        }
+      }
+    },
+    {
+      "age_range": "4–8 y",
+      "category": "Children",
+      "nutrients": {
+        "carbohydrate": {
+          "ear_g_day": 100.0,
+          "rda_ai_g_day": 130.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "protein": {
+          "ear_g_kg_day": 0.76,
+          "rda_ai_g_kg_day": 0.95,
+          "rda_ai_g_day": 19.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "total_fat": {
+          "ai_g_day": null,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "linoleic_acid": {
+          "ai_g_day": 10.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "alpha_linolenic_acid": {
+          "ai_g_day": 0.9,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_fibre": {
+          "ai_g_day": 25.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_water": {
+          "ai_litres_day": 1.7,
+          "ul_litres_day": null,
+          "is_ai": true
+        }
+      }
+    },
+    {
+      "age_range": "9–13 y",
+      "category": "Males",
+      "nutrients": {
+        "carbohydrate": {
+          "ear_g_day": 100.0,
+          "rda_ai_g_day": 130.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "protein": {
+          "ear_g_kg_day": 0.76,
+          "rda_ai_g_kg_day": 0.95,
+          "rda_ai_g_day": 34.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "total_fat": {
+          "ai_g_day": null,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "linoleic_acid": {
+          "ai_g_day": 12.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "alpha_linolenic_acid": {
+          "ai_g_day": 1.2,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_fibre": {
+          "ai_g_day": 31.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_water": {
+          "ai_litres_day": 2.4,
+          "ul_litres_day": null,
+          "is_ai": true
+        }
+      }
+    },
+    {
+      "age_range": "14–18 y",
+      "category": "Males",
+      "nutrients": {
+        "carbohydrate": {
+          "ear_g_day": 100.0,
+          "rda_ai_g_day": 130.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "protein": {
+          "ear_g_kg_day": 0.73,
+          "rda_ai_g_kg_day": 0.85,
+          "rda_ai_g_day": 52.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "total_fat": {
+          "ai_g_day": null,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "linoleic_acid": {
+          "ai_g_day": 16.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "alpha_linolenic_acid": {
+          "ai_g_day": 1.6,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_fibre": {
+          "ai_g_day": 38.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_water": {
+          "ai_litres_day": 3.3,
+          "ul_litres_day": null,
+          "is_ai": true
+        }
+      }
+    },
+    {
+      "age_range": "19–30 y",
+      "category": "Males",
+      "nutrients": {
+        "carbohydrate": {
+          "ear_g_day": 100.0,
+          "rda_ai_g_day": 130.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "protein": {
+          "ear_g_kg_day": 0.66,
+          "rda_ai_g_kg_day": 0.8,
+          "rda_ai_g_day": 56.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "total_fat": {
+          "ai_g_day": null,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "linoleic_acid": {
+          "ai_g_day": 17.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "alpha_linolenic_acid": {
+          "ai_g_day": 1.6,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_fibre": {
+          "ai_g_day": 38.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_water": {
+          "ai_litres_day": 3.7,
+          "ul_litres_day": null,
+          "is_ai": true
+        }
+      }
+    },
+    {
+      "age_range": "31–50 y",
+      "category": "Males",
+      "nutrients": {
+        "carbohydrate": {
+          "ear_g_day": 100.0,
+          "rda_ai_g_day": 130.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "protein": {
+          "ear_g_kg_day": 0.66,
+          "rda_ai_g_kg_day": 0.8,
+          "rda_ai_g_day": 56.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "total_fat": {
+          "ai_g_day": null,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "linoleic_acid": {
+          "ai_g_day": 17.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "alpha_linolenic_acid": {
+          "ai_g_day": 1.6,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_fibre": {
+          "ai_g_day": 38.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_water": {
+          "ai_litres_day": 3.7,
+          "ul_litres_day": null,
+          "is_ai": true
+        }
+      }
+    },
+    {
+      "age_range": "51–70 y",
+      "category": "Males",
+      "nutrients": {
+        "carbohydrate": {
+          "ear_g_day": 100.0,
+          "rda_ai_g_day": 130.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "protein": {
+          "ear_g_kg_day": 0.66,
+          "rda_ai_g_kg_day": 0.8,
+          "rda_ai_g_day": 56.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "total_fat": {
+          "ai_g_day": null,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "linoleic_acid": {
+          "ai_g_day": 14.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "alpha_linolenic_acid": {
+          "ai_g_day": 1.6,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_fibre": {
+          "ai_g_day": 30.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_water": {
+          "ai_litres_day": 3.7,
+          "ul_litres_day": null,
+          "is_ai": true
+        }
+      }
+    },
+    {
+      "age_range": ">70 y",
+      "category": "Males",
+      "nutrients": {
+        "carbohydrate": {
+          "ear_g_day": 100.0,
+          "rda_ai_g_day": 130.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "protein": {
+          "ear_g_kg_day": 0.66,
+          "rda_ai_g_kg_day": 0.8,
+          "rda_ai_g_day": 56.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "total_fat": {
+          "ai_g_day": null,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "linoleic_acid": {
+          "ai_g_day": 14.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "alpha_linolenic_acid": {
+          "ai_g_day": 1.6,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_fibre": {
+          "ai_g_day": 30.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_water": {
+          "ai_litres_day": 3.7,
+          "ul_litres_day": null,
+          "is_ai": true
+        }
+      }
+    },
+    {
+      "age_range": "9–13 y",
+      "category": "Females",
+      "nutrients": {
+        "carbohydrate": {
+          "ear_g_day": 100.0,
+          "rda_ai_g_day": 130.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "protein": {
+          "ear_g_kg_day": 0.76,
+          "rda_ai_g_kg_day": 0.95,
+          "rda_ai_g_day": 34.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "total_fat": {
+          "ai_g_day": null,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "linoleic_acid": {
+          "ai_g_day": 10.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "alpha_linolenic_acid": {
+          "ai_g_day": 1.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_fibre": {
+          "ai_g_day": 26.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_water": {
+          "ai_litres_day": 2.1,
+          "ul_litres_day": null,
+          "is_ai": true
+        }
+      }
+    },
+    {
+      "age_range": "14–18 y",
+      "category": "Females",
+      "nutrients": {
+        "carbohydrate": {
+          "ear_g_day": 100.0,
+          "rda_ai_g_day": 130.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "protein": {
+          "ear_g_kg_day": 0.71,
+          "rda_ai_g_kg_day": 0.85,
+          "rda_ai_g_day": 46.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "total_fat": {
+          "ai_g_day": null,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "linoleic_acid": {
+          "ai_g_day": 11.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "alpha_linolenic_acid": {
+          "ai_g_day": 1.1,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_fibre": {
+          "ai_g_day": 26.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_water": {
+          "ai_litres_day": 2.3,
+          "ul_litres_day": null,
+          "is_ai": true
+        }
+      }
+    },
+    {
+      "age_range": "19–30 y",
+      "category": "Females",
+      "nutrients": {
+        "carbohydrate": {
+          "ear_g_day": 100.0,
+          "rda_ai_g_day": 130.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "protein": {
+          "ear_g_kg_day": 0.66,
+          "rda_ai_g_kg_day": 0.8,
+          "rda_ai_g_day": 46.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "total_fat": {
+          "ai_g_day": null,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "linoleic_acid": {
+          "ai_g_day": 12.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "alpha_linolenic_acid": {
+          "ai_g_day": 1.1,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_fibre": {
+          "ai_g_day": 25.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_water": {
+          "ai_litres_day": 2.7,
+          "ul_litres_day": null,
+          "is_ai": true
+        }
+      }
+    },
+    {
+      "age_range": "31–50 y",
+      "category": "Females",
+      "nutrients": {
+        "carbohydrate": {
+          "ear_g_day": 100.0,
+          "rda_ai_g_day": 130.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "protein": {
+          "ear_g_kg_day": 0.66,
+          "rda_ai_g_kg_day": 0.8,
+          "rda_ai_g_day": 46.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "total_fat": {
+          "ai_g_day": null,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "linoleic_acid": {
+          "ai_g_day": 12.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "alpha_linolenic_acid": {
+          "ai_g_day": 1.1,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_fibre": {
+          "ai_g_day": 25.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_water": {
+          "ai_litres_day": 2.7,
+          "ul_litres_day": null,
+          "is_ai": true
+        }
+      }
+    },
+    {
+      "age_range": "51–70 y",
+      "category": "Females",
+      "nutrients": {
+        "carbohydrate": {
+          "ear_g_day": 100.0,
+          "rda_ai_g_day": 130.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "protein": {
+          "ear_g_kg_day": 0.66,
+          "rda_ai_g_kg_day": 0.8,
+          "rda_ai_g_day": 46.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "total_fat": {
+          "ai_g_day": null,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "linoleic_acid": {
+          "ai_g_day": 11.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "alpha_linolenic_acid": {
+          "ai_g_day": 1.1,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_fibre": {
+          "ai_g_day": 21.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_water": {
+          "ai_litres_day": 2.7,
+          "ul_litres_day": null,
+          "is_ai": true
+        }
+      }
+    },
+    {
+      "age_range": ">70 y",
+      "category": "Females",
+      "nutrients": {
+        "carbohydrate": {
+          "ear_g_day": 100.0,
+          "rda_ai_g_day": 130.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "protein": {
+          "ear_g_kg_day": 0.66,
+          "rda_ai_g_kg_day": 0.8,
+          "rda_ai_g_day": 46.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "total_fat": {
+          "ai_g_day": null,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "linoleic_acid": {
+          "ai_g_day": 11.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "alpha_linolenic_acid": {
+          "ai_g_day": 1.1,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_fibre": {
+          "ai_g_day": 21.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_water": {
+          "ai_litres_day": 2.7,
+          "ul_litres_day": null,
+          "is_ai": true
+        }
+      }
+    },
+    {
+      "age_range": "≤ 18 y",
+      "category": "Pregnancy",
+      "nutrients": {
+        "carbohydrate": {
+          "ear_g_day": 135.0,
+          "rda_ai_g_day": 175.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "protein": {
+          "ear_g_kg_day": 0.88,
+          "rda_ai_g_kg_day": 1.1,
+          "rda_ai_g_day": 71.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "total_fat": {
+          "ai_g_day": null,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "linoleic_acid": {
+          "ai_g_day": 13.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "alpha_linolenic_acid": {
+          "ai_g_day": 1.4,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_fibre": {
+          "ai_g_day": 28.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_water": {
+          "ai_litres_day": 3.0,
+          "ul_litres_day": null,
+          "is_ai": true
+        }
+      }
+    },
+    {
+      "age_range": "19–30 y",
+      "category": "Pregnancy",
+      "nutrients": {
+        "carbohydrate": {
+          "ear_g_day": 135.0,
+          "rda_ai_g_day": 175.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "protein": {
+          "ear_g_kg_day": 0.88,
+          "rda_ai_g_kg_day": 1.1,
+          "rda_ai_g_day": 71.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "total_fat": {
+          "ai_g_day": null,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "linoleic_acid": {
+          "ai_g_day": 13.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "alpha_linolenic_acid": {
+          "ai_g_day": 1.4,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_fibre": {
+          "ai_g_day": 28.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_water": {
+          "ai_litres_day": 3.0,
+          "ul_litres_day": null,
+          "is_ai": true
+        }
+      }
+    },
+    {
+      "age_range": "31–50 y",
+      "category": "Pregnancy",
+      "nutrients": {
+        "carbohydrate": {
+          "ear_g_day": 135.0,
+          "rda_ai_g_day": 175.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "protein": {
+          "ear_g_kg_day": 0.88,
+          "rda_ai_g_kg_day": 1.1,
+          "rda_ai_g_day": 71.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "total_fat": {
+          "ai_g_day": null,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "linoleic_acid": {
+          "ai_g_day": 13.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "alpha_linolenic_acid": {
+          "ai_g_day": 1.4,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_fibre": {
+          "ai_g_day": 28.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_water": {
+          "ai_litres_day": 3.0,
+          "ul_litres_day": null,
+          "is_ai": true
+        }
+      }
+    },
+    {
+      "age_range": "≤ 18 y",
+      "category": "Lactation",
+      "nutrients": {
+        "carbohydrate": {
+          "ear_g_day": 160.0,
+          "rda_ai_g_day": 210.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "protein": {
+          "ear_g_kg_day": 1.05,
+          "rda_ai_g_kg_day": 1.3,
+          "rda_ai_g_day": 71.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "total_fat": {
+          "ai_g_day": null,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "linoleic_acid": {
+          "ai_g_day": 13.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "alpha_linolenic_acid": {
+          "ai_g_day": 1.3,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_fibre": {
+          "ai_g_day": 29.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_water": {
+          "ai_litres_day": 3.8,
+          "ul_litres_day": null,
+          "is_ai": true
+        }
+      }
+    },
+    {
+      "age_range": "19–30 y",
+      "category": "Lactation",
+      "nutrients": {
+        "carbohydrate": {
+          "ear_g_day": 160.0,
+          "rda_ai_g_day": 210.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "protein": {
+          "ear_g_kg_day": 1.05,
+          "rda_ai_g_kg_day": 1.3,
+          "rda_ai_g_day": 71.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "total_fat": {
+          "ai_g_day": null,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "linoleic_acid": {
+          "ai_g_day": 13.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "alpha_linolenic_acid": {
+          "ai_g_day": 1.3,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_fibre": {
+          "ai_g_day": 29.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_water": {
+          "ai_litres_day": 3.8,
+          "ul_litres_day": null,
+          "is_ai": true
+        }
+      }
+    },
+    {
+      "age_range": "31–50 y",
+      "category": "Lactation",
+      "nutrients": {
+        "carbohydrate": {
+          "ear_g_day": 160.0,
+          "rda_ai_g_day": 210.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "protein": {
+          "ear_g_kg_day": 1.05,
+          "rda_ai_g_kg_day": 1.3,
+          "rda_ai_g_day": 71.0,
+          "ul_g_day": null,
+          "is_ai": false
+        },
+        "total_fat": {
+          "ai_g_day": null,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "linoleic_acid": {
+          "ai_g_day": 13.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "alpha_linolenic_acid": {
+          "ai_g_day": 1.3,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_fibre": {
+          "ai_g_day": 29.0,
+          "ul_g_day": null,
+          "is_ai": true
+        },
+        "total_water": {
+          "ai_litres_day": 3.8,
+          "ul_litres_day": null,
+          "is_ai": true
+        }
+      }
+    }
+  ],
+  "additional_recommendations": {},
+  "amino_acid_patterns": {
+    "histidine": {
+      "name": "Histidine",
+      "mg_per_g_protein": 18.0
+    },
+    "isoleucine": {
+      "name": "Isoleucine",
+      "mg_per_g_protein": 25.0
+    },
+    "leucine": {
+      "name": "Leucine",
+      "mg_per_g_protein": 55.0
+    },
+    "lysine": {
+      "name": "Lysine",
+      "mg_per_g_protein": 51.0
+    },
+    "methionine____cysteine": {
+      "name": "Methionine    + Cysteine",
+      "mg_per_g_protein": 25.0
+    },
+    "phenylalanine____tyrosine": {
+      "name": "Phenylalanine    + Tyrosine",
+      "mg_per_g_protein": 47.0
+    },
+    "threonine": {
+      "name": "Threonine",
+      "mg_per_g_protein": 27.0
+    },
+    "tryptophan": {
+      "name": "Tryptophan",
+      "mg_per_g_protein": 7.0
+    },
+    "valine": {
+      "name": "Valine",
+      "mg_per_g_protein": 32.0
+    },
+    "reference_note": "Reference  amino acid pattern for use in evaluating the quality of food proteins using the  protein digestibility corrected amino acid score (PDCAAS). Based on estimated  average requirements for both indispensable amino acids and for total protein  for 1 to 3 year olds."
+  },
+  "amdrs": {
+    "1–3 years": {
+      "carbohydrate_percent": "45–65%",
+      "protein_percent": "5–20%",
+      "fat_percent": "30–40%",
+      "n6_pufa_percent": "5–10%",
+      "n3_pufa_percent": "0.6–1.2%"
+    },
+    "4–18 years": {
+      "carbohydrate_percent": "45–65%",
+      "protein_percent": "10–30%",
+      "fat_percent": "25–35%",
+      "n6_pufa_percent": "5–10%",
+      "n3_pufa_percent": "0.6–1.2%"
+    },
+    "19 years and over": {
+      "carbohydrate_percent": "45–65%",
+      "protein_percent": "10–35%",
+      "fat_percent": "20–35%",
+      "n6_pufa_percent": "5–10%",
+      "n3_pufa_percent": "0.6–1.2%"
+    }
+  },
+  "footnotes": {
+    "fn_t2b1": "Includes pregnant and lactating women.Return to table 2 footnote35referrer",
+    "fn_t2b2": "Up to 10% of the AMDR can be consumed as eicosapentaenoic acid (EPA) and/or docosahexaenoic acid (DHA).Return to table 2 footnote36referrer"
+  },
+  "data_quality": {
+    "parsing_timestamp": "2025-06-06T12:30:25.658386",
+    "total_age_groups_parsed": 22,
+    "total_nutrients_parsed": 154,
+    "parsing_warnings": []
+  }
+}

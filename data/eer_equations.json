@@ -1,0 +1,267 @@
+{
+  "_metadata": {
+    "source": "Health Canada DRI Tables",
+    "url": "https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes/tables/equations-estimate-energy-requirement.html",
+    "snapshot_date": "2026-03-02",
+    "last_verified": "2026-03-02",
+    "notes": "Bundled static snapshot. EER equations from Health Canada DRI tables. Variables: age (years), height (cm), weight (kg), gestation (weeks)."
+  },
+  "general_note": "These equations provide an estimate of energy requirement (EER). Relative body weight (that is, loss, stable, gain) is the preferred indicator of energy adequacy.",
+  "pal_category_definitions": {
+    "description": "Physical Activity Level (PAL) category ranges by age group",
+    "age_groups": {
+      "3_to_9_years": {
+        "inactive": {"min": 1.00, "max": 1.31},
+        "low_active": {"min": 1.31, "max": 1.44},
+        "active": {"min": 1.44, "max": 1.59},
+        "very_active": {"min": 1.59, "max": 2.50}
+      },
+      "9_to_14_years": {
+        "inactive": {"min": 1.00, "max": 1.44},
+        "low_active": {"min": 1.44, "max": 1.59},
+        "active": {"min": 1.59, "max": 1.77},
+        "very_active": {"min": 1.77, "max": 2.50}
+      },
+      "14_to_19_years": {
+        "inactive": {"min": 1.00, "max": 1.56},
+        "low_active": {"min": 1.56, "max": 1.73},
+        "active": {"min": 1.73, "max": 1.92},
+        "very_active": {"min": 1.92, "max": 2.50}
+      },
+      "19_years_and_older": {
+        "inactive": {"min": 1.00, "max": 1.53},
+        "low_active": {"min": 1.53, "max": 1.68},
+        "active": {"min": 1.68, "max": 1.85},
+        "very_active": {"min": 1.85, "max": 2.50}
+      }
+    },
+    "adult_activity_examples": {
+      "inactive": "30 min walking + 90 min light to moderate activity",
+      "low_active": "60 to 80 min of walking at 5-7 km/h",
+      "active": "30-50 min walking + 45 min moderate cycling + 40 min doubles tennis",
+      "very_active": "45 min moderate cycling + 25 min jogging at 10 km/h + 60 min doubles tennis"
+    }
+  },
+  "pal_descriptions": {
+    "inactive": {
+      "description": "Sedentary lifestyle",
+      "examples": [
+        "Typical daily living activities only",
+        "Sitting most of the day",
+        "Little to no structured exercise"
+      ]
+    },
+    "low_active": {
+      "description": "Low active lifestyle",
+      "examples": [
+        "Daily living activities plus 30-60 minutes of moderate activity",
+        "Walking 2.5-5 km per day",
+        "Light exercise 3-4 times per week"
+      ]
+    },
+    "active": {
+      "description": "Active lifestyle",
+      "examples": [
+        "Daily living activities plus 60+ minutes of moderate activity",
+        "Walking 7.5-10 km per day",
+        "Regular structured exercise 4-5 times per week"
+      ]
+    },
+    "very_active": {
+      "description": "Very active lifestyle",
+      "examples": [
+        "Daily living activities plus 60+ minutes of moderate to vigorous activity",
+        "Walking 12.5+ km per day",
+        "Intensive training or physical work"
+      ]
+    }
+  },
+  "equations": {
+    "infant_toddler": {
+      "description": "Infants and toddlers 0-3 years. No activity level differentiation.",
+      "age_range": "0 to <3 years",
+      "male": {
+        "formula": "EER = -716.45 - (1.00 * age) + (17.82 * height_cm) + (15.06 * weight_kg) + growth_constant",
+        "coefficients": {
+          "intercept": -716.45,
+          "age": -1.00,
+          "height_cm": 17.82,
+          "weight_kg": 15.06
+        },
+        "growth_constants": {
+          "0_to_3_months": 200,
+          "3_to_6_months": 50,
+          "6_to_12_months": 20,
+          "1_to_3_years": 20
+        }
+      },
+      "female": {
+        "formula": "EER = -69.15 + (80.0 * age) + (2.65 * height_cm) + (54.15 * weight_kg) + growth_constant",
+        "coefficients": {
+          "intercept": -69.15,
+          "age": 80.0,
+          "height_cm": 2.65,
+          "weight_kg": 54.15
+        },
+        "growth_constants": {
+          "0_to_3_months": 180,
+          "3_to_6_months": 60,
+          "6_to_12_months": 20,
+          "1_to_3_years": 15
+        }
+      }
+    },
+    "child_adolescent": {
+      "description": "Children and adolescents 3-18 years. Activity level dependent with age-specific growth constants.",
+      "age_range": "3 to <19 years",
+      "male": {
+        "inactive": {
+          "formula": "EER = -447.51 + (3.68 * age) + (13.01 * height_cm) + (13.15 * weight_kg) + growth_constant",
+          "coefficients": {"intercept": -447.51, "age": 3.68, "height_cm": 13.01, "weight_kg": 13.15}
+        },
+        "low_active": {
+          "formula": "EER = 19.12 + (3.68 * age) + (8.62 * height_cm) + (20.28 * weight_kg) + growth_constant",
+          "coefficients": {"intercept": 19.12, "age": 3.68, "height_cm": 8.62, "weight_kg": 20.28}
+        },
+        "active": {
+          "formula": "EER = -388.19 + (3.68 * age) + (12.66 * height_cm) + (20.46 * weight_kg) + growth_constant",
+          "coefficients": {"intercept": -388.19, "age": 3.68, "height_cm": 12.66, "weight_kg": 20.46}
+        },
+        "very_active": {
+          "formula": "EER = -671.75 + (3.68 * age) + (15.38 * height_cm) + (23.25 * weight_kg) + growth_constant",
+          "coefficients": {"intercept": -671.75, "age": 3.68, "height_cm": 15.38, "weight_kg": 23.25}
+        },
+        "growth_constants": {
+          "3_to_4_years": 20,
+          "4_to_9_years": 15,
+          "9_to_14_years": 25,
+          "14_to_19_years": 20
+        }
+      },
+      "female": {
+        "inactive": {
+          "formula": "EER = 55.59 + (-22.25 * age) + (8.43 * height_cm) + (17.07 * weight_kg) + growth_constant",
+          "coefficients": {"intercept": 55.59, "age": -22.25, "height_cm": 8.43, "weight_kg": 17.07}
+        },
+        "low_active": {
+          "formula": "EER = -297.54 + (-22.25 * age) + (12.77 * height_cm) + (14.73 * weight_kg) + growth_constant",
+          "coefficients": {"intercept": -297.54, "age": -22.25, "height_cm": 12.77, "weight_kg": 14.73}
+        },
+        "active": {
+          "formula": "EER = -189.55 + (-22.25 * age) + (11.74 * height_cm) + (18.34 * weight_kg) + growth_constant",
+          "coefficients": {"intercept": -189.55, "age": -22.25, "height_cm": 11.74, "weight_kg": 18.34}
+        },
+        "very_active": {
+          "formula": "EER = -709.59 + (-22.25 * age) + (18.22 * height_cm) + (14.25 * weight_kg) + growth_constant",
+          "coefficients": {"intercept": -709.59, "age": -22.25, "height_cm": 18.22, "weight_kg": 14.25}
+        },
+        "growth_constants": {
+          "3_to_4_years": 15,
+          "4_to_9_years": 15,
+          "9_to_14_years": 30,
+          "14_to_19_years": 20
+        }
+      }
+    },
+    "adult": {
+      "description": "Adults 19 years and older. No growth constant.",
+      "age_range": "19+ years",
+      "male": {
+        "inactive": {
+          "formula": "EER = 753.07 + (-10.83 * age) + (6.50 * height_cm) + (14.10 * weight_kg)",
+          "coefficients": {"intercept": 753.07, "age": -10.83, "height_cm": 6.50, "weight_kg": 14.10}
+        },
+        "low_active": {
+          "formula": "EER = 581.47 + (-10.83 * age) + (8.30 * height_cm) + (14.94 * weight_kg)",
+          "coefficients": {"intercept": 581.47, "age": -10.83, "height_cm": 8.30, "weight_kg": 14.94}
+        },
+        "active": {
+          "formula": "EER = 1004.82 + (-10.83 * age) + (6.52 * height_cm) + (15.91 * weight_kg)",
+          "coefficients": {"intercept": 1004.82, "age": -10.83, "height_cm": 6.52, "weight_kg": 15.91}
+        },
+        "very_active": {
+          "formula": "EER = -517.88 + (-10.83 * age) + (15.61 * height_cm) + (19.11 * weight_kg)",
+          "coefficients": {"intercept": -517.88, "age": -10.83, "height_cm": 15.61, "weight_kg": 19.11}
+        }
+      },
+      "female": {
+        "inactive": {
+          "formula": "EER = 584.90 + (-7.01 * age) + (5.72 * height_cm) + (11.71 * weight_kg)",
+          "coefficients": {"intercept": 584.90, "age": -7.01, "height_cm": 5.72, "weight_kg": 11.71}
+        },
+        "low_active": {
+          "formula": "EER = 575.77 + (-7.01 * age) + (6.60 * height_cm) + (12.14 * weight_kg)",
+          "coefficients": {"intercept": 575.77, "age": -7.01, "height_cm": 6.60, "weight_kg": 12.14}
+        },
+        "active": {
+          "formula": "EER = 710.25 + (-7.01 * age) + (6.54 * height_cm) + (12.34 * weight_kg)",
+          "coefficients": {"intercept": 710.25, "age": -7.01, "height_cm": 6.54, "weight_kg": 12.34}
+        },
+        "very_active": {
+          "formula": "EER = 511.83 + (-7.01 * age) + (9.07 * height_cm) + (12.56 * weight_kg)",
+          "coefficients": {"intercept": 511.83, "age": -7.01, "height_cm": 9.07, "weight_kg": 12.56}
+        }
+      }
+    },
+    "pregnancy": {
+      "description": "Pregnancy equations for 2nd and 3rd trimester. For 1st trimester, use non-pregnant female equations.",
+      "age_range": "All ages",
+      "note": "Use non-pregnant female equations for first trimester",
+      "equations_by_pal": {
+        "inactive": {
+          "formula": "EER = 1131.20 + (-2.04 * age) + (0.34 * height_cm) + (12.15 * weight_kg) + (9.16 * gestation_weeks) + energy_deposition",
+          "coefficients": {"intercept": 1131.20, "age": -2.04, "height_cm": 0.34, "weight_kg": 12.15, "gestation_weeks": 9.16}
+        },
+        "low_active": {
+          "formula": "EER = 693.35 + (-2.04 * age) + (5.73 * height_cm) + (10.20 * weight_kg) + (9.16 * gestation_weeks) + energy_deposition",
+          "coefficients": {"intercept": 693.35, "age": -2.04, "height_cm": 5.73, "weight_kg": 10.20, "gestation_weeks": 9.16}
+        },
+        "active": {
+          "formula": "EER = -223.84 + (-2.04 * age) + (13.23 * height_cm) + (8.15 * weight_kg) + (9.16 * gestation_weeks) + energy_deposition",
+          "coefficients": {"intercept": -223.84, "age": -2.04, "height_cm": 13.23, "weight_kg": 8.15, "gestation_weeks": 9.16}
+        },
+        "very_active": {
+          "formula": "EER = -779.72 + (-2.04 * age) + (18.45 * height_cm) + (8.73 * weight_kg) + (9.16 * gestation_weeks) + energy_deposition",
+          "coefficients": {"intercept": -779.72, "age": -2.04, "height_cm": 18.45, "weight_kg": 8.73, "gestation_weeks": 9.16}
+        }
+      },
+      "energy_deposition_by_bmi": {
+        "underweight": {"bmi_range": "< 18.5", "kcal_per_day": 300},
+        "normal_weight": {"bmi_range": "18.5 - 24.9", "kcal_per_day": 200},
+        "overweight": {"bmi_range": "25.0 - 29.9", "kcal_per_day": 150},
+        "obese": {"bmi_range": ">= 30.0", "kcal_per_day": -50}
+      }
+    },
+    "lactation": {
+      "description": "Breastfeeding equations. Uses non-pregnant female base equations plus milk energy constants.",
+      "age_range": "All ages",
+      "note": "Base equation uses adolescent female coefficients for age <19, adult female coefficients for age 19+",
+      "milk_energy_constants": {
+        "0_to_6_months_postpartum": {
+          "total_addition_kcal": 400,
+          "breakdown": "540 (milk energy output) - 140 (weight loss allowance)"
+        },
+        "7_to_12_months_postpartum": {
+          "total_addition_kcal": 380,
+          "breakdown": "380 (milk energy output, no weight loss allowance)"
+        }
+      },
+      "base_equations": {
+        "age_under_19": {
+          "description": "Uses adolescent female (3-18y) coefficients",
+          "inactive": {"coefficients": {"intercept": 55.59, "age": -22.25, "height_cm": 8.43, "weight_kg": 17.07}},
+          "low_active": {"coefficients": {"intercept": -297.54, "age": -22.25, "height_cm": 12.77, "weight_kg": 14.73}},
+          "active": {"coefficients": {"intercept": -189.55, "age": -22.25, "height_cm": 11.74, "weight_kg": 18.34}},
+          "very_active": {"coefficients": {"intercept": -709.59, "age": -22.25, "height_cm": 18.22, "weight_kg": 14.25}}
+        },
+        "age_19_plus": {
+          "description": "Uses adult female coefficients",
+          "inactive": {"coefficients": {"intercept": 584.90, "age": -7.01, "height_cm": 5.72, "weight_kg": 11.71}},
+          "low_active": {"coefficients": {"intercept": 575.77, "age": -7.01, "height_cm": 6.60, "weight_kg": 12.14}},
+          "active": {"coefficients": {"intercept": 710.25, "age": -7.01, "height_cm": 6.54, "weight_kg": 12.34}},
+          "very_active": {"coefficients": {"intercept": 511.83, "age": -7.01, "height_cm": 9.07, "weight_kg": 12.56}}
+        }
+      }
+    }
+  }
+}

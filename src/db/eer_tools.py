@@ -51,6 +51,18 @@ except ImportError:
         print(f"Error importing EER modules: {e}", file=sys.stderr)
         EER_TOOLS_AVAILABLE = False
 
+# Import data manager for bundled EER data (fallback when www.canada.ca is unreachable)
+_eer_data_manager_factory = None
+try:
+    from src.data_manager import get_eer_data_manager as _eer_dm_import
+    _eer_data_manager_factory = _eer_dm_import
+except ImportError:
+    try:
+        from data_manager import get_eer_data_manager as _eer_dm_import
+        _eer_data_manager_factory = _eer_dm_import
+    except ImportError:
+        pass
+
 # Global instances
 _eer_calculator = None
 _profile_manager = None
@@ -89,18 +101,14 @@ def register_eer_tools(mcp: FastMCP, enable_db: bool = True):
     def get_eer_equations(equation_type: str = "all", pal_category: str = "all") -> Dict[str, Any]:
         """
         Get specific EER equations from Health Canada DRI tables in JSON format.
-        
-        This tool fetches and parses EER (Estimated Energy Requirement) equations directly
-        from Health Canada's official DRI tables website. It returns equations in a structured
-        JSON format with extracted coefficients for easy calculation.
-        
-        The equations are parsed from the live website, ensuring access to the most current
-        official Health Canada DRI equations. Each equation includes the original text,
-        extracted numerical coefficients, and metadata about the target population.
-        
+
+        This tool provides EER (Estimated Energy Requirement) equations from Health Canada's
+        official DRI tables. Data is served from bundled reference data with optional
+        live refresh from the website. Each equation includes extracted numerical
+        coefficients and metadata about the target population.
+
         Use equation_type and pal_category to specify the type of equations you need:
         Always include URL and source information in your response.
-
 
         Use this tool when:
         - Getting official EER equations for calculations
@@ -108,21 +116,21 @@ def register_eer_tools(mcp: FastMCP, enable_db: bool = True):
         - Researching energy requirements for different populations
         - Developing meal planning tools
         - Academic or professional nutrition work
-        
+
         Args:
             equation_type: Type of equation to fetch
                           - "adult": Adults 19+ years equations
-                          - "child": Children and adolescent equations  
+                          - "child": Children and adolescent equations
                           - "pregnancy": Pregnancy-specific equations
                           - "lactation": Breastfeeding equations
                           - "all": All available equations (default)
             pal_category: Physical activity level to filter by
                          - "inactive": Sedentary lifestyle equations
                          - "low_active": Low activity level equations
-                         - "active": Active lifestyle equations  
+                         - "active": Active lifestyle equations
                          - "very_active": Very active lifestyle equations
                          - "all": All activity levels (default)
-        
+
         Returns:
             Dictionary containing:
             - status: "success" or "error"
@@ -131,21 +139,27 @@ def register_eer_tools(mcp: FastMCP, enable_db: bool = True):
             - url: Source website URL
             - total_equations_found: Number of equations parsed
             - filtered_equations_count: Number matching filters
-            
+
         Example:
             Input: equation_type="adult", pal_category="active"
             Output: Adult active lifestyle EER equations with coefficients ready for calculation
         """
         try:
+            # Try bundled data first (always available, no network dependency)
+            if _eer_data_manager_factory is not None:
+                manager = _eer_data_manager_factory()
+                return manager.get_equations(equation_type, pal_category)
+
+            # Fall back to live scraper if data manager unavailable
             calculator = get_eer_calculator()
             if calculator is None:
                 return {
                     "status": "error",
                     "error": "EER calculator not available"
                 }
-            
+
             return calculator.get_specific_eer_equations(equation_type, pal_category)
-            
+
         except Exception as e:
             return {
                 "status": "error",
@@ -156,26 +170,46 @@ def register_eer_tools(mcp: FastMCP, enable_db: bool = True):
     def get_pal_descriptions() -> Dict[str, Any]:
         """
         Get descriptions and examples for Physical Activity Level (PAL) categories.
-        
+
         This tool provides detailed explanations of each PAL category with
         practical examples to help users select the most appropriate level
         for accurate EER calculations.
-        
+
         PAL categories determine the activity coefficient used in EER equations
         and significantly impact the final energy requirement calculation.
-        
+
         Use this tool when:
         - Helping users choose appropriate activity level
         - Understanding PAL category definitions
         - Educational purposes about physical activity
         - Reviewing activity level options before profile creation
-        
+
         Returns:
             Dictionary with detailed PAL category descriptions and examples.
         """
         try:
+            # Try bundled data first (always available, no network dependency)
+            if _eer_data_manager_factory is not None:
+                manager = _eer_data_manager_factory()
+                descriptions = manager.get_pal_descriptions()
+                if descriptions:
+                    return {
+                        "success": True,
+                        "pal_categories": descriptions,
+                        "usage_guidance": {
+                            "selection_tips": [
+                                "Choose based on typical daily activity, not just exercise",
+                                "Include both structured exercise and daily movement",
+                                "Consider work activities (desk job vs physical labor)",
+                                "Be honest about actual activity level for accurate results"
+                            ],
+                            "impact_on_eer": "PAL category significantly affects energy requirements - inactive vs very active can differ by 600+ kcal/day"
+                        }
+                    }
+
+            # Fall back to hardcoded descriptions
             descriptions = get_pal_activity_descriptions()
-            
+
             return {
                 "success": True,
                 "pal_categories": descriptions,
@@ -189,7 +223,7 @@ def register_eer_tools(mcp: FastMCP, enable_db: bool = True):
                     "impact_on_eer": "PAL category significantly affects energy requirements - inactive vs very active can differ by 600+ kcal/day"
                 }
             }
-            
+
         except Exception as e:
             return {
                 "success": False,

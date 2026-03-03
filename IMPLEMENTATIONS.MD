@@ -1,4 +1,4 @@
-# IMPLEMENTATIONS.md
+###  IMPLEMENTATIONS.md
 Future improvements, tasks, project roadmap, and notes.
 
 ---
@@ -459,14 +459,32 @@ SQLite is not viable for stateless HTTP hosting. Gate DB-dependent tools behind 
 - [x] Ensure virtual sessions (in-memory dicts) still work in HTTP mode — DRI session tools confirmed transport-agnostic
 - Tool availability: **46 tools (stdio)** / **24 tools (HTTP)**
 
-### -- MCP Resources (Static Reference Data)
-Convert static/semi-static data to MCP Resources to reduce unnecessary tool calls.
+### -- MCP Resources (Static Reference Data) ✅ Complete
+Bundled static JSON snapshots + MCP Resources eliminate dependency on `www.canada.ca` at tool-call time.
 
-- [ ] Create `src/resources.py` with resource registrations
-- [ ] `eer://pal-categories` — PAL category descriptions (currently hardcoded in `eer_tools.py`)
-- [ ] `dri://macronutrients` — DRI reference tables (cached, from `MacronutrientScraper`)
-- [ ] `eer://equations` — Health Canada EER equations (from `EERCalculator`)
-- [ ] Register resources in both stdio and HTTP modes
+**Architecture:**
+- `data/dri_macronutrients.json` — Bundled DRI reference tables (exact format from scraper cache)
+- `data/eer_equations.json` — Bundled EER equations with extracted coefficients + PAL categories
+- `src/data_manager.py` — `DRIDataManager` / `EERDataManager` singletons with priority: in-memory → runtime cache → bundled data
+- `src/resources.py` — MCP Resource registrations (read-only reference data for LLM context)
+- DRI/EER tools updated to use data manager instead of live scraping
+
+**Resources registered (6):**
+- [x] `dri://macronutrient-tables` — Complete DRI reference values by age/gender
+- [x] `dri://amdrs` — Acceptable Macronutrient Distribution Ranges
+- [x] `dri://amino-acid-patterns` — PDCAAS reference patterns
+- [x] `dri://additional-recommendations` — Saturated fat, trans fat, cholesterol, added sugars guidance
+- [x] `dri://footnotes` — Official footnotes from Health Canada tables
+- [x] `eer://equations` — All EER equations with coefficients (infant through adult, pregnancy, lactation)
+- [x] `eer://pal-categories` — PAL category descriptions + definitions + activity examples
+- [x] Registered in both stdio and HTTP modes via `register_resources(mcp)` in `server.py`
+
+**Data freshness strategy:**
+- Bundled snapshots always available (zero network dependency)
+- Background refresh attempted on first DRI tool use (non-blocking)
+- If live scrape succeeds → updates in-memory cache + saves to `cache/dri_macronutrients.json`
+- If live scrape fails → bundled data used with freshness note
+- DRI values updated very rarely by Health Canada (last major update ~2005/2010)
 
 ### -- Render Deployment
 - [x] Server runs on HTTP transport with correct feature gating
@@ -474,15 +492,14 @@ Convert static/semi-static data to MCP Resources to reduce unnecessary tool call
 - [ ] Create `render.yaml` (web service, free plan, `TRANSPORT=http` env var)
 - [ ] Test deployment end-to-end with MCP Inspector against HTTP endpoint
 - [ ] Document remote connection URL in README
-- [ ] **Resolve `www.canada.ca` connectivity** — DRI/EER/AMDR tools all timeout in remote environment. Options: pre-cache DRI data at build time, add a longer timeout, or convert DRI tables to bundled static data. Note: CNF tools will use `food-nutrition.canada.ca` after API migration (different domain, already verified working).
+- [x] **Resolve `www.canada.ca` connectivity** — Resolved by bundling static JSON snapshots in `data/` + MCP Resources. DRI/EER tools now serve data from bundled files with optional background refresh. No network dependency at tool-call time.
 
 ---
 
-## Backlog — DRI/EER Network Resilience
-- [ ] Increase timeout from 10s to 30s for `www.canada.ca` requests
-- [ ] Add retry with exponential backoff (1s, 2s, 4s) before giving up
-- [ ] Consider pre-scraping DRI tables and bundling as static JSON fallback data
-- [ ] Return cached/stale data with a warning when live fetch fails
+## Backlog — DRI/EER Network Resilience (mostly resolved)
+- [x] Pre-scrape DRI tables and bundle as static JSON fallback data (via `data/dri_macronutrients.json`)
+- [x] Return bundled/cached data with freshness note when live fetch fails (via `DRIDataManager`)
+- [x] EER equations bundled as static JSON (via `data/eer_equations.json`, `EERDataManager`)
 - [ ] Investigate if Health Canada has DRI/EER APIs similar to the CNF API
 
 ## Backlog — Tool Consolidation (from Jun 2025)
