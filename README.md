@@ -43,9 +43,6 @@ You can use this <a href="https://docs.google.com/spreadsheets/d/1TELVtKLN35yxGF
 
 ## 📥 Installation
 
-Click the image to watch the setup tutorial!
-[![Watch the setup tutorial](https://img.youtube.com/vi/FWH9_HMKwro/maxresdefault.jpg)](https://youtu.be/FWH9_HMKwro)
-
 1. **Prerequisites**:
    - <a href="https://www.python.org/#:~:text=Download" target="_blank">Python 3.10 or higher</a>
    - <a href="https://pip.pypa.io/en/stable/installation/" target="_blank">pip (Python package installer)</a>
