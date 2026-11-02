@@ -7,6 +7,12 @@ name: Data refresh
 on:
   schedule:
     - cron: "17 9 * * 1" # Mondays 09:17 UTC
+  pull_request: # dry run: builds and checks everything, never publishes
+    paths:
+      - ".github/workflows/data-refresh.yml"
+      - "scripts/check_manifest.py"
+      - "src/foodguide/pipeline/**"
+      - "src/foodguide/builders/**"
   workflow_dispatch:
     inputs:
       force:
@@ -72,7 +78,7 @@ jobs:
           else exit "$code"; fi
 
       - name: Publish release assets
-        if: steps.changed.outputs.changed == 'true'
+        if: steps.changed.outputs.changed == 'true' && github.event_name != 'pull_request'
         run: |
           if ! gh release view "$TAG" >/dev/null 2>&1; then
             gh release create "$TAG" --title "Data (latest)" \
@@ -93,7 +99,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Report failure
-        if: failure()
+        if: failure() && github.event_name != 'pull_request'
         run: |
           title="Data refresh failed"
           url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
