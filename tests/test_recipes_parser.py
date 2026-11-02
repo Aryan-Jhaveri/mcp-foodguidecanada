@@ -1,6 +1,7 @@
 """Tests for the recipes crawler/parser (fixtures + one real-page integration test)."""
 
 import hashlib
+import html.parser
 import os
 import re
 from pathlib import Path
@@ -117,6 +118,87 @@ def test_parse_recipe_no_tips():
 def test_parse_recipe_missing_directions_raises():
     with pytest.raises(ValueError, match="test-broken"):
         parse_recipe(_read("broken.html"), "test-broken", "https://example.com/broken.html", [])
+
+
+class _StripScriptsParser(html.parser.HTMLParser):
+    """Independent script/style stripper used to cross-check _page_sha256.
+
+    Implements 'hash the page without script/style/noscript subtrees' with a
+    different mechanism (real HTML tree walking) than the regex the parser
+    uses, so a wrong regex cannot pass its own test.
+    """
+
+    _SKIP = {"script", "style", "noscript"}
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=False)
+        self._depth = 0
+        self.parts: list[str] = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag in self._SKIP:
+            self._depth += 1
+        elif not self._depth:
+            self.parts.append(self.get_starttag_text() or "")
+
+    def handle_endtag(self, tag):
+        if tag in self._SKIP and self._depth:
+            self._depth -= 1
+        elif not self._depth:
+            self.parts.append(f"</{tag}>")
+
+    def handle_startendtag(self, tag, attrs):
+        if tag not in self._SKIP and not self._depth:
+            self.parts.append(self.get_starttag_text() or "")
+
+    def handle_data(self, data):
+        if not self._depth:
+            self.parts.append(data)
+
+    def handle_comment(self, data):
+        if not self._depth:
+            self.parts.append(f"<!--{data}-->")
+
+    def handle_decl(self, decl):
+        if not self._depth:
+            self.parts.append(f"<!{decl}>")
+
+    def handle_entityref(self, name):
+        if not self._depth:
+            self.parts.append(f"&{name};")
+
+    def handle_charref(self, name):
+        if not self._depth:
+            self.parts.append(f"&#{name};")
+
+
+def test_page_sha256_matches_independent_htmlparser_stripping():
+    """The regex-based stable hash agrees with a real HTML-tree stripper."""
+    from foodguide.recipes.parser import _page_sha256
+
+    for name in ("fruit-salad.html", "two-groups.html", "no-tips.html"):
+        html_text = _read(name)
+        stripper = _StripScriptsParser()
+        stripper.feed(html_text)
+        stripper.close()
+        independent = hashlib.sha256("".join(stripper.parts).encode("utf-8")).hexdigest()
+        assert _page_sha256(html_text) == independent, name
+
+
+@pytest.mark.skipif(
+    not (REAL_CACHE / "apple-berry-crisp.html").exists(),
+    reason="real cached recipe page not available",
+)
+def test_real_page_sha256_is_reproducible_across_dynamic_scripts():
+    """Injecting the dynamic analytics script must not change the hash."""
+    from foodguide.recipes.parser import _page_sha256
+
+    html_text = (REAL_CACHE / "apple-berry-crisp.html").read_text(encoding="utf-8")
+    poisoned = html_text.replace(
+        "</body>",
+        "<script>var analytics = Math.random();</script></body>",
+    )
+    assert _page_sha256(html_text) == _page_sha256(poisoned)
 
 
 @pytest.mark.skipif(

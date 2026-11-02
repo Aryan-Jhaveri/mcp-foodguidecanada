@@ -179,6 +179,55 @@ def test_fetch_from_dir_corrupted_json_asset_installs_nothing(tmp_path):
     assert not dest.exists() or list(dest.iterdir()) == []
 
 
+def test_fetch_from_dir_gz_decompressing_to_wrong_content_refused(tmp_path):
+    """A gz whose compressed sha matches but decompresses to other bytes is refused."""
+    release, manifest = _make_release(tmp_path)
+    broken = tmp_path / "broken-release"
+    shutil.copytree(release, broken)
+    # Same sqlite content as cnf.sqlite except one extra row -> different sha,
+    # then recompressed so the GZ sha256 stays equal to the manifest's gz entry.
+    import gzip as _gzip
+
+    plain_path = broken / "cnf.sqlite"
+    conn = sqlite3.connect(plain_path)
+    try:
+        conn.execute("INSERT INTO nutrient (id, name) VALUES (2, 'fat')")
+        conn.commit()
+    finally:
+        conn.close()
+    gz_bytes = _gzip.compress(plain_path.read_bytes(), mtime=0)
+    (broken / "cnf.sqlite.gz").write_bytes(gz_bytes)
+    # Update the manifest's gz sha (simulating an attacker or a bug that only
+    # touches the transport copy); the plain cnf.sqlite entry keeps the OLD sha.
+    manifest_path = broken / "manifest.json"
+    tampered = json.loads(manifest_path.read_text(encoding="utf-8"))
+    tampered["datasets"]["cnf.sqlite.gz"]["sha256"] = hashlib.sha256(gz_bytes).hexdigest()
+    manifest_path.write_text(json.dumps(tampered, indent=2, sort_keys=True), encoding="utf-8")
+
+    dest = tmp_path / "dest"
+    with pytest.raises(FetchError, match="cnf.sqlite from gz does not match manifest"):
+        fetch_from_dir(broken, dest)
+    assert not dest.exists() or list(dest.iterdir()) == []
+
+
+def test_fetch_from_dir_filtered_install_status_all_ok(tmp_path):
+    """A --only install records a manifest subset, so status is all_ok."""
+    release, _manifest = _make_release(tmp_path)
+    dest = tmp_path / "dest"
+    fetch_from_dir(release, dest, only=["recipes"])
+
+    st = status(dest)
+    assert st["installed"] is True
+    assert st["all_ok"] is True
+    assert [f["name"] for f in st["files"]] == ["recipes.json"]
+
+    # A full fetch replaces the manifest with the complete release one.
+    fetch_from_dir(release, dest)
+    st = status(dest)
+    assert st["all_ok"] is True
+    assert len(st["files"]) == 5
+
+
 def test_fetch_from_dir_corrupted_gz_asset_installs_nothing(tmp_path):
     release, _manifest = _make_release(tmp_path)
     broken = tmp_path / "broken-release"
