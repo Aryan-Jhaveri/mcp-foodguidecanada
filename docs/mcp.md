@@ -18,6 +18,15 @@ The package is not on PyPI yet. Once v3.0.0 is tagged, install from Git instead:
 pip install 'foodguidecanada[mcp] @ git+https://github.com/Aryan-Jhaveri/mcp-foodguidecanada.git@v3.0.0'
 ```
 
+## Changes from 2.0
+
+The recipe tools changed shape when the data went offline. `search_recipes` takes `limit` instead of
+`max_pages` and returns `{recipes, count, filters_applied, filters_ignored, ...}`. The fruit, vegetable,
+protein, whole-grain and appliance filters are gone (the new canada.ca pages have only meal and
+collection tags); they come back in `filters_ignored`. `get_recipe` takes `url_or_slug`.
+`list_filters` returns `{group: {tag: label}}`. CNF tools read the local database, so install the data
+first (`foodguide data fetch`). See the CHANGELOG for the full list.
+
 ## Start
 
 stdio is the default:
