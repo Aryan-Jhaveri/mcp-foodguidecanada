@@ -23,6 +23,8 @@ import typer
 
 from foodguide.cnf import db as cnf_db
 from foodguide.cnf.builder import DEFAULT_DATASET_ID, DEFAULT_ZIP_URL, build_cnf_db
+from foodguide.recipes.builder import build_recipes_json
+from foodguide.recipes.source import LocalRecipeSource, recipes_data_path
 
 # ---------------------------------------------------------------- helpers
 
@@ -533,45 +535,200 @@ def eer_equations() -> None:
     _stub("HOM-78")
 
 
-# ---------------------------------------------------------------- recipe
+# ---------------------------------------------------------------- recipes
 
-recipe_app = typer.Typer(
-    name="recipe",
+def _recipe_csv_value(value: object) -> str:
+    """Render a recipe field as a single CSV cell (lists become 'a; b; c')."""
+    if isinstance(value, list):
+        return "; ".join(
+            _recipe_csv_value(item) if isinstance(item, (list, dict)) else str(item)
+            for item in value
+        )
+    if isinstance(value, dict):
+        return "; ".join(f"{key}: {_recipe_csv_value(val)}" for key, val in value.items())
+    return "" if value is None else str(value)
+
+
+def _table_line(left: str, middle: str, right: str, w1: int, w2: int) -> str:
+    return f"{left:<{w1}}  {middle:<{w2}}  {right}"
+
+
+recipes_app = typer.Typer(
+    name="recipes",
     help=(
-        "Recipe search and fetch tools. The original recipe source is "
-        "unavailable (see HOM-79); these commands are stubs."
+        "Search and read Health Canada Food Guide recipes from the offline "
+        "recipes.json data file (build it with `foodguide data build recipes`)."
     ),
-    epilog="Example:\n  foodguide recipe search chicken",
+    epilog=(
+        "Examples:\n"
+        "  foodguide recipes search lentil\n"
+        "  foodguide recipes search --tag collection__vegetarian --limit 5\n"
+        "  foodguide recipes search \"apple\" --tag meal__breakfast --format json"
+    ),
     context_settings={"help_option_names": ["-h", "--help"]},
     no_args_is_help=True,
 )
-app.add_typer(recipe_app, help="Recipe tools (source moved; see HOM-79)")
+app.add_typer(recipes_app, help="Recipe search and lookups (offline recipes.json)")
 
 
-@recipe_app.command("search")
-def recipe_search(
-    query: str = typer.Argument(..., help="Recipe search query."),
+@recipes_app.command("search")
+def recipes_search(
+    ctx: typer.Context,
+    query: str = typer.Argument("", help="Text to look for in titles, intros, ingredients and directions."),
+    tag: list[str] | None = typer.Option(
+        None,
+        "--tag",
+        "-t",
+        help=(
+            "Only recipes carrying this tag; repeatable (all must match). "
+            "Accepts raw tags (meal__snack) or human labels (Snack)."
+        ),
+    ),
+    limit: int = typer.Option(20, "--limit", min=1, help="Maximum number of results."),
+    format: OutputFormat | None = typer.Option(
+        None, "--format", help="Output format for data on stdout"
+    ),
 ) -> None:
-    """Search recipes by query.
+    """Search Food Guide recipes by text and tags (offline recipes.json).
 
     Example:
-      foodguide recipe search chicken
+      foodguide recipes search lentil
     """
-    _log("recipe source moved, see HOM-79")
-    raise typer.Exit(code=1)
+    fmt = format if format is not None else ctx.obj["format"]
+    source = LocalRecipeSource()
+    try:
+        results = source.search(
+            search_text=query or "",
+            tags=list(tag) if tag else None,
+            limit=limit,
+        )
+    except RuntimeError as exc:
+        _log(str(exc))
+        raise typer.Exit(code=1) from None
+
+    if not results:
+        typer.echo("No recipes match.")
+        raise typer.Exit(code=0)
+
+    if fmt == OutputFormat.json:
+        typer.echo(json.dumps(results, indent=2, ensure_ascii=False))
+    elif fmt == OutputFormat.csv:
+        writer = csv.writer(sys.stdout)
+        writer.writerow(["title", "slug", "tags"])
+        for row in results:
+            writer.writerow([row["title"], row["slug"], ", ".join(row["tags"])])
+    else:
+        widths = [
+            max(len(row[key]) for row in results)
+            for key in ("title", "slug")
+        ]
+        for row in results:
+            typer.echo(
+                _table_line(
+                    row["title"], row["slug"], ", ".join(row["tags"]), widths[0], widths[1]
+                )
+            )
+    raise typer.Exit(code=0)
 
 
-@recipe_app.command("fetch")
-def recipe_fetch(
-    url: str = typer.Argument(..., help="URL of the recipe page to fetch."),
+@recipes_app.command("show")
+def recipes_show(
+    ctx: typer.Context,
+    slug: str = typer.Argument(..., help="Recipe slug or canada.ca recipe URL."),
+    format: OutputFormat | None = typer.Option(
+        None, "--format", help="Output format for data on stdout"
+    ),
 ) -> None:
-    """Fetch and parse a recipe from a URL.
+    """Show the full record for one recipe (slug or URL accepted).
 
     Example:
-      foodguide recipe fetch https://example.com/recipe
+      foodguide recipes show apple-berry-crisp
     """
-    _log("recipe source moved, see HOM-79")
-    raise typer.Exit(code=1)
+    fmt = format if format is not None else ctx.obj["format"]
+    source = LocalRecipeSource()
+    try:
+        recipe = source.get_recipe(slug)
+    except RuntimeError as exc:
+        _log(str(exc))
+        raise typer.Exit(code=1) from None
+    if recipe is None:
+        _log(
+            f"Recipe '{slug}' not found in local data. "
+            "Run `foodguide data build recipes` to refresh."
+        )
+        raise typer.Exit(code=1)
+
+    if fmt == OutputFormat.json:
+        typer.echo(json.dumps(recipe, indent=2, ensure_ascii=False))
+    elif fmt == OutputFormat.csv:
+        writer = csv.writer(sys.stdout)
+        writer.writerow(["key", "value"])
+        for key, value in recipe.items():
+            writer.writerow([key, _recipe_csv_value(value)])
+    else:
+        typer.echo(f"Title: {recipe['title']}")
+        typer.echo(f"URL: {recipe['url']}")
+        typer.echo(f"Tags: {', '.join(recipe['tags'])}")
+        stats = [
+            f"{label}: {recipe[key]}"
+            for label, key in (
+                ("Prep time", "prep_time"),
+                ("Cook time", "cook_time"),
+                ("Servings", "servings"),
+            )
+            if recipe[key]
+        ]
+        typer.echo(" / ".join(stats) if stats else "No timing information.")
+        if recipe["intro"]:
+            typer.echo(f"\n{recipe['intro']}")
+        typer.echo("\nIngredients:")
+        for group in recipe["ingredient_groups"]:
+            if group["group"]:
+                typer.echo(f"  {group['group']}")
+            for item in group["items"]:
+                typer.echo(f"  {item}" if not group["group"] else f"    {item}")
+        typer.echo("\nDirections:")
+        for i, step in enumerate(recipe["directions"], start=1):
+            typer.echo(f"  {i}. {step}")
+        if recipe["tips"]:
+            typer.echo("\nTips:")
+            for tip in recipe["tips"]:
+                typer.echo(f"  - {tip}")
+    raise typer.Exit(code=0)
+
+
+@recipes_app.command("filters")
+def recipes_filters(
+    ctx: typer.Context,
+    format: OutputFormat | None = typer.Option(
+        None, "--format", help="Output format for data on stdout"
+    ),
+) -> None:
+    """List the recipe filter tags and their human labels.
+
+    Example:
+      foodguide recipes filters --format csv
+    """
+    fmt = format if format is not None else ctx.obj["format"]
+    source = LocalRecipeSource()
+    try:
+        filters = source.list_filters()
+    except RuntimeError as exc:
+        _log(str(exc))
+        raise typer.Exit(code=1) from None
+
+    if fmt == OutputFormat.json:
+        typer.echo(json.dumps(filters, indent=2, ensure_ascii=False))
+    elif fmt == OutputFormat.csv:
+        writer = csv.writer(sys.stdout)
+        writer.writerow(["tag", "label"])
+        for tag, label in filters.items():
+            writer.writerow([tag, label])
+    else:
+        width = max((len(tag) for tag in filters), default=3)
+        for tag, label in filters.items():
+            typer.echo(f"{tag:<{width}}  {label}")
+    raise typer.Exit(code=0)
 
 
 # ---------------------------------------------------------------- data
@@ -606,11 +763,20 @@ def _bundled_file_info() -> list[dict]:
     return out
 
 
+def _recipes_info() -> dict:
+    """Describe the local recipes.json snapshot, including its provenance."""
+    return LocalRecipeSource().status()
+
+
+_RECIPES_PROVENANCE_KEYS = ("fetched_at", "index_sha256")
+
+
 data_app = typer.Typer(
     name="data",
     help=(
-        "Local data management: inspect bundled DRI/EER snapshots and the "
-        "CNF SQLite database (build it with `foodguide data build cnf`)."
+        "Local data management: inspect bundled DRI/EER snapshots, the CNF "
+        "SQLite database and the recipes.json recipe snapshot (build them "
+        "with `foodguide data build cnf` / `foodguide data build recipes`)."
     ),
     epilog="Example:\n  foodguide data status --format json",
     context_settings={"help_option_names": ["-h", "--help"]},
@@ -634,9 +800,12 @@ def data_status(
     fmt = format if format is not None else ctx.obj["format"]
     files_info = _bundled_file_info()
     cnf = _cnf_db_info()
+    recipes = _recipes_info()
 
     if fmt == OutputFormat.json:
-        typer.echo(json.dumps({"files": files_info, "cnf_db": cnf}, indent=2))
+        typer.echo(
+            json.dumps({"files": files_info, "cnf_db": cnf, "recipes": recipes}, indent=2)
+        )
         raise typer.Exit(code=0)
 
     if fmt == OutputFormat.csv:
@@ -650,6 +819,14 @@ def data_status(
                 writer.writerow(["cnf_provenance", key, value])
         else:
             writer.writerow(["cnf_db", "", "not built (run: foodguide data build cnf)"])
+        if recipes["built"]:
+            writer.writerow(["recipes_json", recipes["size_bytes"], recipes["path"]])
+            for key in _RECIPES_PROVENANCE_KEYS:
+                writer.writerow(["recipes_provenance", key, recipes[key]])
+        else:
+            writer.writerow(
+                ["recipes_json", "", "not built (run: foodguide data build recipes)"]
+            )
         raise typer.Exit(code=0)
 
     # table (default)
@@ -664,6 +841,12 @@ def data_status(
             typer.echo(f"  {key}: {value}")
     else:
         typer.echo("CNF database: not built (run: foodguide data build cnf)")
+    if recipes["built"]:
+        typer.echo(f"Recipes data: {recipes['path']} ({recipes['size_bytes']} bytes)")
+        for key in _RECIPES_PROVENANCE_KEYS:
+            typer.echo(f"  {key}: {recipes[key]}")
+    else:
+        typer.echo("Recipes data: not built (run: foodguide data build recipes)")
     raise typer.Exit(code=0)
 
 
@@ -759,6 +942,34 @@ def data_build_cnf(
     typer.echo(f"  content_hash: {result.content_hash}")
     typer.echo(f"  zip_sha256: {result.zip_sha256}")
     typer.echo(f"  build_time: {result.build_time}")
+
+
+@data_build_app.command("recipes")
+def data_build_recipes(
+    out: Path | None = typer.Option(
+        None, "--out", help="Output path (default: <data dir>/recipes.json)."
+    ),
+) -> None:
+    """Crawl the canada.ca recipe pages and build the offline recipes.json.
+
+    The output is always these human-readable summary lines; the global
+    --format option is ignored.
+
+    Example:
+      foodguide data build recipes
+    """
+    out_path = out if out is not None else recipes_data_path()
+    try:
+        summary = build_recipes_json(out_path)
+    except (ValueError, RuntimeError, OSError) as exc:
+        _log(f"Recipes build failed: {exc}")
+        raise typer.Exit(code=1) from None
+    typer.echo(f"Built {summary['path']}")
+    typer.echo(f"  recipes: {summary['recipe_count']}")
+    typer.echo(f"  filters: {summary['filter_count']}")
+    typer.echo(f"  size: {summary['size_bytes']} bytes")
+    typer.echo(f"  index_sha256: {summary['index_sha256']}")
+    typer.echo(f"  build_time: {summary['build_time']}")
 
 
 # ---------------------------------------------------------------- version
