@@ -182,7 +182,7 @@ def main() -> None:
     )
     parser.add_argument(
         '--host', type=str, default=None,
-        help='Host for HTTP transport (default: 0.0.0.0). Env var: HOST'
+        help='Host for HTTP transport (default: 127.0.0.1). Env var: HOST'
     )
     parser.add_argument(
         '--port', type=int, default=None,
@@ -192,7 +192,7 @@ def main() -> None:
 
     # Resolve settings: CLI flag > env var > default
     transport = args.transport or os.getenv('MCP_TRANSPORT', 'stdio')
-    host = args.host or os.getenv('HOST', '0.0.0.0')
+    host = args.host or os.getenv('HOST', '127.0.0.1')
     port = args.port or int(os.getenv('PORT', '8000'))
     enable_db = (transport == 'stdio')
 

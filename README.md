@@ -4,6 +4,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![MCP](https://img.shields.io/badge/MCP-ModelContextProtocol-green.svg)](https://modelcontextprotocol.io/)
 
+![foodguide demo](docs/demo.gif)
+
 `foodguide` is a command-line tool and an MCP server. It gives you Canada's Food Guide data:
 
 - nutrients for any food in the Canadian Nutrient File (CNF) 2026,
@@ -15,37 +17,37 @@ All data sits in local files. At run time the tool makes no network calls. You f
 
 Version 3.0.0. See [CHANGELOG.md](CHANGELOG.md) for what changed.
 
-![demo](docs/demo.gif)
-
 ## Install
 
-The package is not on PyPI. The CLI install is light: typer, httpx, beautifulsoup4, pydantic and requests. It needs Python 3.12 or newer.
+The PyPI package is named `foodguidecanada`. The import package and the commands are `foodguide` and `foodguide-mcp`. It needs Python 3.12 or newer.
 
-From a git tag (the repo has tags `1.0` and `v2.0`; for 3.0.0 use the tag the release publishes, written here as `<tag>`):
+The package is not published yet. The first release will be the tag `v3.0.0`. Once it is on PyPI:
 
 ```bash
-pip install git+https://github.com/Aryan-Jhaveri/mcp-foodguidecanada.git@<tag>
+pip install foodguidecanada             # light CLI install (typer, httpx, beautifulsoup4, pydantic, requests)
+pip install 'foodguidecanada[mcp]'      # adds the MCP server (fastmcp, pandas, uvicorn)
+uv tool install foodguidecanada         # or install the CLI as a uv tool
 ```
 
-From a wheel:
+Once v3.0.0 is tagged, you can install straight from Git:
+
+```bash
+pip install git+https://github.com/Aryan-Jhaveri/mcp-foodguidecanada.git@v3.0.0
+pip install 'foodguidecanada[mcp] @ git+https://github.com/Aryan-Jhaveri/mcp-foodguidecanada.git@v3.0.0'
+```
+
+From a wheel you built yourself:
 
 ```bash
 uv build
-pip install path/to/foodguide-3.0.0-py3-none-any.whl
+pip install dist/foodguidecanada-3.0.0-py3-none-any.whl
 ```
 
 From a source checkout:
 
 ```bash
-uv sync
+uv sync                  # add --extra mcp for the MCP server
 uv run foodguide version
-```
-
-The MCP server needs the `mcp` extra (fastmcp, pandas, uvicorn):
-
-```bash
-pip install 'foodguide[mcp] @ git+https://github.com/Aryan-Jhaveri/mcp-foodguidecanada.git@<tag>'
-# from a checkout: uv sync --extra mcp
 ```
 
 Check it:
@@ -139,11 +141,11 @@ Prep time: 20 min / Cook time: 45 min / Servings: 6
 ```console
 $ foodguide dri tables --age-range "19-30 y" | head -8
 Males — 19–30 y
-  alpha_linolenic_acid: AI (g/day) 1.6 (AI)
   carbohydrate: EAR (g/day) 100, RDA/AI (g/day) 130
-  linoleic_acid: AI (g/day) 17 (AI)
-  protein: EAR (g/kg/day) 0.66, RDA/AI (g/day) 56, RDA/AI (g/kg/day) 0.8
+  protein: EAR (g/kg/day) 0.66, RDA/AI (g/kg/day) 0.8, RDA/AI (g/day) 56
   total_fat: no values recorded
+  linoleic_acid: AI (g/day) 17 (AI)
+  alpha_linolenic_acid: AI (g/day) 1.6 (AI)
   total_fibre: AI (g/day) 38 (AI)
   total_water: AI (L/day) 3.7 (AI)
 ```
@@ -167,23 +169,26 @@ formula: EER = 581.47 + (-10.83 * age) + (8.30 * height_cm) + (14.94 * weight_kg
 
 ### data: manage the data files
 
+`data status` shows where each dataset is read from, its size, and its provenance. It reads the bundled DRI and EER files when the data folder has none.
+
 ```console
-$ foodguide data status
+$ foodguide data status | head -8
 file                     size_bytes  provenance
 dri_macronutrients.json       25360  Health Canada DRI Tables
 eer_equations.json            12461  Health Canada DRI Tables
-DRI data: <data dir>/dri_macronutrients.json (25734 bytes, source: data_dir)
-...
-CNF database: <data dir>/cnf.sqlite (38559744 bytes)
-  dataset_id: 1b6139bd-ed7e-4043-bc28-ff00e10f3109
+DRI data: foodguide/data/dri_macronutrients.json (25360 bytes, source: bundled_snapshot)
+  provenance: -
+EER data: foodguide/data/eer_equations.json (12461 bytes, source: bundled_snapshot)
+  provenance: -
+CNF database: /home/you/.local/share/foodguide/cnf.sqlite (38559744 bytes)
 ```
 
-- `data manifest <dir>` writes `manifest.json` for a data directory.
+- `data manifest <dir>` writes `manifest.json` for a data directory. It needs DRI and EER files that carry build provenance, so run it on a directory made by `data build`, not on the bundled files.
 - `data changed old.json new.json` prints the datasets that differ. It exits 0 when they are equivalent and 10 when not.
 
 ## MCP server
 
-The server has 46 tools: recipes, CNF nutrients, DRI, EER, recipe maths, user profiles, sessions and favorites. All of them read the local data files. The full list is in [docs/mcp.md](docs/mcp.md).
+The server has 46 tools on stdio (24 on HTTP, which has no session database): recipes, CNF nutrients, DRI, EER, recipe maths, user profiles, sessions and favorites. All of them read the local data files. The full list is in [docs/mcp.md](docs/mcp.md).
 
 Start it (stdio is the default):
 
@@ -207,8 +212,8 @@ If the command is not on the client's PATH, give the full path to `foodguide-mcp
 ## Data sources and licences
 
 - **Canadian Nutrient File 2026**, Health Canada, from open.canada.ca. Licence: [Open Government Licence – Canada](https://open.canada.ca/en/open-government-licence-canada).
-- **Food Guide recipes**, Health Canada (141 recipe pages on canada.ca).
-- **DRI tables** (reference values for macronutrients) and **EER equations**, Health Canada.
+- **Food Guide recipes**, Crown copyright, Health Canada (141 recipe pages on canada.ca).
+- **DRI tables** (reference values for macronutrients) and **EER equations**, Health Canada (canada.ca pages, dated 2025-11-19).
 
 Source URLs and build steps are in [docs/data.md](docs/data.md). The code is MIT licensed (see [LICENSE](LICENSE)).
 
@@ -221,5 +226,6 @@ A GitHub Actions workflow ([`.github/workflows/data-refresh.yml`](.github/workfl
 - [docs/data.md](docs/data.md): the four datasets, sources, builds, sizes.
 - [docs/mcp.md](docs/mcp.md): MCP server and tool list.
 - [CONTRIBUTING.md](CONTRIBUTING.md): development and tests.
+- [docs/RELEASING.md](docs/RELEASING.md): how a release is cut.
 - [CHANGELOG.md](CHANGELOG.md): release notes.
 - [IMPLEMENTATIONS.MD](IMPLEMENTATIONS.MD): how the code is put together.

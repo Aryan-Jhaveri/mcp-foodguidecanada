@@ -107,7 +107,7 @@ publishes to the `data-latest` release only when `data changed` exits 10 (or whe
 | `FOODGUIDE_CNF_ZIP` | Path of the CNF zip for `data build cnf`. The zip is never downloaded by that command. | not set (then a zip in the data folder) |
 | `SOURCE_DATE_EPOCH` | Fixed build timestamp, so `data build cnf` is reproducible. | not set (current time) |
 | `MCP_TRANSPORT` | MCP transport, `stdio` or `http`. `--transport` overrides it. | `stdio` |
-| `HOST` | Bind address for the http transport. `--host` overrides it. | `0.0.0.0` |
+| `HOST` | Bind address for the http transport. `--host` overrides it. | `127.0.0.1` |
 | `PORT` | Port for the http transport. `--port` overrides it. | `8000` |
 | `SUPPRESS_MCP_LOGS` | `true` hides fastmcp log output on stdio. | `true` |
 | `FOODGUIDE_LOG_LEVEL` | Log level for the CNF and server loggers. | `CRITICAL` |

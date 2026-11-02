@@ -2,6 +2,8 @@
 
 `foodguide` reads four local files. Nothing is fetched at run time. The files live in `~/.local/share/foodguide`, or in the directory named by `FOODGUIDE_DATA_DIR`.
 
+The CNF database and the recipes are not bundled. The DRI and EER files are also bundled in the package as a fallback.
+
 Two ways to get them:
 
 ```bash
@@ -34,25 +36,25 @@ foodguide data status
 ## recipes.json
 
 - **Source:** the Health Canada Food Guide recipe pages on www.canada.ca. The index page is `https://www.canada.ca/en/health-canada/services/food-guide/eating-support/kitchen/recipes.html`.
-- **Licence:** Health Canada content. Check the terms on canada.ca before you reuse it.
+- **Licence:** Crown copyright, Health Canada. Check the terms on canada.ca before you reuse it.
 - **Build:** `foodguide data build recipes [--out <path>]`. It reads the index page and every recipe page, with an identifying User-Agent and a 1 second delay between requests, and writes one JSON file. `FOODGUIDE_SOURCE_BASE_URL` serves the pages from another base. `FOODGUIDE_RECIPES_CACHE_DIR` serves them from an on-disk cache.
-- **Size:** 353,348 bytes, 141 recipes.
+- **Size:** about 353 KB (353,317 bytes in the build checked for these docs), 141 recipes. The size changes a little when Health Canada edits a recipe.
 - **Used by:** `foodguide recipes search|show|filters` and the recipe tools of the MCP server.
 
 ## dri_macronutrients.json
 
 - **Source:** Health Canada, Dietary Reference Intakes, reference values for macronutrients: `https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes/tables/reference-values-macronutrients.html`.
-- **Licence:** Health Canada content.
+- **Licence:** Crown copyright, Health Canada.
 - **Build:** `foodguide data build dri [--out-dir <dir>]`. It reads that page and writes the tables (EAR, RDA/AI, AMDR and amino acid patterns) with the page hash and date modified as provenance.
-- **Size:** 25,734 bytes: DRI reference values by age/sex group, AMDRs, amino acid patterns, footnotes and page provenance.
+- **Size:** about 25 KB (the bundled snapshot is 25,360 bytes): DRI reference values by age/sex group, AMDRs, amino acid patterns, footnotes and page provenance. The published build records the page hash and the page date (2025-11-19). The bundled snapshot is a fallback and carries no build provenance.
 - **Used by:** `foodguide dri tables|amdr|lookup` and the DRI tools of the MCP server.
 
 ## eer_equations.json
 
 - **Source:** Health Canada, equations to estimate energy requirement: `https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes/tables/equations-estimate-energy-requirement.html`.
-- **Licence:** Health Canada content.
+- **Licence:** Crown copyright, Health Canada.
 - **Build:** `foodguide data build eer [--out <path>]`. It reads that page and writes the equations by life stage (infants, children, adults, pregnancy, lactation), sex and physical activity level.
-- **Size:** 14,966 bytes, 5 life-stage equation groups plus the PAL descriptions.
+- **Size:** about 12 KB (the bundled snapshot is 12,461 bytes): 5 life-stage equation groups plus the PAL descriptions. The published build records the page hash and the page date (2025-11-19).
 - **Used by:** `foodguide eer calc|equations` and the EER tools of the MCP server.
 
 ## Build everything

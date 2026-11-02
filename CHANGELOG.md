@@ -15,4 +15,6 @@ A rewrite around an installable package and offline data. The old `v2.0` was the
   recipe tools work again against the local data.
 - **Tests:** no mocks. Real saved pages, local servers and real subprocesses; golden answer keys made by a
   separate script.
+- **Security default:** the MCP HTTP transport now listens on `127.0.0.1` (it was `0.0.0.0` with no
+  authentication). Use `--host` or `HOST` to expose it deliberately.
 - **Removed:** the live scrapers of the old `food-guide.canada.ca` host and `uv.lock`.

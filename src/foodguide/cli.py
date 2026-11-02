@@ -184,7 +184,7 @@ cnf_app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
     no_args_is_help=True,
 )
-app.add_typer(cnf_app, help="Canadian Nutrient File query tools (CNF SQLite database, built by HOM-76)")
+app.add_typer(cnf_app, help="Canadian Nutrient File query tools (offline CNF SQLite database)")
 
 
 @cnf_app.command("search")

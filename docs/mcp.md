@@ -7,8 +7,15 @@
 The server needs the `mcp` extra (fastmcp, pandas, uvicorn):
 
 ```bash
-pip install 'foodguide[mcp] @ git+https://github.com/Aryan-Jhaveri/mcp-foodguidecanada.git@<tag>'
+pip install 'foodguidecanada[mcp]'
+# or: uv tool install 'foodguidecanada[mcp]'
 # from a source checkout: uv sync --extra mcp
+```
+
+The package is not on PyPI yet. Once v3.0.0 is tagged, install from Git instead:
+
+```bash
+pip install 'foodguidecanada[mcp] @ git+https://github.com/Aryan-Jhaveri/mcp-foodguidecanada.git@v3.0.0'
 ```
 
 ## Start
@@ -19,13 +26,13 @@ stdio is the default:
 foodguide-mcp
 ```
 
-Options: `--transport stdio|http` (env `MCP_TRANSPORT`), `--host` (env `HOST`, default `0.0.0.0`), `--port` (env `PORT`, default 8000). The HTTP transport serves `/mcp`:
+Options: `--transport stdio|http` (env `MCP_TRANSPORT`), `--host` (env `HOST`, default `127.0.0.1`), `--port` (env `PORT`, default 8000). The HTTP transport serves `/mcp`:
 
 ```bash
 foodguide-mcp --transport http --host 127.0.0.1 --port 8000
 ```
 
-HTTP has no authentication. Bind it to `127.0.0.1` unless you put something in front of it.
+The HTTP transport registers 24 of the 46 tools. The tools that need the session database (favorites, temporary and virtual sessions, recipe analysis tables, user profiles) exist on stdio only. HTTP has no authentication. Bind it to `127.0.0.1` unless you put something in front of it.
 
 ## Client config (stdio)
 
@@ -62,7 +69,7 @@ Set variables in the client config with an `env` block:
 
 ## Tools (46)
 
-The text after each name is the first line of the tool's own description.
+The text after each name comes from the first line of the tool's own description (the warning mark on `create_temp_nutrition_session` is dropped).
 
 ### Recipes (3)
 

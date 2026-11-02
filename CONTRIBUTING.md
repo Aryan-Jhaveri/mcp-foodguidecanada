@@ -20,7 +20,7 @@ uv run foodguide --help
 ```
 
 `uv sync` installs the package in editable mode and the dev group. The dev group includes pytest,
-ruff and the `mcp` extra (fastmcp), so the MCP server tests can run.
+ruff and the `mcp` extra (`foodguidecanada[mcp]`), so the MCP server tests can run.
 
 Datasets are not in the repo. The CLI reads them from `~/.local/share/foodguide` (override with
 `FOODGUIDE_DATA_DIR`). Install them with `uv run foodguide data fetch`, or build them yourself
@@ -189,6 +189,12 @@ Before you open one:
 A pull request should say what changed and why, the type of change (fix, feature, breaking, docs),
 how you tested it, and any issue it closes. Maintainers review within a few days.
 
+## Releases
+
+Maintainers cut releases. The steps (version bump, tag `vX.Y.Z`, PyPI trusted publishing) are in
+[docs/RELEASING.md](docs/RELEASING.md). The PyPI name is `foodguidecanada`. The import package and
+commands stay `foodguide` and `foodguide-mcp`.
+
 ## Community
 
 Be respectful, collaborative, constructive and patient. Use GitHub Issues for bugs and feature
@@ -198,5 +204,5 @@ Health Canada page it comes from.
 ## Data credits
 
 - Canadian Nutrient File 2026, Health Canada, under the Open Government Licence – Canada.
-- Food Guide recipes, Health Canada.
+- Food Guide recipes, Crown copyright, Health Canada.
 - Dietary Reference Intakes (DRI) and Estimated Energy Requirement (EER) tables, Health Canada.
