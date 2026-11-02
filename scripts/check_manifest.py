@@ -9,35 +9,40 @@ Canada redesigns a page) from replacing good data.
 import json
 import sys
 
-MINIMUM = {"foods": 5000, "nutrient_amounts": 500_000, "recipes": 100}
-REQUIRED = ["cnf.sqlite", "recipes.json", "dri_macronutrients.json", "eer_equations.json"]
+REQUIRED = ["cnf.sqlite", "cnf.sqlite.gz", "recipes.json", "dri_macronutrients.json", "eer_equations.json"]
+# (dataset, key inside record_counts or "record_count", minimum)
+FLOORS = [
+    ("cnf.sqlite", "food", 5000),
+    ("cnf.sqlite", "nutrient_amount", 500_000),
+    ("recipes.json", "record_count", 100),
+    ("dri_macronutrients.json", "record_count", 5),
+    ("eer_equations.json", "record_count", 3),
+]
 
 
-def counts(manifest):
-    out = {}
-    for entry in manifest.get("files", []):
-        for key, value in (entry.get("counts") or {}).items():
-            out[key] = value
-    return out
+def count(manifest, dataset, key):
+    entry = manifest.get("datasets", {}).get(dataset, {})
+    if key == "record_count":
+        return entry.get("record_count")
+    return (entry.get("record_counts") or {}).get(key)
 
 
 def main():
     new = json.load(open(sys.argv[1]))
-    names = {f["name"] for f in new.get("files", [])}
-    problems = [f"missing dataset: {n}" for n in REQUIRED if n not in names]
-    new_counts = counts(new)
-    for key, floor in MINIMUM.items():
-        if new_counts.get(key, 0) < floor:
-            problems.append(f"{key}: {new_counts.get(key)} is below the floor {floor}")
-    if len(sys.argv) > 2:
-        old_counts = counts(json.load(open(sys.argv[2])))
-        for key, old in old_counts.items():
-            if isinstance(old, int) and old > 0 and new_counts.get(key, 0) < old * 0.9:
-                problems.append(f"{key}: dropped from {old} to {new_counts.get(key)} (more than 10%)")
+    old = json.load(open(sys.argv[2])) if len(sys.argv) > 2 else None
+    problems = [f"missing dataset: {n}" for n in REQUIRED if n not in new.get("datasets", {})]
+    for dataset, key, floor in FLOORS:
+        value = count(new, dataset, key)
+        if value is None or value < floor:
+            problems.append(f"{dataset} {key}: {value} is below the floor {floor}")
+        if old is not None:
+            before = count(old, dataset, key)
+            if before and value is not None and value < before * 0.9:
+                problems.append(f"{dataset} {key}: dropped from {before} to {value} (more than 10%)")
     if problems:
         print("\n".join(problems))
         sys.exit(1)
-    print("manifest looks sane:", new_counts)
+    print("manifest looks sane:", {f"{d}.{k}": count(new, d, k) for d, k, _ in FLOORS})
 
 
 main()
