@@ -12,7 +12,7 @@ pip install 'foodguidecanada[mcp]'
 # from a source checkout: uv sync --extra mcp
 ```
 
-The package is not on PyPI yet. Once v3.0.0 is tagged, install from Git instead:
+Or install from Git, pinned to a release tag:
 
 ```bash
 pip install 'foodguidecanada[mcp] @ git+https://github.com/Aryan-Jhaveri/mcp-foodguidecanada.git@v3.0.0'

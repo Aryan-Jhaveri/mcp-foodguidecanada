@@ -36,7 +36,7 @@ You can use this [Google Sheet](https://docs.google.com/spreadsheets/d/1TELVtKLN
 
 The PyPI package is named `foodguidecanada`. The import package and the commands are `foodguide` and `foodguide-mcp`. It needs Python 3.12 or newer.
 
-The package is not published yet. The first release will be the tag `v3.0.0`. Once it is on PyPI:
+From PyPI:
 
 ```bash
 pip install foodguidecanada             # light CLI install (typer, httpx, beautifulsoup4, pydantic, requests)
@@ -44,7 +44,7 @@ pip install 'foodguidecanada[mcp]'      # adds the MCP server (fastmcp, pandas, 
 uv tool install foodguidecanada         # or install the CLI as a uv tool
 ```
 
-Once v3.0.0 is tagged, you can install straight from Git:
+Or straight from Git, pinned to a release tag:
 
 ```bash
 pip install git+https://github.com/Aryan-Jhaveri/mcp-foodguidecanada.git@v3.0.0
