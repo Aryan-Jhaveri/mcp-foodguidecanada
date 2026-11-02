@@ -12,8 +12,6 @@ from __future__ import annotations
 import gzip
 import json
 import os
-import shutil
-import tempfile
 import urllib.request
 from collections.abc import Callable
 from pathlib import Path
@@ -89,7 +87,10 @@ def fetch_from_dir(
     manifest = load_manifest(manifest_path)
 
     def get_asset(name: str) -> bytes:
-        return (src_dir / name).read_bytes()
+        try:
+            return (src_dir / name).read_bytes()
+        except OSError as exc:
+            raise FetchError(f"missing or unreadable release asset {name}: {exc}") from exc
 
     return _install_common(
         manifest, manifest_path.read_bytes(), get_asset, dest_dir, only, str(src_dir), log
@@ -186,7 +187,10 @@ def _is_up_to_date(
         if not plain or not plain.get("sha256"):
             return False
         return sha256_file(dest) == plain["sha256"]
-    return sha256_file(dest) == datasets[asset]["sha256"]
+    expected = datasets[asset].get("sha256")
+    if not expected:
+        return False  # a manifest entry without a sha256 is never "up to date"
+    return sha256_file(dest) == expected
 
 
 def _install_manifest_bytes(
@@ -262,58 +266,86 @@ def _install_common(
     installed: list[dict] = []
     if remaining:
         dest_dir.mkdir(parents=True, exist_ok=True)
-        tmp_dir = Path(tempfile.mkdtemp(prefix=".foodguide-fetch-", dir=dest_dir))
-        try:
-            # Verification-first: fetch each asset once (several plans can share
-            # one asset) and hash-check every asset before any install.
-            fetched: dict[str, bytes] = {}
-            for asset in sorted({asset for asset, _name, _mode in remaining}):
-                data = get_asset(asset)
-                expected = datasets[asset].get("sha256")
-                actual = sha256_bytes(data)
-                if actual != expected:
-                    raise FetchError(
-                        f"sha256 mismatch for {asset}: expected {expected}, got {actual}"
-                    )
-                fetched[asset] = data
+        # Verification-first: fetch each asset once (several plans can share
+        # one asset) and hash-check every asset before any install. Assets are
+        # held in memory; each installed file is written to its own .tmp and
+        # os.replace()d, so a failure never leaves a half-written file.
+        fetched: dict[str, bytes] = {}
+        for asset in sorted({asset for asset, _name, _mode in remaining}):
+            data = get_asset(asset)
+            expected = datasets[asset].get("sha256")
+            actual = sha256_bytes(data)
+            if actual != expected:
+                raise FetchError(
+                    f"sha256 mismatch for {asset}: expected {expected}, got {actual}"
+                )
+            fetched[asset] = data
 
-            contents: list[tuple[str, str, bytes]] = []
-            for asset, name, mode in remaining:
-                data = fetched[asset]
-                if mode == "decompress":
-                    data = gzip.decompress(data)
-                    plain_entry = datasets.get(name)
-                    if plain_entry and sha256_bytes(data) != plain_entry.get("sha256"):
-                        raise FetchError("cnf.sqlite from gz does not match manifest")
-                contents.append((name, asset, data))
+        contents: list[tuple[str, str, bytes]] = []
+        for asset, name, mode in remaining:
+            data = fetched[asset]
+            if mode == "decompress":
+                data = gzip.decompress(data)
+                plain_entry = datasets.get(name)
+                if plain_entry and sha256_bytes(data) != plain_entry.get("sha256"):
+                    raise FetchError("cnf.sqlite from gz does not match manifest")
+            contents.append((name, asset, data))
 
-            for name, _asset, data in contents:
-                tmp_path = dest_dir / f".{name}.tmp"
-                tmp_path.write_bytes(data)
-                os.replace(tmp_path, dest_dir / name)
-                log(f"{name}: installed ({len(data)} bytes)")
+        for name, _asset, data in contents:
+            tmp_path = dest_dir / f".{name}.tmp"
+            tmp_path.write_bytes(data)
+            os.replace(tmp_path, dest_dir / name)
+            log(f"{name}: installed ({len(data)} bytes)")
 
-            for name, asset, data in contents:
-                if name == _COMPRESSED_CNF:
-                    continue  # the gz is transport/storage, not a dataset record
-                entry = datasets.get(name, {})
-                record: dict = {
-                    "name": name,
-                    "asset": asset,
-                    "size": len(data),
-                    "sha256": sha256_bytes(data),
-                    "upstream": entry.get("upstream"),
-                    "source": source_label,
-                }
-                if name == "cnf.sqlite" and "content_hash" in entry:
-                    record["content_hash"] = entry["content_hash"]
-                installed.append(record)
-        finally:
-            shutil.rmtree(tmp_dir, ignore_errors=True)
+        for name, asset, data in contents:
+            if name == _COMPRESSED_CNF:
+                continue  # the gz is transport/storage, not a dataset record
+            entry = datasets.get(name, {})
+            record: dict = {
+                "name": name,
+                "asset": asset,
+                "size": len(data),
+                "sha256": sha256_bytes(data),
+                "upstream": entry.get("upstream"),
+                "source": source_label,
+            }
+            if name == "cnf.sqlite" and "content_hash" in entry:
+                record["content_hash"] = entry["content_hash"]
+            installed.append(record)
 
-    # The manifest itself is part of the install: `data status` reads it.
-    _install_manifest_bytes(dest_dir, manifest_bytes, log)
+    # The manifest itself is part of the install: `data status` reads it. A
+    # --only-filtered install records only the datasets it was asked for, so
+    # status never reports intentionally-absent datasets as missing.
+    _install_manifest_bytes(
+        dest_dir, _manifest_for_install(manifest, manifest_bytes, selected), log
+    )
     return installed
+
+
+def _manifest_for_install(
+    manifest: dict, manifest_bytes: bytes, selected: set[str] | None
+) -> bytes:
+    """Serialise the manifest a dest dir should carry after this install.
+
+    With no --only filter that is the release manifest verbatim; with a
+    filter it is the same document restricted to the selected datasets (the
+    dest dir genuinely holds only those).
+    """
+    if selected is None:
+        return manifest_bytes
+    datasets = manifest.get("datasets", {})
+    keep = set(selected) | ({_COMPRESSED_CNF} if "cnf.sqlite" in selected else set())
+    restricted = {
+        **manifest,
+        "datasets": {
+            name: entry
+            for name, entry in sorted(datasets.items())
+            if name in keep
+        },
+    }
+    return (
+        json.dumps(restricted, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+    ).encode("utf-8")
 
 
 def status(dest_dir: Path) -> dict:

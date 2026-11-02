@@ -185,6 +185,30 @@ def test_rebuild_is_reproducible(tmp_path, monkeypatch):
     assert changed_datasets(manifest1, manifest2) == []
 
 
+def test_skip_rebuild_removes_stale_dataset_files(tmp_path, monkeypatch):
+    """Rebuilding with --skip into an existing dir must not leave stale datasets.
+
+    The manifest describes the whole directory: files it no longer lists are
+    removed, so the dir never ships unverified files next to a manifest.
+    """
+    monkeypatch.delenv("FOODGUIDE_RECIPES_CACHE_DIR", raising=False)
+    _no_network(monkeypatch)
+    zip_path = make_mini_zip(tmp_path / "cnf.zip")
+    out_dir = tmp_path / "out"
+
+    build_all(out_dir, cnf_zip=zip_path)
+    assert (out_dir / "cnf.sqlite").exists()
+    assert (out_dir / "cnf.sqlite.gz").exists()
+
+    manifest = build_all(out_dir, cnf_zip=zip_path, skip=["cnf"])
+    assert "cnf.sqlite" not in manifest["datasets"]
+    assert not (out_dir / "cnf.sqlite").exists()
+    assert not (out_dir / "cnf.sqlite.gz").exists()
+    assert (out_dir / "recipes.json").exists()
+    for name in manifest["datasets"]:
+        assert (out_dir / name).exists()
+
+
 # ---------------------------------------------------------- failure atomicity
 
 

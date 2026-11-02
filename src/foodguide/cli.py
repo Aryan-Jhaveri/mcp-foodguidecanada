@@ -1673,6 +1673,9 @@ def data_build_all(
     Example:
       foodguide data build all --cnf-zip cnf.zip --out-dir ./out
     """
+    if cnf_zip is not None and download_cnf:
+        _log("--cnf-zip and --download-cnf are mutually exclusive")
+        raise typer.Exit(code=2)
     metadata_modified = None
     if cnf_zip is not None and not download_cnf:
         # Best-effort: 'unknown' when the CKAN metadata lookup fails offline.
@@ -1754,7 +1757,11 @@ def data_changed(
     """
     old_manifest = _manifest_or_exit(old)
     new_manifest = _manifest_or_exit(new)
-    changed = changed_datasets(old_manifest, new_manifest)
+    try:
+        changed = changed_datasets(old_manifest, new_manifest)
+    except ManifestError as exc:
+        _log(f"cannot compare manifests: {exc}")
+        raise typer.Exit(code=1) from None
     if not changed:
         raise typer.Exit(code=0)
     for name in changed:

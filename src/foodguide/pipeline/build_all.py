@@ -61,7 +61,8 @@ def find_cnf_zip_url(timeout: float = 30.0) -> tuple[str, str]:
         if str(resource.get("format", "")).strip().upper() != "ZIP":
             continue
         url = resource.get("url")
-        if isinstance(url, str) and url.strip():
+        # Never fetch the source zip over plaintext.
+        if isinstance(url, str) and url.strip().startswith("https://"):
             modified = result.get("metadata_modified") or "unknown"
             return url.strip(), modified
     raise BuildAllError(
@@ -91,14 +92,19 @@ def download_cnf_zip(url: str, dest_dir: Path, timeout: float = 120.0) -> Path:
                         break
                     handle.write(chunk)
         os.replace(part_path, final_path)
-    except BaseException as exc:
+    except Exception as exc:
         try:
             part_path.unlink()
         except OSError:
             pass
-        if isinstance(exc, BuildAllError):
-            raise
         raise BuildAllError(f"cannot download CNF zip from {url}: {exc}") from exc
+    except BaseException:
+        # KeyboardInterrupt & friends: clean up the .part, never disguise it.
+        try:
+            part_path.unlink()
+        except OSError:
+            pass
+        raise
     return final_path
 
 
@@ -206,9 +212,20 @@ def build_all(
 
     # --- publish: nothing moves into out_dir until every step succeeded -------
     out_dir.mkdir(parents=True, exist_ok=True)
+    built_names = {entry.name for entry in tmp.iterdir()}
     for entry in sorted(tmp.iterdir()):
         os.replace(entry, out_dir / entry.name)
     shutil.rmtree(tmp, ignore_errors=True)
+
+    # The manifest describes the whole directory: dataset files it no longer
+    # lists (e.g. after a --skip rebuild into an existing dir) must go, so a
+    # release dir never ships unverified stale files next to a manifest.
+    for stale_name in ("cnf.sqlite", "cnf.sqlite.gz", "recipes.json",
+                       "dri_macronutrients.json", "eer_equations.json"):
+        if stale_name not in built_names:
+            stale_path = out_dir / stale_name
+            if stale_path.exists():
+                stale_path.unlink()
     return manifest
 
 

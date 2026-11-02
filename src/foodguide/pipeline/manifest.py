@@ -125,7 +125,12 @@ def _recipes_content_hash(doc: dict) -> str:
 
 def _json_facts(path: Path, kind: str) -> dict:
     """Extract record counts and upstream provenance from a JSON dataset file."""
-    doc = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ManifestError(f"cannot read dataset {path}: {exc}") from exc
+    if not isinstance(doc, dict):
+        raise ManifestError(f"dataset {path} is not a JSON object")
     if kind == "recipes":
         source = doc["source"]
         return {
@@ -180,12 +185,17 @@ def dataset_entry(path: Path) -> dict:
     if name not in DATASET_FILES and not name.endswith(".gz"):
         raise ManifestError(f"not a known dataset file: {name}")
     entry: dict = {"sha256": sha256_file(path), "size": path.stat().st_size}
-    if name == "cnf.sqlite":
-        entry.update(_cnf_facts(path))
-    elif name == "recipes.json":
-        entry.update(_json_facts(path, "recipes"))
-    elif name in ("dri_macronutrients.json", "eer_equations.json"):
-        entry.update(_json_facts(path, "dri" if name == "dri_macronutrients.json" else "eer"))
+    try:
+        if name == "cnf.sqlite":
+            entry.update(_cnf_facts(path))
+        elif name == "recipes.json":
+            entry.update(_json_facts(path, "recipes"))
+        elif name in ("dri_macronutrients.json", "eer_equations.json"):
+            entry.update(
+                _json_facts(path, "dri" if name == "dri_macronutrients.json" else "eer")
+            )
+    except KeyError as exc:
+        raise ManifestError(f"dataset {path} is missing required field {exc}") from exc
     # Compressed files (.gz) carry only sha256 + size; their facts live in the
     # uncompressed counterpart's entry.
     return entry
@@ -233,6 +243,14 @@ def load_manifest(path: Path) -> dict:
     return manifest
 
 
+def _require_sha(entry: dict, name: str) -> str:
+    """Return the entry sha256, or raise ManifestError if it is missing."""
+    sha = entry.get("sha256")
+    if not sha:
+        raise ManifestError(f"manifest entry {name!r} has no sha256")
+    return str(sha)
+
+
 def dataset_identity(manifest: dict, name: str) -> str | None:
     """Return a stable content identity for canonical dataset ``name``.
 
@@ -245,9 +263,9 @@ def dataset_identity(manifest: dict, name: str) -> str | None:
     if name == "cnf.sqlite":
         if name in datasets:
             entry = datasets[name]
-            return entry.get("content_hash") or entry["sha256"]
+            return entry.get("content_hash") or _require_sha(entry, name)
         if _COMPRESSED_CNF in datasets:
-            return datasets[_COMPRESSED_CNF]["sha256"]
+            return _require_sha(datasets[_COMPRESSED_CNF], _COMPRESSED_CNF)
         return None
     entry = datasets.get(name)
     if entry is None:
@@ -256,15 +274,15 @@ def dataset_identity(manifest: dict, name: str) -> str | None:
         # content_hash ignores the build timestamp (and the dynamic analytics
         # script baked into the raw index sha256), so prefer it.
         if entry.get("content_hash"):
-            return entry["content_hash"]
+            return str(entry["content_hash"])
         upstream = entry.get("upstream")
-        if upstream is not None:
-            return f"{upstream['index_sha256']}:{upstream['recipe_count']}"
-        return entry["sha256"]
+        if isinstance(upstream, dict) and "index_sha256" in upstream:
+            return f"{upstream['index_sha256']}:{upstream.get('recipe_count')}"
+        return _require_sha(entry, name)
     upstream = entry.get("upstream")
-    if upstream is not None:
-        return f"{upstream['page_sha256']}:{upstream['page_date_modified']}"
-    return entry["sha256"]
+    if isinstance(upstream, dict) and "page_sha256" in upstream:
+        return f"{upstream['page_sha256']}:{upstream.get('page_date_modified')}"
+    return _require_sha(entry, name)
 
 
 def changed_datasets(old: dict, new: dict) -> list[str]:
