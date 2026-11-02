@@ -1,76 +1,39 @@
-"""Tests for the DRI/EER CLI commands (typer CliRunner, offline fixtures).
+"""Tests for the DRI/EER CLI commands (typer CliRunner), with no mocks.
 
-`foodguide data build dri|eer` is exercised by monkeypatching
-foodguide.builders.dri_eer.HttpFetcher.fetch to serve the minimal fixtures,
-so the commands are tested end-to-end without the network.
+`foodguide data build dri|eer` is exercised against a real localhost
+http.server serving the committed canada.ca fixture pages
+(tests/pages_fixture.py): tests set ``FOODGUIDE_SOURCE_BASE_URL`` to the
+server's base URL, so the REAL builders run — full-page validation included —
+over a real HTTP round trip. Failure tests stage a truncated copy of the real
+page (HTTP 200 with broken content) and assert the CLI exits 1 without
+writing the output file. The lookup/calc/status commands need no server: they
+read the bundled snapshot via ``FOODGUIDE_DATA_DIR``.
 """
 
 import json
-from pathlib import Path
 
 import pytest
+from pages_fixture import FIXTURE_DIR as PAGES_FIXTURE_DIR
+from pages_fixture import truncate_html
 from typer.testing import CliRunner
 
-from foodguide import data_manager
-from foodguide.builders.dri_eer import (
-    DRI_URL,
-    EER_URL,
-    BuildError,
-    _provenance,
-    _write_payload,
-    parse_dri_page,
-    parse_eer_page,
-)
 from foodguide.cli import app
 
 runner = CliRunner(env={"COLUMNS": "200", "NO_COLOR": "1", "TERM": "dumb"})
-FIXTURES = Path(__file__).parent / "fixtures" / "dri_eer"
-
-
-def _fixture(name: str) -> str:
-    return (FIXTURES / name).read_text(encoding="utf-8")
 
 
 @pytest.fixture()
 def data_dir(tmp_path, monkeypatch):
-    """FOODGUIDE_DATA_DIR on a tmp dir; manager singletons reset per test."""
+    """FOODGUIDE_DATA_DIR on a tmp dir; singletons are recreated per env change."""
     monkeypatch.setenv("FOODGUIDE_DATA_DIR", str(tmp_path))
-    monkeypatch.setattr(data_manager, "_dri_manager", None, raising=False)
-    monkeypatch.setattr(data_manager, "_eer_manager", None, raising=False)
     return tmp_path
-
-
-def _inject_fixture_builders(monkeypatch, html_by_url: dict):
-    """Replace the CLI's imported build_dri/build_eer with fixture-backed versions.
-
-    The real build_dri/build_eer run the full-page validator (22 DRI rows and
-    every EER band present), which the minimal hand-written fixtures cannot
-    satisfy; these substitutes parse the fixture with the real parser and write
-    through the real payload writer, so only the validation step is skipped.
-    """
-    from bs4 import BeautifulSoup
-
-    def build_dri(out_path, fetcher=None):
-        html = html_by_url[DRI_URL]
-        payload = parse_dri_page(html)
-        payload["_provenance"] = _provenance(DRI_URL, html, BeautifulSoup(html, "html.parser"))
-        return _write_payload(Path(out_path), payload)
-
-    def build_eer(out_path, fetcher=None):
-        html = html_by_url[EER_URL]
-        payload = parse_eer_page(html)
-        payload["_provenance"] = _provenance(EER_URL, html, BeautifulSoup(html, "html.parser"))
-        return _write_payload(Path(out_path), payload)
-
-    monkeypatch.setattr("foodguide.cli.build_dri", build_dri)
-    monkeypatch.setattr("foodguide.cli.build_eer", build_eer)
 
 
 # ---------------------------------------------------------------- data build
 
 
-def test_data_build_dri_writes_file_and_status(data_dir, monkeypatch):
-    _inject_fixture_builders(monkeypatch, {DRI_URL: _fixture("dri_minimal.html")})
+def test_data_build_dri_writes_file_and_status(data_dir, monkeypatch, pages_server):
+    monkeypatch.setenv("FOODGUIDE_SOURCE_BASE_URL", pages_server.base_url)
     # Canonical data-dir filename: the data manager must pick this file up.
     out = data_dir / "dri_macronutrients.json"
 
@@ -79,8 +42,8 @@ def test_data_build_dri_writes_file_and_status(data_dir, monkeypatch):
     assert "Built" in result.output
     payload = json.loads(out.read_text(encoding="utf-8"))
     assert payload["status"] == "success"
-    assert len(payload["reference_values"]) == 2
-    assert payload["_provenance"]["source_url"] == DRI_URL
+    assert len(payload["reference_values"]) == 22  # full real-page validation
+    assert payload["_provenance"]["source_url"] == pages_server.url("dri")
 
     status = json.loads(
         runner.invoke(app, ["data", "status", "--format", "json"]).output
@@ -89,15 +52,15 @@ def test_data_build_dri_writes_file_and_status(data_dir, monkeypatch):
     assert status["dri"]["path"] == str(out)
 
 
-def test_data_build_eer_writes_file_and_status(data_dir, monkeypatch):
-    _inject_fixture_builders(monkeypatch, {EER_URL: _fixture("eer_minimal.html")})
+def test_data_build_eer_writes_file_and_status(data_dir, monkeypatch, pages_server):
+    monkeypatch.setenv("FOODGUIDE_SOURCE_BASE_URL", pages_server.base_url)
     out = data_dir / "eer_equations.json"
 
     result = runner.invoke(app, ["data", "build", "eer", "--out", str(out)])
     assert result.exit_code == 0, result.output
     payload = json.loads(out.read_text(encoding="utf-8"))
     assert payload["equations"]["adult"]["male"]["active"]["coefficients"]["intercept"] == 1004.82
-    assert payload["_provenance"]["source_url"] == EER_URL
+    assert payload["_provenance"]["source_url"] == pages_server.url("eer")
 
     status = json.loads(
         runner.invoke(app, ["data", "status", "--format", "json"]).output
@@ -105,29 +68,31 @@ def test_data_build_eer_writes_file_and_status(data_dir, monkeypatch):
     assert status["eer"]["source"] == "data_dir"
 
 
-def test_data_build_dri_failure_exit_1_no_file(data_dir, monkeypatch):
-    def build_dri(out_path, fetcher=None):
-        raise BuildError("DRI page: missing table 'reference_values'")
-
-    monkeypatch.setattr("foodguide.cli.build_dri", build_dri)
+def test_data_build_dri_failure_exit_1_no_file(data_dir, monkeypatch, pages_server):
+    monkeypatch.setenv("FOODGUIDE_SOURCE_BASE_URL", pages_server.base_url)
+    # Truncate the REAL page mid-document: HTTP 200, but the real parser's
+    # validator raises BuildError (missing table).
+    dri_html = (PAGES_FIXTURE_DIR / "dri_macronutrients.html").read_text(encoding="utf-8")
+    pages_server.stage({"dri": truncate_html(dri_html, 5000)})
     out = data_dir / "dri_macronutrients.json"
 
     result = runner.invoke(app, ["data", "build", "dri", "--out", str(out)])
     assert result.exit_code == 1
     assert "DRI build failed" in result.output
+    assert "missing table" in result.output
     assert not out.exists()
 
 
-def test_data_build_eer_failure_exit_1_no_file(data_dir, monkeypatch):
-    def build_eer(out_path, fetcher=None):
-        raise BuildError("EER page: missing section 'a5'")
-
-    monkeypatch.setattr("foodguide.cli.build_eer", build_eer)
+def test_data_build_eer_failure_exit_1_no_file(data_dir, monkeypatch, pages_server):
+    monkeypatch.setenv("FOODGUIDE_SOURCE_BASE_URL", pages_server.base_url)
+    eer_html = (PAGES_FIXTURE_DIR / "eer_equations.html").read_text(encoding="utf-8")
+    pages_server.stage({"eer": truncate_html(eer_html, 5000)})
     out = data_dir / "eer_equations.json"
 
     result = runner.invoke(app, ["data", "build", "eer", "--out", str(out)])
     assert result.exit_code == 1
     assert "EER build failed" in result.output
+    assert "missing section" in result.output
     assert not out.exists()
 
 

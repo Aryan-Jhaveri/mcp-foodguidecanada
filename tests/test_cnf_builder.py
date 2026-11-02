@@ -145,6 +145,24 @@ def test_build_determinism(mini_zip: Path, tmp_path: Path) -> None:
     assert differing == {"build_time"}
 
 
+def test_source_date_epoch_fixes_build_time(mini_zip: Path, tmp_path: Path, monkeypatch) -> None:
+    """SOURCE_DATE_EPOCH pins the recorded build_time for reproducible builds."""
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "1765000000")
+    result = build_cnf_db(mini_zip, tmp_path / "e.sqlite")
+    assert result.build_time == "2025-12-06T05:46:40+00:00"
+
+    # A different epoch gives a different recorded time (and thus different raw
+    # bytes), while the content identity is unaffected.
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "1765000001")
+    other = build_cnf_db(mini_zip, tmp_path / "e2.sqlite")
+    assert other.build_time == "2025-12-06T05:46:41+00:00"
+    assert other.content_hash == result.content_hash
+
+    monkeypatch.delenv("SOURCE_DATE_EPOCH")
+    wall = build_cnf_db(mini_zip, tmp_path / "w.sqlite")
+    assert wall.build_time != result.build_time
+
+
 def test_provenance(built, mini_zip: Path) -> None:
     result, conn = built
     provenance = get_provenance(conn)

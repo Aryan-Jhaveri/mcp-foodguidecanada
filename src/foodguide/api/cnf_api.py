@@ -15,6 +15,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 
+from foodguide.cnf.db import get_data_dir
+
 # Nutrient name IDs for core macronutrients (from nutrientname endpoint)
 CORE_MACRONUTRIENT_IDS = {
     208: {"name": "Energy (kcal)", "unit": "kCal", "symbol": "KCAL"},
@@ -254,20 +256,32 @@ class CNFApiClient:
 
 # ── Singleton factory ────────────────────────────────────────────
 
+# The singleton remembers which data dir it was created under (get_data_dir()
+# honours FOODGUIDE_DATA_DIR) and is recreated whenever that dir changes: tests
+# point FOODGUIDE_DATA_DIR wherever they like with monkeypatch.setenv and
+# always get a client that reads that dir — no attribute resets needed.
 _cnf_api_instance: Optional[Any] = None
+_cnf_api_instance_data_dir: Optional[str] = None
 
 
 def get_cnf_api_client() -> Any:
-    """Get or create the global CNF client instance.
+    """Get or create the global CNF client instance for the current data dir.
 
     Returns a LocalCNFSource backed by the offline local CNF SQLite database;
     the HTTP client is kept for reference but is not used by any default path.
+    ``FOODGUIDE_DATA_DIR`` is read on every call: when it differs from the data
+    dir the cached instance was created under, a fresh client is built for the
+    new dir. This keeps tests to ``setenv`` only — no attribute patching or
+    manual singleton resets.
     """
-    global _cnf_api_instance
-    if _cnf_api_instance is None:
+    global _cnf_api_instance, _cnf_api_instance_data_dir
+
+    data_dir = str(get_data_dir())
+    if _cnf_api_instance is None or _cnf_api_instance_data_dir != data_dir:
         # Imported here (not at module level) to avoid a circular import:
         # foodguide.cnf.mcp_source imports CORE_MACRONUTRIENT_IDS from this module.
         from foodguide.cnf.mcp_source import LocalCNFSource
 
         _cnf_api_instance = LocalCNFSource()
+        _cnf_api_instance_data_dir = data_dir
     return _cnf_api_instance

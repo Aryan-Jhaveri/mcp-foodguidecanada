@@ -1,9 +1,13 @@
-"""Tests for `data build all` (foodguide.pipeline.build_all), fully offline.
+"""Tests for `data build all` (foodguide.pipeline.build_all), with no mocks.
 
-DRI/EER/recipe pages are served from tests/fixtures by monkeypatching
-``HttpFetcher.fetch`` (DRI/EER) and ``PoliteFetcher.fetch`` (recipes); the CNF
-zip comes from the deterministic mini-zip fixture. One test spins a localhost
-http.server to exercise the CKAN lookup + zip download helpers.
+Every page fetch goes through a real localhost http.server serving the
+committed canada.ca fixture pages (tests/pages_fixture.py): tests point the
+production builders at it purely via the ``FOODGUIDE_SOURCE_BASE_URL``
+environment variable, so the real builders, parsers and validators run
+unchanged. The CNF zip comes from the deterministic mini-zip fixture; the
+CKAN lookup/download tests spin up their own real localhost http.server for
+the CKAN record and the zip bytes (addressable via
+``FOODGUIDE_CKAN_PACKAGE_URL``).
 """
 
 from __future__ import annotations
@@ -13,23 +17,15 @@ import hashlib
 import http.server
 import json
 import threading
-from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 from cnf_fixture import make_mini_zip
+from pages_fixture import FIXTURE_DIR as PAGES_FIXTURE_DIR
+from pages_fixture import truncate_html
 
 import foodguide.pipeline.build_all as build_all_module
-from foodguide.builders.dri_eer import (
-    DRI_URL,
-    EER_URL,
-    HttpFetcher,
-    _provenance,
-    _write_payload,
-    parse_dri_page,
-    parse_eer_page,
-)
-from foodguide.cnf import builder as cnf_builder
+from foodguide.builders.dri_eer import BuildError
 from foodguide.pipeline.build_all import (
     BuildAllError,
     build_all,
@@ -38,9 +34,6 @@ from foodguide.pipeline.build_all import (
     normalize_skip,
 )
 from foodguide.pipeline.manifest import changed_datasets
-from foodguide.recipes.fetch import INDEX_URL, PoliteFetcher, recipe_url
-
-FIXTURES = Path(__file__).parent / "fixtures"
 
 DATASET_NAMES = {
     "cnf.sqlite",
@@ -50,72 +43,16 @@ DATASET_NAMES = {
     "eer_equations.json",
 }
 
-_RECIPE_FIXTURES = {
-    "test-berry-crisp": "two-groups.html",
-    "test-fruit-salad": "fruit-salad.html",
-    "test-oat-bowl": "no-tips.html",
-}
+#: The recipe pages committed under tests/fixtures/pages/recipes/ — exactly
+#: what the fixture server can serve. The committed index still lists 141
+#: slugs, so every crawl passes ``recipes_only=RECIPE_SLUGS``.
+RECIPE_SLUGS = sorted(p.stem for p in (PAGES_FIXTURE_DIR / "recipes").glob("*.html"))
 
 
-def _fixture(name: str) -> str:
-    return (FIXTURES / name).read_text(encoding="utf-8")
-
-
-def _recipe_map() -> dict[str, str]:
-    mapping = {INDEX_URL: _fixture("recipes_html/index.html")}
-    for slug, filename in _RECIPE_FIXTURES.items():
-        mapping[recipe_url(slug)] = _fixture(f"recipes_html/{filename}")
-    return mapping
-
-
-def _recipe_fetcher(monkeypatch):
-    """Point PoliteFetcher.fetch at the recipes_html fixtures."""
-    mapping = _recipe_map()
-    monkeypatch.setattr(PoliteFetcher, "fetch", lambda self, url: mapping[url])
-
-
-def _dri_eer_fetcher(monkeypatch):
-    """Point HttpFetcher.fetch at the dri_eer fixtures (kept offline even if a
-    builder ignores the substituted builder functions)."""
-    mapping = {
-        DRI_URL: _fixture("dri_eer/dri_minimal.html"),
-        EER_URL: _fixture("dri_eer/eer_minimal.html"),
-    }
-    monkeypatch.setattr(HttpFetcher, "fetch", lambda self, url: mapping[url])
-
-
-def _fixture_dri_eer_builders(monkeypatch):
-    """Replace build_all's build_dri/build_eer with fixture-backed versions.
-
-    The real builders run the full-page validator (22 DRI rows, every EER
-    band), which the minimal hand-written fixtures cannot satisfy; these
-    substitutes parse the fixture with the real parser and write through the
-    real payload writer, so only validation is skipped (same trick as
-    tests/test_dri_eer_cli.py).
-    """
-    from bs4 import BeautifulSoup
-
-    def build_dri(out_path, fetcher=None):
-        html = _fixture("dri_eer/dri_minimal.html")
-        payload = parse_dri_page(html)
-        payload["_provenance"] = _provenance(DRI_URL, html, BeautifulSoup(html, "html.parser"))
-        return _write_payload(Path(out_path), payload)
-
-    def build_eer(out_path, fetcher=None):
-        html = _fixture("dri_eer/eer_minimal.html")
-        payload = parse_eer_page(html)
-        payload["_provenance"] = _provenance(EER_URL, html, BeautifulSoup(html, "html.parser"))
-        return _write_payload(Path(out_path), payload)
-
-    monkeypatch.setattr(build_all_module, "build_dri", build_dri)
-    monkeypatch.setattr(build_all_module, "build_eer", build_eer)
-
-
-def _no_network(monkeypatch):
-    """Make every network fetch serve local fixtures."""
-    _recipe_fetcher(monkeypatch)
-    _dri_eer_fetcher(monkeypatch)
-    _fixture_dri_eer_builders(monkeypatch)
+def _use_fixture_pages(monkeypatch, pages_server) -> None:
+    """Point every builder at the real fixture pages server via env only."""
+    monkeypatch.delenv("FOODGUIDE_RECIPES_CACHE_DIR", raising=False)
+    monkeypatch.setenv("FOODGUIDE_SOURCE_BASE_URL", pages_server.base_url)
 
 
 def _load_manifest(out_dir: Path) -> dict:
@@ -129,14 +66,14 @@ def _temp_build_dirs(parent: Path) -> list[str]:
 # ----------------------------------------------------------------- end to end
 
 
-def test_build_all_end_to_end(tmp_path, monkeypatch):
-    monkeypatch.delenv("FOODGUIDE_RECIPES_CACHE_DIR", raising=False)
-    _no_network(monkeypatch)
+def test_build_all_end_to_end(tmp_path, monkeypatch, pages_server):
+    _use_fixture_pages(monkeypatch, pages_server)
+    assert len(RECIPE_SLUGS) == 12
     zip_path = make_mini_zip(tmp_path / "cnf.zip")
     zip_sha256 = hashlib.sha256(zip_path.read_bytes()).hexdigest()
 
     out_dir = tmp_path / "out"
-    manifest = build_all(out_dir, cnf_zip=zip_path)
+    manifest = build_all(out_dir, cnf_zip=zip_path, recipes_only=RECIPE_SLUGS)
 
     for name in DATASET_NAMES | {"manifest.json"}:
         assert (out_dir / name).exists(), f"missing {name}"
@@ -146,7 +83,11 @@ def test_build_all_end_to_end(tmp_path, monkeypatch):
     cnf = manifest["datasets"]["cnf.sqlite"]
     assert cnf["content_hash"]
     assert cnf["upstream"]["zip_sha256"] == zip_sha256
-    assert manifest["datasets"]["recipes.json"]["record_count"] == 3
+    assert manifest["datasets"]["recipes.json"]["record_count"] == 12
+    recipes_doc = json.loads((out_dir / "recipes.json").read_text(encoding="utf-8"))
+    assert recipes_doc["source"]["recipe_count"] == 12
+    assert recipes_doc["source"]["index_recipe_count"] == 141
+    assert recipes_doc["source"]["index_url"] == pages_server.url("index")
     gz_sha256 = hashlib.sha256((out_dir / "cnf.sqlite.gz").read_bytes()).hexdigest()
     assert manifest["datasets"]["cnf.sqlite.gz"]["sha256"] == gz_sha256
 
@@ -156,26 +97,19 @@ def test_build_all_end_to_end(tmp_path, monkeypatch):
 # ------------------------------------------------------------ reproducibility
 
 
-def test_rebuild_is_reproducible(tmp_path, monkeypatch):
-    monkeypatch.delenv("FOODGUIDE_RECIPES_CACHE_DIR", raising=False)
-    _no_network(monkeypatch)
-    # build_cnf_db stamps build_time=datetime.now() into its provenance table,
-    # which would make the sqlite bytes (and thus the .gz sha256) differ between
-    # the two runs. Freeze its clock so the test isolates true determinism; in
-    # production, changed_datasets still reports no change across rebuilds
-    # because the CNF identity is the content hash, not the file sha256.
-    frozen = datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone.utc)
-
-    class _FrozenDateTime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return frozen
-
-    monkeypatch.setattr(cnf_builder, "datetime", _FrozenDateTime)
+def test_rebuild_is_reproducible(tmp_path, monkeypatch, pages_server):
+    _use_fixture_pages(monkeypatch, pages_server)
+    # build_cnf_db stamps build_time into its provenance table, which would
+    # make the sqlite bytes (and thus the .gz sha256) differ between the two
+    # runs. SOURCE_DATE_EPOCH is production's reproducible-build override and
+    # pins that timestamp, so the test isolates true determinism. (The
+    # recipes.json fetched_at still differs per run, but changed_datasets
+    # compares content identities, which ignore build timestamps.)
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "1765000000")
     zip_path = make_mini_zip(tmp_path / "cnf.zip")
 
-    manifest1 = build_all(tmp_path / "out1", cnf_zip=zip_path)
-    manifest2 = build_all(tmp_path / "out2", cnf_zip=zip_path)
+    manifest1 = build_all(tmp_path / "out1", cnf_zip=zip_path, recipes_only=RECIPE_SLUGS)
+    manifest2 = build_all(tmp_path / "out2", cnf_zip=zip_path, recipes_only=RECIPE_SLUGS)
 
     gz1 = manifest1["datasets"]["cnf.sqlite.gz"]["sha256"]
     gz2 = manifest2["datasets"]["cnf.sqlite.gz"]["sha256"]
@@ -185,22 +119,21 @@ def test_rebuild_is_reproducible(tmp_path, monkeypatch):
     assert changed_datasets(manifest1, manifest2) == []
 
 
-def test_skip_rebuild_removes_stale_dataset_files(tmp_path, monkeypatch):
+def test_skip_rebuild_removes_stale_dataset_files(tmp_path, monkeypatch, pages_server):
     """Rebuilding with --skip into an existing dir must not leave stale datasets.
 
     The manifest describes the whole directory: files it no longer lists are
     removed, so the dir never ships unverified files next to a manifest.
     """
-    monkeypatch.delenv("FOODGUIDE_RECIPES_CACHE_DIR", raising=False)
-    _no_network(monkeypatch)
+    _use_fixture_pages(monkeypatch, pages_server)
     zip_path = make_mini_zip(tmp_path / "cnf.zip")
     out_dir = tmp_path / "out"
 
-    build_all(out_dir, cnf_zip=zip_path)
+    build_all(out_dir, cnf_zip=zip_path, recipes_only=RECIPE_SLUGS)
     assert (out_dir / "cnf.sqlite").exists()
     assert (out_dir / "cnf.sqlite.gz").exists()
 
-    manifest = build_all(out_dir, cnf_zip=zip_path, skip=["cnf"])
+    manifest = build_all(out_dir, cnf_zip=zip_path, skip=["cnf"], recipes_only=RECIPE_SLUGS)
     assert "cnf.sqlite" not in manifest["datasets"]
     assert not (out_dir / "cnf.sqlite").exists()
     assert not (out_dir / "cnf.sqlite.gz").exists()
@@ -212,18 +145,18 @@ def test_skip_rebuild_removes_stale_dataset_files(tmp_path, monkeypatch):
 # ---------------------------------------------------------- failure atomicity
 
 
-def test_failure_leaves_no_partial_build(tmp_path, monkeypatch):
-    _recipe_fetcher(monkeypatch)  # cnf + recipes succeed...
+def test_failure_leaves_no_partial_build(tmp_path, monkeypatch, pages_server):
+    """A truncated (HTTP 200) DRI page fails the real builder; nothing publishes."""
+    _use_fixture_pages(monkeypatch, pages_server)
+    # CNF and recipes succeed; the DRI page is cut off mid-document so the
+    # real parser/validator raises BuildError ("missing table").
+    dri_html = (PAGES_FIXTURE_DIR / "dri_macronutrients.html").read_text(encoding="utf-8")
+    pages_server.stage({"dri": truncate_html(dri_html, 5000)})
     zip_path = make_mini_zip(tmp_path / "cnf.zip")
 
-    def boom(out_path, fetcher=None):
-        raise RuntimeError("DRI server exploded")
-
-    monkeypatch.setattr(build_all_module, "build_dri", boom)
-
     out_dir = tmp_path / "out"
-    with pytest.raises(RuntimeError):
-        build_all(out_dir, cnf_zip=zip_path)
+    with pytest.raises(BuildError):
+        build_all(out_dir, cnf_zip=zip_path, recipes_only=RECIPE_SLUGS)
 
     assert not out_dir.exists()
     assert list(out_dir.glob("*")) == []
@@ -233,22 +166,22 @@ def test_failure_leaves_no_partial_build(tmp_path, monkeypatch):
 # ------------------------------------------------------------------- skipping
 
 
-def test_skip_cnf_needs_no_zip(tmp_path, monkeypatch):
-    monkeypatch.delenv("FOODGUIDE_RECIPES_CACHE_DIR", raising=False)
-    _no_network(monkeypatch)
+def test_skip_cnf_needs_no_zip(tmp_path, monkeypatch, pages_server):
+    _use_fixture_pages(monkeypatch, pages_server)
 
-    manifest = build_all(tmp_path / "out", skip=["cnf"])
+    manifest = build_all(tmp_path / "out", skip=["cnf"], recipes_only=RECIPE_SLUGS)
 
     assert set(manifest["datasets"]) == DATASET_NAMES - {"cnf.sqlite", "cnf.sqlite.gz"}
     assert _temp_build_dirs(tmp_path) == []
 
 
-def test_skip_canonical_names(tmp_path, monkeypatch):
-    monkeypatch.delenv("FOODGUIDE_RECIPES_CACHE_DIR", raising=False)
-    _no_network(monkeypatch)
+def test_skip_canonical_names(tmp_path, monkeypatch, pages_server):
+    _use_fixture_pages(monkeypatch, pages_server)
     zip_path = make_mini_zip(tmp_path / "cnf.zip")
 
-    manifest = build_all(tmp_path / "out", cnf_zip=zip_path, skip=["recipes.json"])
+    manifest = build_all(
+        tmp_path / "out", cnf_zip=zip_path, skip=["recipes.json"], recipes_only=RECIPE_SLUGS
+    )
 
     assert "recipes.json" not in manifest["datasets"]
     assert {"cnf.sqlite", "cnf.sqlite.gz", "dri_macronutrients.json", "eer_equations.json"} <= set(
@@ -264,10 +197,8 @@ def test_unknown_skip_name_raises():
 # ------------------------------------------------------------------ no zip
 
 
-def test_missing_zip_raises_with_hint(tmp_path, monkeypatch):
-    monkeypatch.delenv("FOODGUIDE_RECIPES_CACHE_DIR", raising=False)
-    _no_network(monkeypatch)
-
+def test_missing_zip_raises_with_hint(tmp_path):
+    # Nothing is fetched before the missing-zip check, so no server is needed.
     with pytest.raises(BuildAllError, match="--cnf-zip"):
         build_all(tmp_path / "out")
 
@@ -307,29 +238,12 @@ class _QuietHandler(http.server.SimpleHTTPRequestHandler):
         pass
 
 
-def _loopback_available() -> bool:
-    """Probe that loopback TCP connects work (some CI sandboxes block it)."""
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), _QuietHandler)
-    port = server.server_address[1]
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    try:
-        import socket
-
-        with socket.create_connection(("127.0.0.1", port), timeout=3):
-            return True
-    except OSError:
-        return False
-    finally:
-        server.shutdown()
-        server.server_close()
-        thread.join()
-
-
 @pytest.fixture()
 def ckan_server(tmp_path):
-    """A localhost http.server serving a fake CKAN record and the zip bytes."""
-    if not _loopback_available():
+    """A localhost http.server serving a CKAN record and the zip bytes."""
+    from pages_fixture import loopback_available
+
+    if not loopback_available():
         pytest.skip("loopback TCP connections unavailable in this sandbox")
     www = tmp_path / "www"
     (www / "files").mkdir(parents=True)
@@ -367,7 +281,7 @@ def test_find_and_download_cnf_zip(tmp_path, ckan_server, monkeypatch):
         }
     )
     (www / "package_show.json").write_text(_record, encoding="utf-8")
-    monkeypatch.setattr(build_all_module, "CKAN_PACKAGE_URL", f"{base}/package_show.json")
+    monkeypatch.setenv("FOODGUIDE_CKAN_PACKAGE_URL", f"{base}/package_show.json")
 
     url, modified = find_cnf_zip_url()
     assert url == f"{base}/files/cnf.zip"
@@ -391,7 +305,7 @@ def test_find_cnf_zip_url_no_zip_resource(tmp_path, ckan_server, monkeypatch):
         }
     )
     (www / "package_nozip.json").write_text(payload, encoding="utf-8")
-    monkeypatch.setattr(build_all_module, "CKAN_PACKAGE_URL", f"{base}/package_nozip.json")
+    monkeypatch.setenv("FOODGUIDE_CKAN_PACKAGE_URL", f"{base}/package_nozip.json")
 
     with pytest.raises(BuildAllError, match="no ZIP resource"):
         find_cnf_zip_url()
@@ -410,39 +324,49 @@ def test_download_failure_cleans_part(tmp_path, ckan_server, monkeypatch):
 # --------------------------------------------------------------- run_build_all
 
 
-def test_run_build_all_logs_summary(tmp_path, monkeypatch):
-    monkeypatch.delenv("FOODGUIDE_RECIPES_CACHE_DIR", raising=False)
-    _no_network(monkeypatch)
+def test_run_build_all_logs_summary(tmp_path, monkeypatch, pages_server):
+    _use_fixture_pages(monkeypatch, pages_server)
     zip_path = make_mini_zip(tmp_path / "cnf.zip")
 
     lines: list[str] = []
     manifest = build_all_module.run_build_all(
-        tmp_path / "out", cnf_zip=zip_path, download_cnf=False, skip=[], log=lines.append
+        tmp_path / "out",
+        cnf_zip=zip_path,
+        download_cnf=False,
+        skip=[],
+        recipes_only=RECIPE_SLUGS,
+        log=lines.append,
     )
 
     assert manifest["schema_version"] == 1
     joined = "\n".join(lines)
     assert "content_hash=" in joined
     assert "zip_sha256=" in joined
-    assert "recipe_count=3" in joined
+    assert "recipe_count=12" in joined
     assert "page_sha256=" in joined
     assert f"Wrote {tmp_path / 'out'}/manifest.json" in lines[-1]
 
 
-def test_run_build_all_failure_exits_1(tmp_path, monkeypatch):
-    _recipe_fetcher(monkeypatch)
+def test_run_build_all_failure_exits_1(tmp_path, monkeypatch, pages_server):
+    _use_fixture_pages(monkeypatch, pages_server)
+    # CNF and recipes succeed; the truncated real DRI page (HTTP 200, broken
+    # content) makes the real build_dri raise BuildError.
+    dri_html = (PAGES_FIXTURE_DIR / "dri_macronutrients.html").read_text(encoding="utf-8")
+    pages_server.stage({"dri": truncate_html(dri_html, 5000)})
     zip_path = make_mini_zip(tmp_path / "cnf.zip")
-    monkeypatch.setattr(
-        build_all_module,
-        "build_dri",
-        lambda out_path, fetcher=None: (_ for _ in ()).throw(RuntimeError("boom")),
-    )
 
     lines: list[str] = []
     with pytest.raises(SystemExit) as excinfo:
         build_all_module.run_build_all(
-            tmp_path / "out", cnf_zip=zip_path, download_cnf=False, skip=[], log=lines.append
+            tmp_path / "out",
+            cnf_zip=zip_path,
+            download_cnf=False,
+            skip=[],
+            recipes_only=RECIPE_SLUGS,
+            log=lines.append,
         )
     assert excinfo.value.code == 1
-    assert any("build all failed: boom" in line for line in lines)
+    joined = "\n".join(lines)
+    assert "build all failed: " in joined
+    assert "DRI" in joined
     assert not (tmp_path / "out").exists()

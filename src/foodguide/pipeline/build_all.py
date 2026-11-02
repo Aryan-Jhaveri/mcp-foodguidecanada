@@ -13,6 +13,7 @@ import os
 import shutil
 import tempfile
 import urllib.request
+from collections.abc import Sequence
 from pathlib import Path
 
 from foodguide.builders.dri_eer import build_dri, build_eer
@@ -36,24 +37,27 @@ class BuildAllError(Exception):
 def find_cnf_zip_url(timeout: float = 30.0) -> tuple[str, str]:
     """Query the CKAN package record; return (zip_resource_url, metadata_modified).
 
-    GET CKAN_PACKAGE_URL with urllib (User-Agent 'foodguide-data-build/0.1'),
-    parse the JSON, and pick the first resource in ``result["resources"]`` whose
-    ``format`` equals 'ZIP' (case-insensitive) and has a non-empty ``url``.
-    Raise BuildAllError with a clear message if the record has no ZIP resource
-    or the request/parse fails.
+    GET the CKAN package-show URL (canonical default ``CKAN_PACKAGE_URL``,
+    overridable for tests via the ``FOODGUIDE_CKAN_PACKAGE_URL`` environment
+    variable, read at call time) with urllib (User-Agent
+    'foodguide-data-build/0.1'), parse the JSON, and pick the first resource in
+    ``result["resources"]`` whose ``format`` equals 'ZIP' (case-insensitive) and
+    has a non-empty ``url``. Raise BuildAllError with a clear message if the
+    record has no ZIP resource or the request/parse fails.
     """
-    request = urllib.request.Request(CKAN_PACKAGE_URL, headers={"User-Agent": _USER_AGENT})
+    ckan_url = os.environ.get("FOODGUIDE_CKAN_PACKAGE_URL", CKAN_PACKAGE_URL)
+    request = urllib.request.Request(ckan_url, headers={"User-Agent": _USER_AGENT})
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             payload = json.loads(response.read().decode("utf-8"))
     except (OSError, ValueError) as exc:
         raise BuildAllError(
-            f"cannot query CKAN package record {CKAN_PACKAGE_URL}: {exc}"
+            f"cannot query CKAN package record {ckan_url}: {exc}"
         ) from exc
     result = payload.get("result") if isinstance(payload, dict) else None
     if not isinstance(result, dict):
         raise BuildAllError(
-            f"CKAN package record {CKAN_PACKAGE_URL} has no 'result' object"
+            f"CKAN package record {ckan_url} has no 'result' object"
         )
     for resource in result.get("resources", []):
         if not isinstance(resource, dict):
@@ -68,7 +72,7 @@ def find_cnf_zip_url(timeout: float = 30.0) -> tuple[str, str]:
             modified = result.get("metadata_modified") or "unknown"
             return url.strip(), modified
     raise BuildAllError(
-        f"CKAN package record {CKAN_PACKAGE_URL} has no ZIP resource with a URL"
+        f"CKAN package record {ckan_url} has no ZIP resource with a URL"
     )
 
 
@@ -146,6 +150,8 @@ def build_all(
     download_cnf: bool = False,
     skip=(),
     metadata_modified: str | None = None,
+    recipes_only: Sequence[str] | None = None,
+    max_recipes: int | None = None,
 ) -> dict:
     """Run all (non-skipped) dataset builders into out_dir, then write manifest.json.
 
@@ -153,6 +159,10 @@ def build_all(
     beside ``out_dir``; the files (including ``manifest.json``) are moved into
     ``out_dir`` only after every step succeeded, so a failure never leaves a
     partial build behind. Returns the manifest dict.
+
+    ``recipes_only`` and ``max_recipes`` are development options passed
+    through to ``build_recipes_json``: crawl exactly the given slugs, or only
+    the first N slugs of the index (useful against a partial fixture server).
     """
     out_dir = Path(out_dir)
     skipped = normalize_skip(skip)
@@ -194,7 +204,12 @@ def build_all(
                 from foodguide.recipes.fetch import CachedFetcher
 
                 fetcher = CachedFetcher(cache_dir, delay=0.0)
-            build_recipes_json(tmp / "recipes.json", fetcher=fetcher)
+            build_recipes_json(
+                tmp / "recipes.json",
+                fetcher=fetcher,
+                only=recipes_only,
+                max_recipes=max_recipes,
+            )
 
         # --- DRI / EER snapshots ----------------------------------------------
         if "dri_macronutrients.json" not in skipped:
@@ -242,11 +257,15 @@ def run_build_all(
     skip: list[str] = (),
     log=_quiet,
     metadata_modified: str | None = None,
+    recipes_only: Sequence[str] | None = None,
+    max_recipes: int | None = None,
 ) -> dict:
     """CLI entry: run build_all, print a per-dataset summary, exit 1 on failure.
 
     Any exception from build_all is reported via ``log`` and turned into
     ``SystemExit(1)``; the (unpublished) output directory is left untouched.
+    ``recipes_only`` and ``max_recipes`` are development options passed
+    through to the recipes builder (see ``build_all``).
     """
     try:
         manifest = build_all(
@@ -255,6 +274,8 @@ def run_build_all(
             download_cnf=download_cnf,
             skip=skip,
             metadata_modified=metadata_modified,
+            recipes_only=recipes_only,
+            max_recipes=max_recipes,
         )
     except Exception as exc:  # noqa: BLE001 - the CLI turns any failure into exit 1
         log(f"build all failed: {exc}")

@@ -4,60 +4,46 @@ The server is built with create_server(enable_db=False): recipe tools are
 always registered, and enable_db=False avoids touching the SQLite state dir.
 Tests are sync and drive the async client with asyncio.run (no async tests
 elsewhere in the repo).
+
+recipes.json is built once from the REAL committed canada.ca fixture pages
+(tests/fixtures/pages) via the production builder + CachedFetcher — no stubs,
+no mocks, zero network. Real slugs used:
+- ``apple-sandwiches``: single ingredient group, meal__snack tag.
+- ``baked-fish-chips``: two named ingredient groups.
+- ``colourful-quinoa-salad``: title ("Quinoa salad") differs from the slug,
+  carries collection__vegetarian.
 """
 
 import asyncio
-import os
-from pathlib import Path
 
 import pytest
 from fastmcp import Client
+from pages_fixture import fixture_recipe_cache_dir
 
-from foodguide.api import recipe as recipe_api
 from foodguide.recipes.builder import build_recipes_json
-from foodguide.recipes.fetch import INDEX_URL, recipe_url
-from foodguide.recipes.source import LocalRecipeSource
+from foodguide.recipes.fetch import CachedFetcher
 from foodguide.server import create_server
 
-FIXTURES = Path(__file__).parent / "fixtures" / "recipes_html"
-
-
-class StubFetcher:
-    """Serves fixture pages instead of the network."""
-
-    def __init__(self, mapping):
-        self.mapping = mapping
-
-    def fetch(self, url: str) -> str:
-        return self.mapping[url]
-
-
-def _fixture(name: str) -> str:
-    return (FIXTURES / name).read_text(encoding="utf-8")
+SLUGS = ["apple-sandwiches", "baked-fish-chips", "colourful-quinoa-salad"]
 
 
 @pytest.fixture(scope="module")
-def server(tmp_path_factory, request):
-    """recipes.json built once from the HTML fixtures; one server over it."""
+def server(tmp_path_factory):
+    """recipes.json built once from the real fixture pages; one server over it.
+
+    FOODGUIDE_DATA_DIR is set with a module-scoped MonkeyPatch context (it
+    must outlive every test in the module); the production recipe API
+    singleton reads the env at call time, so no attribute patching is needed.
+    """
     tmp_path = tmp_path_factory.mktemp("recipes_mcp")
     build_recipes_json(
         tmp_path / "recipes.json",
-        fetcher=StubFetcher(
-            {
-                INDEX_URL: _fixture("index.html"),
-                recipe_url("test-berry-crisp"): _fixture("two-groups.html"),
-                recipe_url("test-fruit-salad"): _fixture("fruit-salad.html"),
-                recipe_url("test-oat-bowl"): _fixture("no-tips.html"),
-            }
-        ),
+        fetcher=CachedFetcher(fixture_recipe_cache_dir(tmp_path), delay=0.0),
+        only=SLUGS,
     )
-    os.environ["FOODGUIDE_DATA_DIR"] = str(tmp_path)
-    request.addfinalizer(lambda: os.environ.pop("FOODGUIDE_DATA_DIR", None))
-    # A fresh source for this module's server (api.recipe caches one globally).
-    previous = recipe_api._source
-    recipe_api._source = LocalRecipeSource(tmp_path / "recipes.json")
-    request.addfinalizer(lambda: setattr(recipe_api, "_source", previous))
-    return create_server(enable_db=False)
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv("FOODGUIDE_DATA_DIR", str(tmp_path))
+        yield create_server(enable_db=False)
 
 
 def call_tool(server, name, arguments):
@@ -73,11 +59,10 @@ def call_tool(server, name, arguments):
 
 
 def test_search_by_text(server):
-    payload = call_tool(server, "search_recipes", {"search_text": "berry"})
+    payload = call_tool(server, "search_recipes", {"search_text": "quinoa"})
     assert "error" not in payload
-    assert payload["count"] >= 1
-    assert len(payload["recipes"]) >= 1
-    assert any(r["slug"] == "test-berry-crisp" for r in payload["recipes"])
+    assert payload["count"] == 1
+    assert [r["slug"] for r in payload["recipes"]] == ["colourful-quinoa-salad"]
 
 
 def test_search_by_meal_filter(server):
@@ -85,9 +70,10 @@ def test_search_by_meal_filter(server):
         server, "search_recipes", {"search_text": "", "meals": ["Snack"]}
     )
     assert "error" not in payload
-    assert payload["count"] >= 1
+    assert payload["count"] == 1
     for recipe in payload["recipes"]:
         assert "meal__snack" in recipe["tags"]
+    assert payload["recipes"][0]["slug"] == "apple-sandwiches"
     assert "meal__snack" in payload["filters_applied"]
 
 
@@ -97,12 +83,13 @@ def test_search_ignores_retired_filters(server):
     )
     assert "error" not in payload
     assert payload["filters_ignored"] == ["apple"]
-    assert payload["count"] >= 1
+    assert payload["count"] == 3
 
 
 def test_get_recipe_by_slug_and_url(server):
-    by_slug = call_tool(server, "get_recipe", {"url_or_slug": "test-berry-crisp"})
+    by_slug = call_tool(server, "get_recipe", {"url_or_slug": "baked-fish-chips"})
     assert "error" not in by_slug
+    assert by_slug["title"] == "Baked fish and chips"
     assert by_slug["ingredients"]
     assert by_slug["directions"]
 
@@ -112,12 +99,21 @@ def test_get_recipe_by_slug_and_url(server):
         {
             "url_or_slug": (
                 "https://www.canada.ca/en/health-canada/services/food-guide"
-                "/eating-support/kitchen/recipes/test-berry-crisp.html"
+                "/eating-support/kitchen/recipes/baked-fish-chips.html"
             )
         },
     )
     assert "error" not in by_url
     assert by_url == by_slug
+
+
+def test_get_recipe_payload_is_the_real_recipe(server):
+    payload = call_tool(server, "get_recipe", {"url_or_slug": "apple-sandwiches"})
+    assert "error" not in payload
+    assert payload["title"] == "Apple sandwiches"
+    assert payload["prep_time"] == "10 min" and payload["cook_time"] == "0 min"
+    assert payload["ingredients"][1] == "85 mL (⅓ cup) 0% plain Greek yogurt"
+    assert "meal__snack" in payload["tags"]
 
 
 def test_get_recipe_unknown_slug(server):
@@ -128,14 +124,27 @@ def test_get_recipe_unknown_slug(server):
 def test_list_filters(server):
     payload = call_tool(server, "list_filters", {})
     assert "error" not in payload
-    assert set(payload["collection"].values()) and set(payload["meal"].values())
-    assert all(isinstance(label, str) and label for label in payload["collection"].values())
-    assert all(isinstance(label, str) and label for label in payload["meal"].values())
+    # The real canada.ca index ships six collection and three meal filters.
+    assert set(payload["collection"]) == {
+        "collection__10_ingredients_less",
+        "collection__30_minutes_less",
+        "collection__freezer_friendly",
+        "collection__kid_friendly",
+        "collection__no_cook",
+        "collection__vegetarian",
+    }
+    assert payload["collection"]["collection__vegetarian"] == "Vegetarian"
+    assert payload["meal"] == {
+        "meal__breakfast": "Breakfast",
+        "meal__lunch_dinner": "Lunch/dinner",
+        "meal__snack": "Snack",
+    }
 
 
 def test_missing_data_returns_build_hint(tmp_path, monkeypatch):
+    # The production recipe API singleton reads FOODGUIDE_DATA_DIR at call
+    # time, so pointing it at an empty dir is enough — no patching.
     monkeypatch.setenv("FOODGUIDE_DATA_DIR", str(tmp_path / "empty"))
-    monkeypatch.setattr(recipe_api, "_source", LocalRecipeSource())
     server = create_server(enable_db=False)
     payload = call_tool(server, "search_recipes", {"search_text": ""})
     assert "error" in payload

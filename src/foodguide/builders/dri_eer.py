@@ -11,6 +11,12 @@ The HTTP rules match ``foodguide.recipes.fetch``: canada.ca stalls generic
 Mozilla/5.0 user agents, so requests use the build-tool user agent, an
 ``Accept: */*`` header, a 30 second timeout, and 4 attempts with exponential
 backoff on network errors and 5xx responses.
+
+Development/testing override: set ``FOODGUIDE_SOURCE_BASE_URL`` to fetch both
+pages from another base (e.g. a local http.server fixture serving copies of
+the Health Canada pages). It is read at call time, never at import time; the
+``DRI_URL``/``EER_URL`` constants remain the canonical live URLs and the
+default behaviour is unchanged when the variable is unset.
 """
 
 from __future__ import annotations
@@ -29,16 +35,31 @@ import requests
 from bs4 import BeautifulSoup
 
 from foodguide.api.dri import MacronutrientScraper
+from foodguide.config import DEFAULT_SOURCE_BASE_URL, source_base_url
 
 USER_AGENT = "foodguide-data-build/0.1 (+https://github.com/Aryan-Jhaveri/mcp-foodguidecanada)"
-DRI_URL = (
-    "https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/"
+DRI_PATH = (
+    "/en/health-canada/services/food-nutrition/healthy-eating/"
     "dietary-reference-intakes/tables/reference-values-macronutrients.html"
 )
-EER_URL = (
-    "https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/"
+EER_PATH = (
+    "/en/health-canada/services/food-nutrition/healthy-eating/"
     "dietary-reference-intakes/tables/equations-estimate-energy-requirement.html"
 )
+# Canonical live defaults; the fetch functions below apply source_base_url()
+# (FOODGUIDE_SOURCE_BASE_URL, read at call time) on top of these paths.
+DRI_URL = DEFAULT_SOURCE_BASE_URL + DRI_PATH
+EER_URL = DEFAULT_SOURCE_BASE_URL + EER_PATH
+
+
+def dri_url() -> str:
+    """DRI macronutrients page URL, honouring FOODGUIDE_SOURCE_BASE_URL at call time."""
+    return source_base_url() + DRI_PATH
+
+
+def eer_url() -> str:
+    """EER equations page URL, honouring FOODGUIDE_SOURCE_BASE_URL at call time."""
+    return source_base_url() + EER_PATH
 
 _REQUEST_TIMEOUT = 30
 _MAX_ATTEMPTS = 4
@@ -266,7 +287,7 @@ def parse_dri_page(html: str) -> dict[str, Any]:
     result = {
         "status": "success",
         "source": "Health Canada DRI Tables",
-        "url": DRI_URL,
+        "url": dri_url(),
         "last_updated": datetime.now().isoformat(),
         "reference_values": reference_values,
         "additional_recommendations": scraper._parse_additional_recommendations(soup),
@@ -329,11 +350,12 @@ def _validate_dri(payload: dict[str, Any]) -> None:
 def build_dri(out_path: Path, fetcher: Fetcher | None = None) -> dict[str, Any]:
     """Fetch, parse, validate and atomically write the DRI macronutrient data file."""
     fetcher = fetcher if fetcher is not None else HttpFetcher()
-    html = fetcher.fetch(DRI_URL)
+    url = dri_url()
+    html = fetcher.fetch(url)
     soup = BeautifulSoup(html, "html.parser")
     payload = parse_dri_page(html)
     _validate_dri(payload)
-    payload["_provenance"] = _provenance(DRI_URL, html, soup)
+    payload["_provenance"] = _provenance(url, html, soup)
     return _write_payload(out_path, payload)
 
 
@@ -986,10 +1008,11 @@ def parse_eer_page(html: str) -> dict[str, Any]:
 def build_eer(out_path: Path, fetcher: Fetcher | None = None) -> dict[str, Any]:
     """Fetch, parse, validate and atomically write the EER equations data file."""
     fetcher = fetcher if fetcher is not None else HttpFetcher()
-    html = fetcher.fetch(EER_URL)
+    url = eer_url()
+    html = fetcher.fetch(url)
     soup = BeautifulSoup(html, "html.parser")
     payload = parse_eer_page(html)
-    payload["_provenance"] = _provenance(EER_URL, html, soup)
+    payload["_provenance"] = _provenance(url, html, soup)
     return _write_payload(out_path, payload)
 
 

@@ -4,6 +4,24 @@ Configuration parameters for the Canada's Food Guide MCP Server
 
 import os
 
+# Canonical live base URL for every canada.ca page the builders fetch. The
+# URLs in the builder modules are defined against this constant so the default
+# behaviour stays byte-identical, while source_base_url() lets tests point the
+# build tools at another base (e.g. a local http.server fixture) purely via
+# the FOODGUIDE_SOURCE_BASE_URL environment variable.
+DEFAULT_SOURCE_BASE_URL = "https://www.canada.ca"
+
+
+def source_base_url() -> str:
+    """Base URL the data builders fetch Health Canada pages from, at call time.
+
+    Defaults to the live canada.ca site. Set ``FOODGUIDE_SOURCE_BASE_URL`` to
+    serve the Health Canada pages from another base (e.g. a local http.server
+    fixture in tests); the value is read at call time, never at import time.
+    A single trailing slash is stripped so paths can be appended directly.
+    """
+    return os.environ.get("FOODGUIDE_SOURCE_BASE_URL", DEFAULT_SOURCE_BASE_URL).rstrip("/")
+
 # Database configuration. The SQLite database is NOT bundled with the package;
 # it is built separately (see HOM-76). Default location is a per-user state
 # directory so an installed package never writes into its own source tree.

@@ -190,7 +190,54 @@ def tool_name(parameter: str) -> Dict[str, Any]:
 
 ## 🧪 Testing Guidelines
 
+### Tests: no mocks (project rule)
+
+We do **not** mock our tests. The suite runs against real inputs: real saved
+canada.ca pages (`tests/fixtures/pages/`, served by a real localhost
+`http.server` from the `pages_server` fixture), real files, a real SQLite
+database, real subprocess runs of the CLI, and answer keys
+(``tests/fixtures/golden_*.json``) produced by separate, independent scripts
+that share no code with the package. Never edit an answer key by hand.
+
+**Allowed**
+
+- `monkeypatch.setenv` / `monkeypatch.delenv` / `monkeypatch.chdir` — these set
+  the environment, they fake nothing. The production code reads all its
+  configuration points from the environment at call time
+  (`FOODGUIDE_DATA_DIR`, `FOODGUIDE_DB_FILE`, `FOODGUIDE_STATE_DIR`,
+  `FOODGUIDE_SOURCE_BASE_URL`, `FOODGUIDE_CKAN_PACKAGE_URL`,
+  `FOODGUIDE_RECIPES_CACHE_DIR`, `SOURCE_DATE_EPOCH`), so tests never need to
+  patch attributes.
+- A real `http.server.ThreadingHTTPServer` on 127.0.0.1 in a background thread
+  (`tests/pages_fixture.py`), including "broken" responses derived from real
+  pages (truncated HTML, a page with its Ingredients heading removed, HTTP 500).
+- Answer keys from independent scripts; build options such as
+  `data build recipes --max-recipes/--only` to work with a small fixture set.
+
+**Not allowed**
+
+- `unittest.mock`, `MagicMock`, `pytest`'s `patch`, and any
+  `monkeypatch.setattr` / `monkeypatch.setitem` on code under test or on
+  libraries (`requests`, `datetime`, builders, fetchers).
+- "Network is blocked" fixtures that swap `requests.Session.request` for a
+  raiser — prove offline-ness instead with the static import check
+  (`tests/test_offline_modules.py`) and real subprocess runs with
+  `HTTP_PROXY`/`HTTPS_PROXY` pointed at a dead port
+  (`tests/test_offline_subprocess.py`).
+
+Slow, network-dependent tests (the full 141-page recipes crawl, the live
+DRI/EER snapshot comparisons) carry the `live` pytest marker: CI runs
+`pytest -m "not live"`; the data-refresh workflow runs `pytest -m live`.
+
 ### Local Testing
+
+```bash
+uv run ruff check .
+uv run pytest -q -m "not live"   # fast, deterministic, offline
+```
+
+The loopback-dependent tests (localhost http.server) skip automatically on
+environments that block local TCP connections; they run on GitHub CI.
 
 1. **CLI Testing**:
    ```bash

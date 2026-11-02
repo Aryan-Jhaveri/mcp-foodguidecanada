@@ -42,8 +42,11 @@ packages = ["src/foodguide"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
-    # Opt-in marker for slow, network-dependent tests (tests/test_dri_eer_snapshot.py).
-    "live: fetches live canada.ca pages (skipped when FOODGUIDE_SKIP_LIVE_TESTS=1)",
+    # Slow, network-dependent tests: the live 141-page recipes crawl and the
+    # live DRI/EER snapshot comparisons. CI runs `pytest -m "not live"`;
+    # the data-refresh workflow runs `pytest -m live`. FOODGUIDE_SKIP_LIVE_TESTS=1
+    # additionally skips the live tests inside a `-m live` run.
+    "live: fetches live canada.ca pages (full recipes crawl / live snapshot tests)",
 ]
 
 [tool.ruff]

@@ -1,44 +1,45 @@
-"""Tests for LocalRecipeSource over a recipes.json built from the HTML fixtures."""
+"""Tests for LocalRecipeSource over a recipes.json built from the REAL committed
+canada.ca fixture pages (tests/fixtures/pages), via the production CachedFetcher.
 
+Zero network: the build reads the committed pages from a cache dir laid out the
+way production ``CachedFetcher`` expects (see ``pages_fixture.fixture_recipe_cache_dir``),
+so these tests run even in sandboxes that block all loopback TCP connections.
+
+Real slugs used (chosen for parser variety):
+- ``apple-sandwiches``: one ingredient group, tips, many tags (incl. meal__snack).
+- ``baked-fish-chips``: TWO named ingredient groups ("Oven Fries:", "Almond Crusted Fish:").
+- ``colourful-quinoa-salad``: title differs from the slug ("Quinoa salad"),
+  only two tags, one of which (collection__vegetarian) the others lack.
+"""
+
+import json
 from pathlib import Path
 
 import pytest
+from pages_fixture import fixture_recipe_cache_dir
 
 from foodguide.recipes.builder import build_recipes_json
-from foodguide.recipes.fetch import INDEX_URL, recipe_url
+from foodguide.recipes.fetch import CachedFetcher, recipe_url
 from foodguide.recipes.source import LocalRecipeSource, recipes_data_path
 
-FIXTURES = Path(__file__).parent / "fixtures" / "recipes_html"
+#: The fixture recipe pages exercised by these tests.
+SLUGS = ["apple-sandwiches", "baked-fish-chips", "colourful-quinoa-salad"]
+
+#: sha256 of the index text as the production fetcher delivers it to the
+#: builder. The committed fixture page has CRLF line endings; CachedFetcher
+#: reads it with read_text(), which normalizes them to LF before hashing.
+INDEX_SHA256 = "2d6152eba8105ca759f0c689fa021b9bc86cfc73037b864bf2b214a03f07c56e"
 
 
-class StubFetcher:
-    """Serves fixture pages instead of the network."""
-
-    def __init__(self, mapping):
-        self.mapping = mapping
-
-    def fetch(self, url: str) -> str:
-        return self.mapping[url]
-
-
-def _fixture(name: str) -> str:
-    return (FIXTURES / name).read_text(encoding="utf-8")
-
-
-def _stub_fetcher() -> StubFetcher:
-    return StubFetcher(
-        {
-            INDEX_URL: _fixture("index.html"),
-            recipe_url("test-berry-crisp"): _fixture("two-groups.html"),
-            recipe_url("test-fruit-salad"): _fixture("fruit-salad.html"),
-            recipe_url("test-oat-bowl"): _fixture("no-tips.html"),
-        }
-    )
-
-
-def _build(tmp_path, name="recipes.json"):
+def _build(tmp_path, name="recipes.json") -> Path:
+    """Build a real recipes.json from the committed pages via the production
+    builder + CachedFetcher (offline: every page is a cache hit)."""
     out_path = tmp_path / name
-    build_recipes_json(out_path, fetcher=_stub_fetcher())
+    build_recipes_json(
+        out_path,
+        fetcher=CachedFetcher(fixture_recipe_cache_dir(tmp_path), delay=0.0),
+        only=SLUGS,
+    )
     return out_path
 
 
@@ -46,11 +47,42 @@ def _titles(results):
     return [r["title"] for r in results]
 
 
+def test_max_recipes_limits_crawl_to_first_n_slugs(tmp_path):
+    """Development option: max_recipes takes the first N slugs in index order."""
+    from foodguide.recipes.parser import parse_index
+
+    out_path = tmp_path / "max.json"
+    build_recipes_json(
+        out_path,
+        fetcher=CachedFetcher(fixture_recipe_cache_dir(tmp_path), delay=0.0),
+        max_recipes=2,
+    )
+    document = json.loads(out_path.read_text(encoding="utf-8"))
+    built = [r["slug"] for r in document["recipes"]]
+    index = (
+        Path(__file__).parent / "fixtures" / "pages" / "recipes_index.html"
+    ).read_text(encoding="utf-8")
+    assert built == parse_index(index)["slugs"][:2]
+    # The index itself is still the real one: 141 links parsed.
+    assert document["source"]["index_recipe_count"] == 141
+
+
+def test_only_unknown_slug_raises_value_error(tmp_path):
+    """only= rejects slugs that are not on the index, naming them."""
+    cache = fixture_recipe_cache_dir(tmp_path)
+    with pytest.raises(ValueError, match="not found in the index.*no-such-slug"):
+        build_recipes_json(
+            tmp_path / "recipes.json",
+            fetcher=CachedFetcher(cache, delay=0.0),
+            only=["no-such-slug"],
+        )
+
+
 def test_search_empty_matches_all_sorted_by_title(tmp_path):
     path = _build(tmp_path)
     source = LocalRecipeSource(path)
     results = source.search("")
-    assert _titles(results) == ["Test berry crisp", "Test fruit salad", "Test oat bowl"]
+    assert _titles(results) == ["Apple sandwiches", "Baked fish and chips", "Quinoa salad"]
     for row in results:
         assert set(row) == {"title", "url", "slug", "tags"}
         assert row["url"] == recipe_url(row["slug"])
@@ -59,20 +91,20 @@ def test_search_empty_matches_all_sorted_by_title(tmp_path):
 def test_search_text_matches_title_intro_ingredients_directions(tmp_path):
     path = _build(tmp_path)
     source = LocalRecipeSource(path)
-    assert _titles(source.search("berry")) == ["Test berry crisp"]
-    assert _titles(source.search("YOGURT")) == ["Test berry crisp"]  # intro, case-insensitive
-    assert _titles(source.search("margarine")) == ["Test berry crisp"]  # ingredient
-    assert _titles(source.search("chill until serving")) == ["Test fruit salad"]  # direction
+    assert _titles(source.search("quinoa")) == ["Quinoa salad"]  # title
+    assert _titles(source.search("AFTER-SCHOOL SNACK")) == ["Apple sandwiches"]  # intro, case-insensitive
+    assert _titles(source.search("parsnips")) == ["Baked fish and chips"]  # ingredient
+    assert _titles(source.search("serve with lemon wedge")) == ["Baked fish and chips"]  # direction
     assert source.search("no-such-thing-xyz") == []
 
 
 def test_search_tags_and_semantics(tmp_path):
     path = _build(tmp_path)
     source = LocalRecipeSource(path)
-    assert _titles(source.search(tags=["collection__vegetarian", "meal__snack"])) == [
-        "Test berry crisp"
+    assert _titles(source.search(tags=["collection__vegetarian", "meal__lunch_dinner"])) == [
+        "Quinoa salad"
     ]
-    # breakfast and snack never co-occur in the fixture index.
+    # breakfast and snack never co-occur on the real pages either.
     assert source.search(tags=["meal__breakfast", "meal__snack"]) == []
 
 
@@ -83,10 +115,11 @@ def test_search_tag_by_label_or_raw_value(tmp_path):
     by_label = source.search(tags=["Snack"])
     by_label_lower = source.search(tags=["snack"])
     assert _titles(by_raw) == _titles(by_label) == _titles(by_label_lower) == [
-        "Test berry crisp"
+        "Apple sandwiches"
     ]
-    assert _titles(source.search(tags=["vegetarian"])) == ["Test berry crisp"]
-    # A label with no matching filter simply matches nothing.
+    assert _titles(source.search(tags=["vegetarian"])) == ["Quinoa salad"]
+    # A label with no matching filter simply matches nothing ("30 minutes or
+    # less" is the REAL label; "30 Minutes Less" matches no filter).
     assert source.search(tags=["30 Minutes Less"]) == []
     assert source.search(tags=["not-a-real-tag"]) == []
 
@@ -94,7 +127,7 @@ def test_search_tag_by_label_or_raw_value(tmp_path):
 def test_search_limit_after_sorting(tmp_path):
     path = _build(tmp_path)
     source = LocalRecipeSource(path)
-    assert _titles(source.search(limit=2)) == ["Test berry crisp", "Test fruit salad"]
+    assert _titles(source.search(limit=2)) == ["Apple sandwiches", "Baked fish and chips"]
     # None and <=0 mean no limit.
     assert len(source.search(limit=None)) == 3
     assert len(source.search(limit=0)) == 3
@@ -104,35 +137,77 @@ def test_search_limit_after_sorting(tmp_path):
 def test_get_recipe_by_slug_and_url_identical_with_flat_ingredients(tmp_path):
     path = _build(tmp_path)
     source = LocalRecipeSource(path)
-    by_slug = source.get_recipe("test-berry-crisp")
+    by_slug = source.get_recipe("baked-fish-chips")
     by_url = source.get_recipe(
         "https://www.canada.ca/en/health-canada/services/food-guide/eating-support"
-        "/kitchen/recipes/test-berry-crisp.html"
+        "/kitchen/recipes/baked-fish-chips.html"
     )
-    by_old_url = source.get_recipe("https://food-guide.canada.ca/en/recipes/test-berry-crisp/")
+    by_old_url = source.get_recipe("https://food-guide.canada.ca/en/recipes/baked-fish-chips/")
     assert by_slug == by_url == by_old_url
 
-    assert by_slug["title"] == "Test berry crisp"
-    assert by_slug["prep_time"] == "15 min"
-    assert by_slug["cook_time"] == "50 min"
-    assert by_slug["servings"] == "6"
-    # Flattened across both groups, in order.
+    assert by_slug["title"] == "Baked fish and chips"
+    assert by_slug["prep_time"] == "20 min"
+    assert by_slug["cook_time"] == "45 min"
+    assert by_slug["servings"] == "4"
+    # Flattened across both real groups, in order.
     assert by_slug["ingredients"] == [
-        "4 apples, cored and chopped",
-        "500 mL (2 cups) frozen blueberries",
-        "45 mL (3 tbsp) packed brown sugar",
-        "125 mL (½ cup) large flake oats",
-        "30 mL (2 tbsp) soft margarine, melted",
+        "1 sweet potato, cut into strips",
+        "2 parsnips, cut into strips",
+        "5 mL (1 tsp) vegetable oil",
+        "2 mL (½ tsp) chili powder",
+        "125 mL (½ cup) whole almonds",
+        "180 mL (¾ cup) whole grain breadcrumbs",
+        "10 mL (2 tsp) dried oregano",
+        "1 egg",
+        "30 mL (2 tbsp) water",
+        "60 mL (¼ cup) whole wheat flour",
+        "10 mL (2 tsp) paprika",
+        "454 g (1 lb) tilapia fillets",
+        "2 mL (½ tsp) salt (optional)",
+        "2 mL (½ tsp) black pepper",
+        "1 lemon, cut into wedges",
     ]
-    assert [g["group"] for g in by_slug["ingredient_groups"]] == [None, "Topping:"]
-    assert by_slug["directions"][0] == "Preheat the oven to 180 °C (350 °F)."
-    assert by_slug["tips"] == ["Little chefs can stir the topping ingredients together."]
-    assert by_slug["tags"] == ["collection__vegetarian", "meal__snack"]
+    assert [g["group"] for g in by_slug["ingredient_groups"]] == [
+        "Oven Fries:",
+        "Almond Crusted Fish:",
+    ]
+    assert by_slug["directions"][0] == (
+        "Preheat the oven to 220 °C (425 °F) and line 2 baking sheets with parchment paper. Set aside."
+    )
+    assert by_slug["tips"][0] == (
+        "Use your family’s favourite fresh or frozen fish. Shop around for the best deal!"
+    )
+    assert by_slug["tags"] == [
+        "collection__freezer_friendly",
+        "collection__kid_friendly",
+        "meal__lunch_dinner",
+    ]
     assert by_slug["source"] == "Health Canada's Food Guide"
     assert by_slug["attribution"] == (
         "Recipe sourced from Health Canada's Food Guide kitchen (canada.ca)"
     )
     assert "page_sha256" not in by_slug
+
+
+def test_get_recipe_single_group_real_content(tmp_path):
+    path = _build(tmp_path)
+    source = LocalRecipeSource(path)
+    recipe = source.get_recipe("apple-sandwiches")
+    assert recipe["title"] == "Apple sandwiches"
+    assert recipe["prep_time"] == "10 min"
+    assert recipe["cook_time"] == "0 min"
+    assert recipe["servings"] == "4"
+    assert [g["group"] for g in recipe["ingredient_groups"]] == [None]
+    assert recipe["ingredients"][1] == "85 mL (⅓ cup) 0% plain Greek yogurt"
+    assert recipe["directions"][-1].startswith("On a clean cutting board, lay apple slices")
+    assert len(recipe["tips"]) == 3
+    assert recipe["tags"] == [
+        "collection__10_ingredients_less",
+        "collection__30_minutes_less",
+        "collection__kid_friendly",
+        "collection__no_cook",
+        "meal__snack",
+    ]
 
 
 def test_get_recipe_unknown_returns_none(tmp_path):
@@ -142,12 +217,19 @@ def test_get_recipe_unknown_returns_none(tmp_path):
     assert source.get_recipe("https://food-guide.canada.ca/en/recipes/no-such-recipe/") is None
 
 
-def test_list_filters_sorted(tmp_path):
+def test_list_filters_sorted_from_real_index(tmp_path):
     path = _build(tmp_path)
     source = LocalRecipeSource(path)
+    # The REAL canada.ca index ships exactly these nine filters.
     assert source.list_filters() == {
+        "collection__10_ingredients_less": "10 ingredients or less",
+        "collection__30_minutes_less": "30 minutes or less",
+        "collection__freezer_friendly": "Freezer-friendly",
+        "collection__kid_friendly": "Kid-friendly",
+        "collection__no_cook": "No-cook",
         "collection__vegetarian": "Vegetarian",
         "meal__breakfast": "Breakfast",
+        "meal__lunch_dinner": "Lunch/dinner",
         "meal__snack": "Snack",
     }
 
@@ -160,9 +242,9 @@ def test_status_built_and_missing(tmp_path):
     assert status["path"] == str(path)
     assert status["size_bytes"] == path.stat().st_size
     assert status["recipe_count"] == 3
-    assert status["filter_count"] == 3
+    assert status["filter_count"] == 9
     assert status["fetched_at"]
-    assert len(status["index_sha256"]) == 64
+    assert status["index_sha256"] == INDEX_SHA256
 
     missing = LocalRecipeSource(tmp_path / "nope.json")
     assert missing.status() == {"built": False}
