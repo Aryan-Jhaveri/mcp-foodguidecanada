@@ -190,10 +190,24 @@ def _page_date_modified(soup: BeautifulSoup) -> str | None:
     return text or None
 
 
+def _page_content_sha256(soup: BeautifulSoup) -> str:
+    """sha256 of the page content with script/style elements stripped.
+
+    canada.ca injects an Akamai boomerang monitoring <script> with per-request
+    IDs and timestamps, so hashing the raw bytes would change on every fetch.
+    Stripping script/style makes the fingerprint stable for a given page
+    version while still catching any real content change.
+    """
+    content = BeautifulSoup(str(soup), "html.parser")
+    for element in content.find_all(["script", "style"]):
+        element.decompose()
+    return hashlib.sha256(str(content).encode("utf-8")).hexdigest()
+
+
 def _provenance(url: str, html: str, soup: BeautifulSoup) -> dict[str, Any]:
     return {
         "source_url": url,
-        "page_sha256": hashlib.sha256(html.encode("utf-8")).hexdigest(),
+        "page_sha256": _page_content_sha256(soup),
         "fetched_at": datetime.now(timezone.utc).isoformat(),
         "page_date_modified": _page_date_modified(soup),
     }
