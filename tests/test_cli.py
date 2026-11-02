@@ -6,7 +6,7 @@ from typer.testing import CliRunner
 
 from foodguide.cli import app
 
-runner = CliRunner()
+runner = CliRunner(env={"COLUMNS": "200", "NO_COLOR": "1", "TERM": "dumb"})
 
 
 def test_help_shows_all_command_groups() -> None:
