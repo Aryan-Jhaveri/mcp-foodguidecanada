@@ -294,7 +294,33 @@ def test_data_build_recipes_from_cache_dir(tmp_path, monkeypatch):
     ]
 
 
-def test_data_build_recipes_help_mentions_cache_dir():
+def test_data_build_recipes_max_recipes_option(tmp_path, monkeypatch):
+    """--max-recipes N keeps the first N index slugs (development option)."""
+    monkeypatch.setenv("FOODGUIDE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("FOODGUIDE_RECIPES_CACHE_DIR", str(fixture_recipe_cache_dir(tmp_path)))
+    out_path = tmp_path / "built" / "max.json"
+
+    result = runner.invoke(app, ["data", "build", "recipes", "--max-recipes", "2", "--out", str(out_path)])
+    assert result.exit_code == 0, result.output
+    assert "recipes: 2" in result.stdout
+    document = json.loads(out_path.read_text(encoding="utf-8"))
+    from foodguide.recipes.parser import parse_index
+
+    index = (Path(__file__).parent / "fixtures" / "pages" / "recipes_index.html").read_text(
+        encoding="utf-8"
+    )
+    assert [r["slug"] for r in document["recipes"]] == parse_index(index)["slugs"][:2]
+
+
+def test_data_build_recipes_empty_only_exits_1(tmp_path, monkeypatch):
+    """--only without any slug is a usage error (exit 1, stderr hint)."""
+    monkeypatch.setenv("FOODGUIDE_DATA_DIR", str(tmp_path))
+    result = runner.invoke(app, ["data", "build", "recipes", "--only", " , "])
+    assert result.exit_code == 1
+    assert "--only" in result.output
+
+
+def test_data_build_recipes_help_mentions_cache_dir(tmp_path):
     result = runner.invoke(app, ["data", "build", "recipes", "--help"])
     assert result.exit_code == 0
     assert "on-disk cache" in result.stdout

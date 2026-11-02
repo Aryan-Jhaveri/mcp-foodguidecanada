@@ -195,9 +195,9 @@ def tool_name(parameter: str) -> Dict[str, Any]:
 We do **not** mock our tests. The suite runs against real inputs: real saved
 canada.ca pages (`tests/fixtures/pages/`, served by a real localhost
 `http.server` from the `pages_server` fixture), real files, a real SQLite
-database, real subprocess runs of the CLI, and answer keys produced by
-separate scripts (`tests/fixtures/golden_*.json`). Never edit an answer key by
-hand; regenerate it with the matching script.
+database, real subprocess runs of the CLI, and answer keys
+(``tests/fixtures/golden_*.json``) produced by separate, independent scripts
+that share no code with the package. Never edit an answer key by hand.
 
 **Allowed**
 

@@ -32,8 +32,8 @@ def build_recipes_json(
 
     The document's ``source`` records ``index_recipe_count`` (number of recipe
     links on the index) while ``recipe_count`` stays the number of recipes
-    actually built, and ``index_url`` is the URL actually fetched (even when
-    ``index_html`` was passed directly).
+    actually built, and ``index_url`` records the URL the index would have been
+    fetched from (or was, when no ``index_html`` was passed).
     """
     fetcher = fetcher if fetcher is not None else PoliteFetcher()
     out_path = Path(out_path)

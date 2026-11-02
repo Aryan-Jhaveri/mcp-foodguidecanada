@@ -48,8 +48,9 @@ CACHE_DIR = Path(
 )
 SHA_NOTE = (
     "the golden key hashes raw pages while the parser hashes pages with "
-    "script/style blocks stripped (canada.ca serves a dynamic analytics script); "
-    "the page content itself was verified identical"
+    "script/style blocks stripped (canada.ca serves a dynamic analytics script, "
+    "so raw-page hashes differ between fetches); only the content fields are "
+    "authoritative for this comparison"
 )
 
 

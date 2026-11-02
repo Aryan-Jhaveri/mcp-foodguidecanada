@@ -12,6 +12,7 @@ Real slugs used (chosen for parser variety):
   only two tags, one of which (collection__vegetarian) the others lack.
 """
 
+import json
 from pathlib import Path
 
 import pytest
@@ -44,6 +45,37 @@ def _build(tmp_path, name="recipes.json") -> Path:
 
 def _titles(results):
     return [r["title"] for r in results]
+
+
+def test_max_recipes_limits_crawl_to_first_n_slugs(tmp_path):
+    """Development option: max_recipes takes the first N slugs in index order."""
+    from foodguide.recipes.parser import parse_index
+
+    out_path = tmp_path / "max.json"
+    build_recipes_json(
+        out_path,
+        fetcher=CachedFetcher(fixture_recipe_cache_dir(tmp_path), delay=0.0),
+        max_recipes=2,
+    )
+    document = json.loads(out_path.read_text(encoding="utf-8"))
+    built = [r["slug"] for r in document["recipes"]]
+    index = (
+        Path(__file__).parent / "fixtures" / "pages" / "recipes_index.html"
+    ).read_text(encoding="utf-8")
+    assert built == parse_index(index)["slugs"][:2]
+    # The index itself is still the real one: 141 links parsed.
+    assert document["source"]["index_recipe_count"] == 141
+
+
+def test_only_unknown_slug_raises_value_error(tmp_path):
+    """only= rejects slugs that are not on the index, naming them."""
+    cache = fixture_recipe_cache_dir(tmp_path)
+    with pytest.raises(ValueError, match="not found in the index.*no-such-slug"):
+        build_recipes_json(
+            tmp_path / "recipes.json",
+            fetcher=CachedFetcher(cache, delay=0.0),
+            only=["no-such-slug"],
+        )
 
 
 def test_search_empty_matches_all_sorted_by_title(tmp_path):
