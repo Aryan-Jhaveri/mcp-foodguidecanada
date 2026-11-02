@@ -29,30 +29,30 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 try:
-    from src.api.recipe import RecipeFetcher
-    from src.api.recipe import register_recipe_tools
-    from src.api.search import RecipeSearcher
-    from src.models.filters import SearchFilters
-    from src.db.queries import register_db_tools
-    from src.db.math_tools import register_math_tools
-    from src.db.dri_tools import register_dri_tools, register_session_dri_tools
-    from src.db.eer_tools import register_eer_tools
-    from src.db.cnf_tools import register_cnf_tools
-    from src.resources import register_resources
-    from src.config import DB_FILE, TOOL_TIMEOUT_SECONDS
+    from foodguide.api.recipe import RecipeFetcher
+    from foodguide.api.recipe import register_recipe_tools
+    from foodguide.api.search import RecipeSearcher
+    from foodguide.models.filters import SearchFilters
+    from foodguide.db.queries import register_db_tools
+    from foodguide.db.math_tools import register_math_tools
+    from foodguide.db.dri_tools import register_dri_tools, register_session_dri_tools
+    from foodguide.db.eer_tools import register_eer_tools
+    from foodguide.db.cnf_tools import register_cnf_tools
+    from foodguide.resources import register_resources
+    from foodguide.config import DB_FILE, TOOL_TIMEOUT_SECONDS
 except ImportError:
     try:
-        from api.recipe import RecipeFetcher
-        from src.api.recipe import register_recipe_tools
-        from api.search import RecipeSearcher
-        from models.filters import SearchFilters
-        from db.queries import register_db_tools
-        from db.math_tools import register_math_tools
-        from db.dri_tools import register_dri_tools, register_session_dri_tools
-        from db.eer_tools import register_eer_tools
-        from db.cnf_tools import register_cnf_tools
-        from resources import register_resources
-        from config import DB_FILE, TOOL_TIMEOUT_SECONDS
+        from foodguide.api.recipe import RecipeFetcher
+        from foodguide.api.recipe import register_recipe_tools
+        from foodguide.api.search import RecipeSearcher
+        from foodguide.models.filters import SearchFilters
+        from foodguide.db.queries import register_db_tools
+        from foodguide.db.math_tools import register_math_tools
+        from foodguide.db.dri_tools import register_dri_tools, register_session_dri_tools
+        from foodguide.db.eer_tools import register_eer_tools
+        from foodguide.db.cnf_tools import register_cnf_tools
+        from foodguide.resources import register_resources
+        from foodguide.config import DB_FILE, TOOL_TIMEOUT_SECONDS
     except ImportError as e:
         print(f"Error importing modules: {e}", file=sys.stderr)
         sys.exit(1)

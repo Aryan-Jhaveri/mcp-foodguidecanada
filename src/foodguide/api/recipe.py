@@ -18,39 +18,39 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 try:
-    from src.api.search import RecipeSearcher
-    from src.models.filters import SearchFilters
-    from src.db.queries import register_db_tools
-    from src.config import DB_FILE
-    from src.utils.url_builder import FoodGuideURLBuilder
+    from foodguide.api.search import RecipeSearcher
+    from foodguide.models.filters import SearchFilters
+    from foodguide.db.queries import register_db_tools
+    from foodguide.config import DB_FILE
+    from foodguide.utils.url_builder import FoodGuideURLBuilder
 except ImportError:
     try:
-        from api.search import RecipeSearcher
-        from models.filters import SearchFilters
-        from db.queries import register_db_tools
-        from config import DB_FILE
-        from utils.url_builder import FoodGuideURLBuilder
+        from foodguide.api.search import RecipeSearcher
+        from foodguide.models.filters import SearchFilters
+        from foodguide.db.queries import register_db_tools
+        from foodguide.config import DB_FILE
+        from foodguide.utils.url_builder import FoodGuideURLBuilder
     except ImportError as e:
         print(f"Error importing modules: {e}", file=sys.stderr)
         sys.exit(1)
 
 try:
     # Try first with src prefix
-    from src.models.recipe import Recipe
-    from src.utils.url_builder import FoodGuideURLBuilder
+    from foodguide.models.recipe import Recipe
+    from foodguide.utils.url_builder import FoodGuideURLBuilder
 except ImportError:
     try:
         # Next, try with parent directory
-        from models.recipe import Recipe
-        from utils.url_builder import FoodGuideURLBuilder
+        from foodguide.models.recipe import Recipe
+        from foodguide.utils.url_builder import FoodGuideURLBuilder
     except ImportError:
         # As a last resort, modify sys.path and try again
         if parent_dir not in sys.path:
             sys.path.insert(0, parent_dir)
         if project_root not in sys.path:
             sys.path.insert(0, project_root)
-        from models.recipe import Recipe
-        from utils.url_builder import FoodGuideURLBuilder
+        from foodguide.models.recipe import Recipe
+        from foodguide.utils.url_builder import FoodGuideURLBuilder
 
 class RecipeFetcher:
     def __init__(self):

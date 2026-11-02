@@ -9,25 +9,10 @@ Resources are always available regardless of transport mode (stdio or HTTP).
 """
 
 import json
-import os
-import sys
 from typing import Dict, Any
 from fastmcp import FastMCP
 
-# Path setup
-_script_dir = os.path.dirname(os.path.abspath(__file__))
-_project_root = os.path.dirname(_script_dir)
-
-if _script_dir not in sys.path:
-    sys.path.insert(0, _script_dir)
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
-
-# Import data managers
-try:
-    from src.data_manager import get_dri_data_manager, get_eer_data_manager
-except ImportError:
-    from data_manager import get_dri_data_manager, get_eer_data_manager
+from foodguide.data_manager import get_dri_data_manager, get_eer_data_manager
 
 
 def register_resources(mcp: FastMCP):

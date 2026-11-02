@@ -34,14 +34,14 @@ SCHEMA_FUNCTIONS_AVAILABLE = False
 DATA_MANAGER_AVAILABLE = False
 
 try:
-    from src.models.dri_models import (
+    from foodguide.models.dri_models import (
         GetMacronutrientDRIInput, GetAMDRInput, CompareIntakeToDRIInput,
         DRIMacronutrientData, DRIError, MacronutrientType, LifeStageCategory
     )
     DRI_TOOLS_AVAILABLE = True
 except ImportError:
     try:
-        from models.dri_models import (
+        from foodguide.models.dri_models import (
             GetMacronutrientDRIInput, GetAMDRInput, CompareIntakeToDRIInput,
             DRIMacronutrientData, DRIError, MacronutrientType, LifeStageCategory
         )
@@ -53,11 +53,11 @@ except ImportError:
 # Import data manager (bundled data + lazy refresh)
 _dri_data_manager_factory = None
 try:
-    from src.data_manager import get_dri_data_manager as _dri_dm_import
+    from foodguide.data_manager import get_dri_data_manager as _dri_dm_import
     _dri_data_manager_factory = _dri_dm_import
 except ImportError:
     try:
-        from data_manager import get_dri_data_manager as _dri_dm_import
+        from foodguide.data_manager import get_dri_data_manager as _dri_dm_import
         _dri_data_manager_factory = _dri_dm_import
     except ImportError as e:
         print(f"Error importing data manager: {e}", file=sys.stderr)
@@ -66,13 +66,13 @@ DATA_MANAGER_AVAILABLE = _dri_data_manager_factory is not None
 
 # Import schema functions for session-aware tools
 try:
-    from src.db.schema import (
+    from foodguide.db.schema import (
         ensure_dri_session_structure, get_virtual_session_data, get_dri_session_summary
     )
     SCHEMA_FUNCTIONS_AVAILABLE = True
 except ImportError:
     try:
-        from db.schema import (
+        from foodguide.db.schema import (
             ensure_dri_session_structure, get_virtual_session_data, get_dri_session_summary
         )
         SCHEMA_FUNCTIONS_AVAILABLE = True

@@ -14,10 +14,10 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 try:
-    from src.config import DB_FILE
+    from foodguide.config import DB_FILE
 except ImportError:
     try:
-        from config import DB_FILE
+        from foodguide.config import DB_FILE
     except ImportError as e:
         print(f"Error importing config: {e}", file=sys.stderr)
         # Fallback to default
