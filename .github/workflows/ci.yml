@@ -23,3 +23,42 @@ jobs:
         run: uv build
       - name: Smoke test entry point
         run: uv run foodguide --help
+
+  docker:
+    # Builds the image (it downloads the data-latest release) and runs it the way docker-compose.yml does:
+    # read-only, no capabilities, 512 MB. Then talks to it over HTTP like a real client.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: docker build -t foodguide-mcp .
+      - name: Run the container
+        run: |
+          docker run -d --name fg --read-only --tmpfs /tmp --cap-drop ALL \
+            --security-opt no-new-privileges:true --memory 512m \
+            -p 127.0.0.1:8000:8000 foodguide-mcp
+          for i in $(seq 1 40); do curl -fs -o /dev/null http://127.0.0.1:8000/mcp/ && break; sleep 2; done
+          curl -fsS -o /dev/null -w "GET /mcp/ -> %{http_code}\n" http://127.0.0.1:8000/mcp/
+      - name: Runs as a non-root user
+        run: test "$(docker exec fg id -u)" = "10001"
+      - name: Data is installed and verified
+        run: docker exec fg foodguide data status | tee status.txt; test "$(grep -c ': ok' status.txt)" -ge 5
+      - name: 24 tools over HTTP
+        run: |
+          uv run --with fastmcp python - <<'EOF'
+          import asyncio
+          from fastmcp import Client
+          async def main():
+              async with Client("http://127.0.0.1:8000/mcp") as c:
+                  n = len(await c.list_tools())
+                  print("tools:", n)
+                  assert n == 24, n
+                  r = await c.call_tool("search_and_get_cnf_macronutrients",
+                      {"input_data": {"food_name": "lentils", "session_id": "ci", "max_results": 2}})
+                  assert "Lentils" in str(r), r
+          asyncio.run(main())
+          EOF
+      - name: Container logs on failure
+        if: failure()
+        run: docker logs fg
+
