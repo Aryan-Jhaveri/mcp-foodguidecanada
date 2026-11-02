@@ -1,0 +1,114 @@
+name: Data refresh
+
+# Rebuilds the datasets the CLI and MCP server read (CNF 2026 SQLite, recipes, DRI, EER) and
+# publishes them as assets of the `data-latest` release. Runs weekly; publishes only when the
+# content changed. `foodguide data fetch` installs from that release.
+
+on:
+  schedule:
+    - cron: "17 9 * * 1" # Mondays 09:17 UTC
+  pull_request: # dry run: builds and checks everything, never publishes
+    paths:
+      - ".github/workflows/data-refresh.yml"
+      - "scripts/check_manifest.py"
+      - "src/foodguide/pipeline/**"
+      - "src/foodguide/builders/**"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Publish even if nothing changed"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write # release assets
+  issues: write # failure report
+
+concurrency:
+  group: data-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: data-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync
+
+      - name: Run the live test suite (full recipes crawl + snapshot comparisons)
+        run: uv run pytest -q -m live
+
+      - name: Fetch previous manifest
+        id: prev
+        run: |
+          mkdir -p prev
+          if gh release download "$TAG" -p manifest.json -D prev 2>/dev/null; then
+            echo "have=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "have=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build all datasets
+        run: uv run foodguide data build all --download-cnf --out-dir out
+
+      - name: Sanity-check the build
+        run: |
+          if [ "${{ steps.prev.outputs.have }}" = "true" ]; then
+            uv run python scripts/check_manifest.py out/manifest.json prev/manifest.json
+          else
+            uv run python scripts/check_manifest.py out/manifest.json
+          fi
+
+      - name: Did anything change?
+        id: changed
+        run: |
+          if [ "${{ steps.prev.outputs.have }}" != "true" ] || [ "${{ inputs.force }}" = "true" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          set +e
+          uv run foodguide data changed prev/manifest.json out/manifest.json | tee changed.txt
+          code=${PIPESTATUS[0]}
+          set -e
+          if [ "$code" = "0" ]; then echo "changed=false" >> "$GITHUB_OUTPUT"
+          elif [ "$code" = "10" ]; then echo "changed=true" >> "$GITHUB_OUTPUT"
+          else exit "$code"; fi
+
+      - name: Publish release assets
+        if: steps.changed.outputs.changed == 'true' && github.event_name != 'pull_request'
+        run: |
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title "Data (latest)" \
+              --notes "Datasets built by the Data refresh workflow. Install with: foodguide data fetch"
+          fi
+          rm -f out/*.zip
+          gh release upload "$TAG" out/* --clobber
+          gh release edit "$TAG" --notes "Built $(date -u +%FT%TZ) from workflow run ${{ github.run_id }}. Install with: foodguide data fetch"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Data refresh"
+            echo "Published: ${{ steps.changed.outputs.changed || 'not reached' }}"
+            [ -f changed.txt ] && { echo '```'; cat changed.txt; echo '```'; }
+            [ -f out/manifest.json ] && { echo '```json'; cat out/manifest.json; echo '```'; }
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report failure
+        if: failure() && github.event_name != 'pull_request'
+        run: |
+          title="Data refresh failed"
+          url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          existing=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "Failed again: $url"
+          else
+            gh issue create --title "$title" --body "The scheduled data refresh failed: $url. Likely cause: a source page changed. The previous release is still in place."
+          fi
