@@ -1,9 +1,18 @@
-"""Fetch canada.ca recipe pages, with polite delays and optional on-disk caching."""
+"""Fetch canada.ca recipe pages, with polite delays and optional on-disk caching.
+
+The URLs here are the canonical live defaults. Set ``FOODGUIDE_SOURCE_BASE_URL``
+to fetch the index and recipe pages from another base (e.g. a local http.server
+fixture in tests); ``index_url()`` and ``recipe_url()`` read it at call time,
+never at import time, so the default behaviour is unchanged when it is unset.
+``cache_name`` is path-based and works with any base URL.
+"""
 
 import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+
+from foodguide.config import source_base_url
 
 USER_AGENT = "foodguide-data-build/0.1 (+https://github.com/Aryan-Jhaveri/mcp-foodguidecanada)"
 INDEX_URL = "https://www.canada.ca/en/health-canada/services/food-guide/eating-support/kitchen/recipes.html"
@@ -28,8 +37,14 @@ def fetch_page(url: str, timeout: float = 30.0, retries: int = 4) -> str:
     raise last_error
 
 
+def index_url() -> str:
+    """Recipe index URL, honouring FOODGUIDE_SOURCE_BASE_URL at call time."""
+    return source_base_url() + "/en/health-canada/services/food-guide/eating-support/kitchen/recipes.html"
+
+
 def recipe_url(slug: str) -> str:
-    return f"{BASE_URL}/recipes/{slug}.html"
+    """Recipe page URL for a slug, honouring FOODGUIDE_SOURCE_BASE_URL at call time."""
+    return source_base_url() + f"/en/health-canada/services/food-guide/eating-support/kitchen/recipes/{slug}.html"
 
 
 def cache_name(url: str) -> str:

@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 
 from fastmcp import FastMCP
 
+from foodguide.cnf.db import get_data_dir
 from foodguide.recipes.source import LocalRecipeSource
 
 SOURCE_NAME = "Health Canada's Food Guide"
@@ -18,7 +19,28 @@ DATA_PROVENANCE = "local recipes.json (offline)"
 
 # One shared source per server process; the underlying document is loaded
 # lazily and cached, so a missing file only fails when a tool actually runs.
-_source = LocalRecipeSource()
+# The singleton remembers which data dir it was created under (get_data_dir()
+# honours FOODGUIDE_DATA_DIR) and is recreated whenever that dir changes: tests
+# point FOODGUIDE_DATA_DIR wherever they like with monkeypatch.setenv and
+# always get a source that reads that dir — no attribute resets needed.
+_source: LocalRecipeSource | None = None
+_source_data_dir: str | None = None
+
+
+def _get_source() -> LocalRecipeSource:
+    """Return the shared LocalRecipeSource for the current FOODGUIDE_DATA_DIR.
+
+    The environment is read on every call; when the data dir differs from the
+    one the cached source was created under, a fresh source is built for the
+    new dir. Keeps tests to ``setenv`` only — no attribute patching or manual
+    singleton resets.
+    """
+    global _source, _source_data_dir
+    data_dir = str(get_data_dir())
+    if _source is None or _source_data_dir != data_dir:
+        _source = LocalRecipeSource()
+        _source_data_dir = data_dir
+    return _source
 
 
 def _resolve_filter_values(
@@ -108,7 +130,8 @@ def register_recipe_tools(mcp: FastMCP):
         Source: Health Canada's Food Guide (local recipes.json, offline).
         """
         try:
-            filters_map = _source.list_filters()
+            source = _get_source()
+            filters_map = source.list_filters()
             meals_resolved, meals_ignored = _resolve_filter_values(
                 list(meals or []), "meal__", filters_map
             )
@@ -119,7 +142,7 @@ def register_recipe_tools(mcp: FastMCP):
             for values in (fruits, vegetables, proteins, whole_grains, appliances):
                 retired.extend(values or [])
             tags = meals_resolved + collections_resolved
-            results = _source.search(
+            results = source.search(
                 search_text=search_text, tags=tags or None, limit=limit
             )
         except RuntimeError as exc:
@@ -158,7 +181,7 @@ def register_recipe_tools(mcp: FastMCP):
         if not url_or_slug or not url_or_slug.strip():
             return {"error": "Provide a recipe slug or a canada.ca recipe URL."}
         try:
-            recipe = _source.get_recipe(url_or_slug)
+            recipe = _get_source().get_recipe(url_or_slug)
         except RuntimeError as exc:
             return {"error": str(exc)}
         if recipe is None:
@@ -189,7 +212,7 @@ def register_recipe_tools(mcp: FastMCP):
             {"error": "Invalid filter type: <x>"}.
         """
         try:
-            filters_map = _source.list_filters()
+            filters_map = _get_source().list_filters()
         except RuntimeError as exc:
             return {"error": str(exc)}
         if filter_type in ("collection", "collections"):

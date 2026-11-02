@@ -1492,7 +1492,15 @@ def _resolve_cnf_zip(zip_opt: Path | None) -> Path:
 data_build_app = typer.Typer(
     name="build",
     help="Build local databases from source data.",
-    epilog="Example:\n  foodguide data build cnf --zip cnf_fcen_all-files-data_2026.zip",
+    epilog=(
+        "Environment overrides (mainly for tests/dev):\n"
+        "  FOODGUIDE_SOURCE_BASE_URL   serve Health Canada pages from another base,\n"
+        "                              e.g. a local test server (build recipes/dri/eer)\n"
+        "  FOODGUIDE_CKAN_PACKAGE_URL  override the CKAN package-show URL for --download-cnf\n"
+        "  SOURCE_DATE_EPOCH           fixed build timestamp for reproducible builds (build cnf)\n"
+        "  FOODGUIDE_CNF_ZIP           CNF zip path (build cnf)\n\n"
+        "Example:\n  foodguide data build cnf --zip cnf_fcen_all-files-data_2026.zip"
+    ),
     context_settings={"help_option_names": ["-h", "--help"]},
     no_args_is_help=True,
 )
@@ -1557,6 +1565,16 @@ def data_build_recipes(
     out: Path | None = typer.Option(
         None, "--out", help="Output path (default: <data dir>/recipes.json)."
     ),
+    max_recipes: int | None = typer.Option(
+        None,
+        "--max-recipes",
+        help="Development option: crawl only the first N recipes in index order",
+    ),
+    only: str | None = typer.Option(
+        None,
+        "--only",
+        help="Development option: comma-separated recipe slugs to crawl",
+    ),
 ) -> None:
     """Crawl the canada.ca recipe pages and build the offline recipes.json.
 
@@ -1566,9 +1584,17 @@ def data_build_recipes(
     Example:
       foodguide data build recipes
     """
+    only_slugs: list[str] | None = None
+    if only is not None:
+        only_slugs = [slug.strip() for slug in only.split(",") if slug.strip()]
+        if not only_slugs:
+            _log("--only did not contain any recipe slugs (comma-separated)")
+            raise typer.Exit(code=1)
     out_path = out if out is not None else recipes_data_path()
     try:
-        summary = build_recipes_json(out_path)
+        summary = build_recipes_json(
+            out_path, only=only_slugs, max_recipes=max_recipes
+        )
     except (ValueError, RuntimeError, OSError) as exc:
         _log(f"Recipes build failed: {exc}")
         raise typer.Exit(code=1) from None
@@ -1659,6 +1685,16 @@ def data_build_all(
         "--skip",
         help="Skip a dataset (cnf, recipes, dri, eer); repeatable.",
     ),
+    max_recipes: int | None = typer.Option(
+        None,
+        "--max-recipes",
+        help="Development option: crawl only the first N recipes in index order",
+    ),
+    only: str | None = typer.Option(
+        None,
+        "--only",
+        help="Development option: comma-separated recipe slugs to crawl",
+    ),
 ) -> None:
     """Build every dataset into one directory, then write manifest.json.
 
@@ -1676,6 +1712,12 @@ def data_build_all(
     if cnf_zip is not None and download_cnf:
         _log("--cnf-zip and --download-cnf are mutually exclusive")
         raise typer.Exit(code=2)
+    only_slugs: list[str] | None = None
+    if only is not None:
+        only_slugs = [slug.strip() for slug in only.split(",") if slug.strip()]
+        if not only_slugs:
+            _log("--only did not contain any recipe slugs (comma-separated)")
+            raise typer.Exit(code=1)
     metadata_modified = None
     if cnf_zip is not None and not download_cnf:
         # Best-effort: 'unknown' when the CKAN metadata lookup fails offline.
@@ -1687,6 +1729,8 @@ def data_build_all(
         skip=list(skip),
         log=_log,
         metadata_modified=metadata_modified,
+        recipes_only=only_slugs,
+        max_recipes=max_recipes,
     )
 
 

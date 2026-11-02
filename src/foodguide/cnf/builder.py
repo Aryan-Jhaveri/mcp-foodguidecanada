@@ -12,6 +12,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import io
+import os
 import sqlite3
 import zipfile
 from dataclasses import dataclass
@@ -23,6 +24,25 @@ DEFAULT_ZIP_URL = (
     "https://open.canada.ca/data/dataset/1b6139bd-ed7e-4043-bc28-ff00e10f3109"
     "/resource/019f2a90-e3a9-489d-b6e1-f74f4ba1d006/download/cnf_fcen_all-files-data_2026.zip"
 )
+
+def _build_timestamp() -> str:
+    """Build timestamp: the current UTC time, or the SOURCE_DATE_EPOCH override.
+
+    For reproducible builds, set the standard ``SOURCE_DATE_EPOCH`` environment
+    variable (read at call time) to a UNIX timestamp; when ``build_time`` is
+    not passed explicitly, the build then records that fixed instant (formatted
+    as a UTC ISO-8601 string with second precision) instead of the wall clock.
+    """
+    epoch = os.environ.get("SOURCE_DATE_EPOCH")
+    if epoch is not None:
+        try:
+            return datetime.fromtimestamp(int(epoch), tz=timezone.utc).isoformat(
+                timespec="seconds"
+            )
+        except (ValueError, OverflowError, OSError):
+            pass  # fall through to the wall-clock default
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
 
 SCHEMA = """
 CREATE TABLE food (
@@ -376,7 +396,7 @@ def build_cnf_db(
     Nutrient_Amount table never touches memory as a whole.
     """
     if build_time is None:
-        build_time = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        build_time = _build_timestamp()
     zip_path = Path(zip_path)
     out_path = Path(out_path)
 

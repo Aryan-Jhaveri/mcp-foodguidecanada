@@ -322,22 +322,44 @@ class EERDataManager:
         return result
 
 
-# Singleton instances
+# Singleton instances. Each singleton remembers which data dir it was created
+# under (``get_data_dir()`` honours ``FOODGUIDE_DATA_DIR``) and is recreated
+# whenever that dir changes: tests point ``FOODGUIDE_DATA_DIR`` wherever they
+# like with ``monkeypatch.setenv`` and always get a manager that reads that
+# dir — no attribute resets needed.
 _dri_manager: Optional[DRIDataManager] = None
+_dri_manager_data_dir: Optional[str] = None
 _eer_manager: Optional[EERDataManager] = None
+_eer_manager_data_dir: Optional[str] = None
 
 
 def get_dri_data_manager() -> DRIDataManager:
-    """Get or create the DRI data manager singleton."""
-    global _dri_manager
-    if _dri_manager is None:
+    """Get or create the DRI data manager singleton for the current data dir.
+
+    The environment's ``FOODGUIDE_DATA_DIR`` is read on every call; when it
+    differs from the data dir the cached manager was created under, a fresh
+    manager is built for the new dir. This keeps tests to ``setenv`` only —
+    no attribute patching or manual singleton resets.
+    """
+    global _dri_manager, _dri_manager_data_dir
+    data_dir = str(get_data_dir())
+    if _dri_manager is None or _dri_manager_data_dir != data_dir:
         _dri_manager = DRIDataManager()
+        _dri_manager_data_dir = data_dir
     return _dri_manager
 
 
 def get_eer_data_manager() -> EERDataManager:
-    """Get or create the EER data manager singleton."""
-    global _eer_manager
-    if _eer_manager is None:
+    """Get or create the EER data manager singleton for the current data dir.
+
+    The environment's ``FOODGUIDE_DATA_DIR`` is read on every call; when it
+    differs from the data dir the cached manager was created under, a fresh
+    manager is built for the new dir. This keeps tests to ``setenv`` only —
+    no attribute patching or manual singleton resets.
+    """
+    global _eer_manager, _eer_manager_data_dir
+    data_dir = str(get_data_dir())
+    if _eer_manager is None or _eer_manager_data_dir != data_dir:
         _eer_manager = EERDataManager()
+        _eer_manager_data_dir = data_dir
     return _eer_manager
