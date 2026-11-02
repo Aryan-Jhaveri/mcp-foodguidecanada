@@ -19,7 +19,7 @@ def test_help_shows_all_command_groups() -> None:
 def test_version_prints_version() -> None:
     result = runner.invoke(app, ["version"])
     assert result.exit_code == 0
-    assert "0.1.0" in result.stdout
+    assert "3.0.0" in result.stdout
 
 
 def test_data_status_json() -> None:

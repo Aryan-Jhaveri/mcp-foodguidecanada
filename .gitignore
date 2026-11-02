@@ -24,3 +24,6 @@ build/
 cache/
 logs/
 uv.lock
+
+# macOS
+.DS_Store

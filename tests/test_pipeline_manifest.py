@@ -86,8 +86,12 @@ def test_package_version_returns_a_string() -> None:
     version = package_version()
     assert isinstance(version, str)
     assert version
-    # The package is installed in the test environment.
-    assert version == "0.1.0"
+    # The package is installed in the test environment: it must match pyproject.toml.
+    import tomllib
+    from pathlib import Path
+
+    pyproject = Path(__file__).resolve().parent.parent / "pyproject.toml"
+    assert version == tomllib.loads(pyproject.read_text())["project"]["version"]
 
 
 # ------------------------------------------------------------ json facts ---
@@ -392,7 +396,7 @@ def _recipe_manifest(index_sha256: str, recipe_count: int = 3,
     }
     for name, entry in extra_datasets.items():
         datasets[name] = entry
-    return {"schema_version": 1, "package_version": "0.1.0",
+    return {"schema_version": 1, "package_version": "3.0.0",
             "built_at": "2026-01-01T00:00:00Z", "datasets": datasets}
 
 

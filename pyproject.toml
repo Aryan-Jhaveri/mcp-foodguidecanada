@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "foodguide"
-version = "0.1.0"
+version = "3.0.0"
 description = "Canada's Food Guide CLI and MCP server, backed by offline data"
 readme = "README.md"
 license = { text = "MIT" }

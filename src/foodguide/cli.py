@@ -56,7 +56,7 @@ def _package_version() -> str:
     try:
         return metadata.version("foodguide")
     except Exception:
-        return "0.1.0"
+        return "3.0.0"
 
 
 def _provenance(payload: object) -> str | None:
