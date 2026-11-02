@@ -10,6 +10,12 @@ from foodguide.models.filters import SearchFilters
 from foodguide.models.recipe import Recipe
 from foodguide.utils.url_builder import FoodGuideURLBuilder
 
+RECIPE_SITE_MOVED = (
+    "No recipes returned. Health Canada moved the recipe pages from food-guide.canada.ca to "
+    "canada.ca/en/health-canada/services/food-guide/eating-support/kitchen/recipes.html, and the "
+    "recipe scraper has not been ported yet (HOM-78). CNF, DRI, EER and profile tools are unaffected."
+)
+
 
 class RecipeFetcher:
     def __init__(self):
@@ -556,6 +562,8 @@ def register_recipe_tools(mcp: FastMCP):
                     # Use proper URL builder instead of hardcoded URL
                     result['website'] = FoodGuideURLBuilder.BASE_URL
 
+            if not results:
+                return [{"error": RECIPE_SITE_MOVED}]
             return results
 
         except Exception as e:
@@ -634,7 +642,7 @@ def register_recipe_tools(mcp: FastMCP):
             return {"error": f"Failed to fetch recipe: {str(e)}"}
 
     @mcp.tool()
-    def list_filters(filter_type: Optional[str] = None) -> Dict[str, List[str]]:
+    def list_filters(filter_type: Optional[str] = None) -> Dict[str, Any]:
         """
         Discover available search filters for Canada's Food Guide recipes. This tool provides the complete catalog of filter options that can be used with the search_recipes tool to find recipes that match specific dietary needs, cooking methods, meal types, and food categories.
 

@@ -156,6 +156,11 @@ def create_server(enable_db: bool = True) -> FastMCP:
             # DB-dependent tools: favorites, sessions, schema management
             if enable_db:
                 register_db_tools(mcp)
+                # Create session/favourites tables on first run so tools work without
+                # the client having to call initialize_database first.
+                from foodguide.db.schema import initialize_database
+
+                initialize_database()
     except Exception as e:
         # Only output critical errors to original stderr
         print(f"CRITICAL: Tool registration failed: {e}", file=_original_stderr)
