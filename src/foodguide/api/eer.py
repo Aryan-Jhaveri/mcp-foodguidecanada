@@ -23,9 +23,9 @@ if project_root not in sys.path:
 
 # Import database connection after path setup
 try:
-    from src.db.connection import get_db_connection
+    from foodguide.db.connection import get_db_connection
 except ImportError:
-    from db.connection import get_db_connection
+    from foodguide.db.connection import get_db_connection
 
 
 class Gender(Enum):

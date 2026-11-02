@@ -29,23 +29,23 @@ if project_root not in sys.path:
 EER_TOOLS_AVAILABLE = False
 
 try:
-    from src.models.eer_models import (
+    from foodguide.models.eer_models import (
         CreateUserProfileInput, CalculateEERInput,
         GetProfileInput, DeleteProfileInput, GetPALDescriptionsInput,
         EERCalculationResult, UserProfileResult, PALDescriptionResult,
         ProfileListResult, EERError
     )
-    from src.api.eer import EERCalculator, EERProfileManager, get_pal_activity_descriptions
+    from foodguide.api.eer import EERCalculator, EERProfileManager, get_pal_activity_descriptions
     EER_TOOLS_AVAILABLE = True
 except ImportError:
     try:
-        from models.eer_models import (
+        from foodguide.models.eer_models import (
             CreateUserProfileInput, CalculateEERInput,
             GetProfileInput, DeleteProfileInput, GetPALDescriptionsInput,
             EERCalculationResult, UserProfileResult, PALDescriptionResult,
             ProfileListResult, EERError
         )
-        from api.eer import EERCalculator, EERProfileManager, get_pal_activity_descriptions
+        from foodguide.api.eer import EERCalculator, EERProfileManager, get_pal_activity_descriptions
         EER_TOOLS_AVAILABLE = True
     except ImportError as e:
         print(f"Error importing EER modules: {e}", file=sys.stderr)
@@ -54,11 +54,11 @@ except ImportError:
 # Import data manager for bundled EER data (fallback when www.canada.ca is unreachable)
 _eer_data_manager_factory = None
 try:
-    from src.data_manager import get_eer_data_manager as _eer_dm_import
+    from foodguide.data_manager import get_eer_data_manager as _eer_dm_import
     _eer_data_manager_factory = _eer_dm_import
 except ImportError:
     try:
-        from data_manager import get_eer_data_manager as _eer_dm_import
+        from foodguide.data_manager import get_eer_data_manager as _eer_dm_import
         _eer_data_manager_factory = _eer_dm_import
     except ImportError:
         pass

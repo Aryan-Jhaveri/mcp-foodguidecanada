@@ -4,10 +4,13 @@ Configuration parameters for the Canada's Food Guide MCP Server
 
 import os
 
-# Database configuration - use absolute path to ensure proper location
-_script_dir = os.path.dirname(os.path.abspath(__file__))
-_project_root = os.path.dirname(_script_dir)
-_default_db_path = os.path.join(_project_root, "foodguide_data.db")
+# Database configuration. The SQLite database is NOT bundled with the package;
+# it is built separately (see HOM-76). Default location is a per-user state
+# directory so an installed package never writes into its own source tree.
+_default_db_dir = os.environ.get(
+    "FOODGUIDE_STATE_DIR", os.path.expanduser("~/.local/state/foodguide")
+)
+_default_db_path = os.path.join(_default_db_dir, "foodguide_data.db")
 
 DB_FILE = os.environ.get("FOODGUIDE_DB_FILE", _default_db_path)
 

@@ -20,13 +20,13 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 try:
-    from src.models.math_models import (
+    from foodguide.models.math_models import (
         SimpleMathInput, ServingSizeInput, IngredientScaleInput, BulkIngredientScaleInput, 
         RecipeComparisonInput, BulkMathInput, BulkMathCalculation
     )
 except ImportError:
     try:
-        from models.math_models import (
+        from foodguide.models.math_models import (
             SimpleMathInput, ServingSizeInput, IngredientScaleInput, BulkIngredientScaleInput, 
             RecipeComparisonInput, BulkMathInput, BulkMathCalculation
         )

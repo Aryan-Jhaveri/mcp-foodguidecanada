@@ -14,24 +14,24 @@ project_root = os.path.dirname(parent_dir)
 # Try to import with different methods
 try:
     # Try first with src prefix
-    from src.models.recipe import Recipe
-    from src.models.filters import SearchFilters
-    from src.utils.url_builder import FoodGuideURLBuilder
+    from foodguide.models.recipe import Recipe
+    from foodguide.models.filters import SearchFilters
+    from foodguide.utils.url_builder import FoodGuideURLBuilder
 except ImportError:
     try:
         # Next, try with parent directory
-        from models.recipe import Recipe
-        from models.filters import SearchFilters
-        from utils.url_builder import FoodGuideURLBuilder
+        from foodguide.models.recipe import Recipe
+        from foodguide.models.filters import SearchFilters
+        from foodguide.utils.url_builder import FoodGuideURLBuilder
     except ImportError:
         # As a last resort, modify sys.path and try again
         if parent_dir not in sys.path:
             sys.path.insert(0, parent_dir)
         if project_root not in sys.path:
             sys.path.insert(0, project_root)
-        from models.recipe import Recipe
-        from models.filters import SearchFilters
-        from utils.url_builder import FoodGuideURLBuilder
+        from foodguide.models.recipe import Recipe
+        from foodguide.models.filters import SearchFilters
+        from foodguide.utils.url_builder import FoodGuideURLBuilder
 
 class RecipeSearcher:
     def __init__(self, delay_between_requests: float = 1.0):

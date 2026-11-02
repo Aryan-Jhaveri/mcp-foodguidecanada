@@ -36,17 +36,17 @@ CNF_TOOLS_AVAILABLE = False
 
 # Import config first to ensure constants are available
 try:
-    from src.config import CNF_MAX_CONCURRENT, CNF_CACHE_TTL, BULK_OPERATION_TIMEOUT
+    from foodguide.config import CNF_MAX_CONCURRENT, CNF_CACHE_TTL, BULK_OPERATION_TIMEOUT
 except ImportError:
     try:
-        from config import CNF_MAX_CONCURRENT, CNF_CACHE_TTL, BULK_OPERATION_TIMEOUT
+        from foodguide.config import CNF_MAX_CONCURRENT, CNF_CACHE_TTL, BULK_OPERATION_TIMEOUT
     except ImportError:
         CNF_MAX_CONCURRENT = 3
         CNF_CACHE_TTL = 1800
         BULK_OPERATION_TIMEOUT = 60
 
 try:
-    from src.models.cnf_models import (
+    from foodguide.models.cnf_models import (
         CNFSearchInput, CNFProfileInput, CNFMacronutrientsInput, CNFBulkMacronutrientsInput, CNFSearchAndGetInput,
         SQLQueryInput, CNFFoodResult, CNFNutrientProfile, IngredientCNFMatch,
         RecipeNutritionSummary, CNFSessionSummary, IngredientNutritionData,
@@ -54,24 +54,24 @@ try:
         IngredientNutritionBreakdownInput, DailyNutritionComparisonInput,
         RecipeMacrosQueryInput, RecipeMacrosUpdateInput
     )
-    from src.api.cnf_api import get_cnf_api_client, CORE_MACRONUTRIENT_IDS, parse_measure_name
-    from src.db.schema import get_virtual_session_data, store_recipe_in_virtual_session
-    from src.db.sql_engine import VirtualSQLEngine, get_available_tables_info
-    from src.db.connection import get_db_connection
+    from foodguide.api.cnf_api import get_cnf_api_client, CORE_MACRONUTRIENT_IDS, parse_measure_name
+    from foodguide.db.schema import get_virtual_session_data, store_recipe_in_virtual_session
+    from foodguide.db.sql_engine import VirtualSQLEngine, get_available_tables_info
+    from foodguide.db.connection import get_db_connection
     CNF_TOOLS_AVAILABLE = True
 except ImportError:
     try:
-        from models.cnf_models import (
+        from foodguide.models.cnf_models import (
             CNFSearchInput, CNFProfileInput, CNFMacronutrientsInput, CNFBulkMacronutrientsInput, CNFSearchAndGetInput,
             SQLQueryInput, CNFFoodResult, CNFNutrientProfile, IngredientCNFMatch,
             RecipeNutritionSummary, CNFSessionSummary, IngredientNutritionData,
             AnalyzeRecipeNutritionInput, RecipeNutritionCalculationInput,
             IngredientNutritionBreakdownInput, DailyNutritionComparisonInput
         )
-        from api.cnf_api import get_cnf_api_client, CORE_MACRONUTRIENT_IDS, parse_measure_name
-        from db.schema import get_virtual_session_data, store_recipe_in_virtual_session
-        from db.sql_engine import VirtualSQLEngine, get_available_tables_info
-        from db.connection import get_db_connection
+        from foodguide.api.cnf_api import get_cnf_api_client, CORE_MACRONUTRIENT_IDS, parse_measure_name
+        from foodguide.db.schema import get_virtual_session_data, store_recipe_in_virtual_session
+        from foodguide.db.sql_engine import VirtualSQLEngine, get_available_tables_info
+        from foodguide.db.connection import get_db_connection
         CNF_TOOLS_AVAILABLE = True
     except ImportError as e:
         print(f"Warning: CNF tools not available due to import error: {e}", file=sys.stderr)
@@ -141,8 +141,8 @@ def _store_nutrients_in_db(
         cursor: SQLite cursor
         session_id: Session identifier
         food_code: CNF food code
-        nutrients: Raw nutrient list from api.get_nutrient_amounts()
-        servings: Parsed serving list from api.get_serving_sizes()
+        nutrients: Raw nutrient list from foodguide.api.get_nutrient_amounts()
+        servings: Parsed serving list from foodguide.api.get_serving_sizes()
         macros_only: If True, only store CORE_MACRONUTRIENT_IDS
 
     Returns:
@@ -856,7 +856,7 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
             # Backward compatibility: store in virtual session for legacy tools
             session_data = get_virtual_session_data(input_data.session_id)
             if session_data is None:
-                from src.db.schema import create_virtual_recipe_session
+                from foodguide.db.schema import create_virtual_recipe_session
                 create_virtual_recipe_session(input_data.session_id)
                 session_data = get_virtual_session_data(input_data.session_id)
 

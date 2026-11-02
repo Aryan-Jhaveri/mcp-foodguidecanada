@@ -38,12 +38,12 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 try:
-    from src.models.db_models import RecipeInput, FavoriteInput, SessionInput, RecipeQueryInput
-    from src.config import MAX_QUERY_ROWS
+    from foodguide.models.db_models import RecipeInput, FavoriteInput, SessionInput, RecipeQueryInput
+    from foodguide.config import MAX_QUERY_ROWS
 except ImportError:
     try:
-        from models.db_models import RecipeInput, FavoriteInput, SessionInput, RecipeQueryInput
-        from config import MAX_QUERY_ROWS
+        from foodguide.models.db_models import RecipeInput, FavoriteInput, SessionInput, RecipeQueryInput
+        from foodguide.config import MAX_QUERY_ROWS
     except ImportError as e:
         print(f"Error importing models/config: {e}", file=sys.stderr)
         # Set fallback

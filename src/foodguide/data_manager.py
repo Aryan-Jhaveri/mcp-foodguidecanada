@@ -18,22 +18,31 @@ import os
 import sys
 import threading
 from datetime import datetime, timedelta
+from importlib.resources import files as _pkg_files
 from typing import Dict, Any, Optional
 
-# Resolve project paths
-_script_dir = os.path.dirname(os.path.abspath(__file__))
-_project_root = os.path.dirname(_script_dir)
+# Bundled data ships inside the package (foodguide/data/*.json) and is loaded
+# with importlib.resources so it works from an installed wheel or zipapp.
+_BUNDLED_DATA_DIR = _pkg_files("foodguide.data")
 
-# Data file paths
-_DATA_DIR = os.path.join(_project_root, 'data')
-_CACHE_DIR = os.path.join(_project_root, 'cache')
+# Runtime scrape cache: a writable directory outside the package. Override with
+# FOODGUIDE_CACHE_DIR; defaults to ./cache relative to the current directory.
+_CACHE_DIR = os.environ.get("FOODGUIDE_CACHE_DIR", os.path.join(os.getcwd(), "cache"))
 
-_BUNDLED_DRI_PATH = os.path.join(_DATA_DIR, 'dri_macronutrients.json')
-_BUNDLED_EER_PATH = os.path.join(_DATA_DIR, 'eer_equations.json')
 _CACHE_DRI_PATH = os.path.join(_CACHE_DIR, 'dri_macronutrients.json')
 
 # Cache duration for runtime cache validity
 _CACHE_DURATION = timedelta(hours=24)
+
+
+def _load_bundled_json(name: str) -> Optional[Dict[str, Any]]:
+    """Read a JSON file bundled in foodguide/data via importlib.resources."""
+    try:
+        with (_BUNDLED_DATA_DIR / name).open('r', encoding='utf-8') as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError, FileNotFoundError) as e:
+        print(f"Failed to load bundled data file {name}: {e}", file=sys.stderr)
+        return None
 
 
 class DRIDataManager:
@@ -102,9 +111,9 @@ class DRIDataManager:
                 try:
                     # Import scraper lazily to avoid circular imports
                     try:
-                        from src.api.dri import MacronutrientScraper
+                        from foodguide.api.dri import MacronutrientScraper
                     except ImportError:
-                        from api.dri import MacronutrientScraper
+                        from foodguide.api.dri import MacronutrientScraper
 
                     scraper = MacronutrientScraper()
                     result = scraper.fetch_macronutrient_data(force_refresh=True)
@@ -146,17 +155,10 @@ class DRIDataManager:
 
     def _load_bundled_data(self) -> Optional[Dict[str, Any]]:
         """Load bundled static data. This should always succeed."""
-        try:
-            with open(_BUNDLED_DRI_PATH, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-
-            if data.get("status") == "success":
-                return data
-            return None
-
-        except (json.JSONDecodeError, OSError, FileNotFoundError) as e:
-            print(f"Failed to load bundled DRI data: {e}", file=sys.stderr)
-            return None
+        data = _load_bundled_json('dri_macronutrients.json')
+        if data and data.get("status") == "success":
+            return data
+        return None
 
     def _add_freshness_info(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Add freshness metadata to the response without mutating original."""
@@ -196,16 +198,14 @@ class EERDataManager:
         if self._data:
             return self._data
 
-        try:
-            with open(_BUNDLED_EER_PATH, 'r', encoding='utf-8') as f:
-                self._data = json.load(f)
-                self._last_loaded = datetime.now()
-                return self._data
-        except (json.JSONDecodeError, OSError, FileNotFoundError) as e:
-            return {
-                "status": "error",
-                "error": f"Failed to load EER equation data: {e}"
-            }
+        self._data = _load_bundled_json('eer_equations.json')
+        if self._data is not None:
+            self._last_loaded = datetime.now()
+            return self._data
+        return {
+            "status": "error",
+            "error": "Failed to load EER equation data (bundled data missing or invalid)"
+        }
 
     def get_pal_descriptions(self) -> Dict[str, Any]:
         """Get PAL category descriptions from bundled data."""
