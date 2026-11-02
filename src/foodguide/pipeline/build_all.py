@@ -61,8 +61,10 @@ def find_cnf_zip_url(timeout: float = 30.0) -> tuple[str, str]:
         if str(resource.get("format", "")).strip().upper() != "ZIP":
             continue
         url = resource.get("url")
-        # Never fetch the source zip over plaintext.
-        if isinstance(url, str) and url.strip().startswith("https://"):
+        # Never fetch the source zip over plaintext (loopback is allowed for local test servers).
+        if isinstance(url, str) and url.strip().startswith(
+            ("https://", "http://127.0.0.1", "http://localhost")
+        ):
             modified = result.get("metadata_modified") or "unknown"
             return url.strip(), modified
     raise BuildAllError(
