@@ -1,4 +1,5 @@
 import json
+import os
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -7,6 +8,11 @@ from typing import Dict, List, Optional
 
 import requests
 from bs4 import BeautifulSoup
+
+
+def _filters_cache_dir() -> Path:
+    """Writable cache dir for recipe filter metadata (matches data_manager.py)."""
+    return Path(os.environ.get("FOODGUIDE_CACHE_DIR", os.path.join(os.getcwd(), "cache")))
 
 
 @dataclass
@@ -20,10 +26,16 @@ class FilterInfo:
 class SearchFilters:
     """Represents search filters for recipe queries with auto-update capability."""
 
-    # Cache file paths
-    CACHE_DIR = Path(__file__).parent.parent.parent / "cache" # location relative to this file
-    FILTERS_CACHE_FILE = CACHE_DIR / "filters_cache.json" #file name for cached filters
+    # Cache file paths (resolved per-instance so FOODGUIDE_CACHE_DIR/env works)
     CACHE_EXPIRY_DAYS = 7  # Refresh filters weekly
+
+    @property
+    def CACHE_DIR(self) -> Path:
+        return _filters_cache_dir()
+
+    @property
+    def FILTERS_CACHE_FILE(self) -> Path:
+        return self.CACHE_DIR / "filters_cache.json"
 
     def __init__(self, auto_update: bool = True):
         '''
