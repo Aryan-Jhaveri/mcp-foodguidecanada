@@ -841,7 +841,7 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                 "total_nutrients_from_api": len(nutrients),
                 "serving_options": len(servings),
                 "next_step": "Use get_cnf_macronutrients_only() with ingredient_id to link ingredients",
-                "data_source": "Health Canada CNF REST API"
+                "data_source": "Local CNF 2026 SQLite database (foodguide data build cnf)"
             }
 
         except Exception as e:
@@ -1788,7 +1788,7 @@ def get_cnf_tools_status() -> Dict[str, Any]:
     """Get status of CNF tools availability."""
     return {
         "cnf_tools_available": CNF_TOOLS_AVAILABLE,
-        "data_source": "Health Canada CNF REST API (food-nutrition.canada.ca)",
+        "data_source": "Local CNF 2026 SQLite database (foodguide data build cnf)",
         "tools_count": 8 if CNF_TOOLS_AVAILABLE else 0,
         "tools": [
             "search_and_get_cnf_macronutrients",
