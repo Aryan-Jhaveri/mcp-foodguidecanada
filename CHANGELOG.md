@@ -26,4 +26,6 @@ A rewrite around an installable package and offline data. The old `v2.0` was the
   - CNF tools read the local SQLite database. Run `foodguide data fetch` (or `data build cnf`) first.
 - **Security default:** the MCP HTTP transport now listens on `127.0.0.1` (it was `0.0.0.0` with no
   authentication). Use `--host` or `HOST` to expose it deliberately.
+- **Docker:** a `Dockerfile` and `docker-compose.yml` for the HTTP MCP server (pinned base image, non-root,
+  read-only, data baked in), and images published to GHCR on release.
 - **Removed:** the live scrapers of the old `food-guide.canada.ca` host and `uv.lock`.

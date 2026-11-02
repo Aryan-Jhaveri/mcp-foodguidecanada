@@ -1,0 +1,15 @@
+# Self-hosting the HTTP MCP server. Published on loopback only: put a reverse proxy with TLS and
+# authentication in front of it before other people use it (see docs/mcp.md).
+services:
+  foodguide-mcp:
+    build: .
+    image: foodguide-mcp:3.0.0
+    container_name: foodguide-mcp
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 512m
+    ports:
+      - "127.0.0.1:8000:8000"

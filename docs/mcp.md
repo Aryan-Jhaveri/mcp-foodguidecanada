@@ -76,6 +76,51 @@ Set variables in the client config with an `env` block:
 }
 ```
 
+## Serving it to others
+
+The HTTP transport lets people use the server from their own chat clients. It has no authentication, so treat it like any service on a public address: run it in a container, bind it to loopback, and put TLS and a token in front.
+
+### Docker
+
+The repo has a `Dockerfile` and a `docker-compose.yml`. The image bakes the datasets in at build time (it runs `foodguide data fetch` once), so the running container needs no network.
+
+```bash
+docker compose up -d --build        # endpoint on 127.0.0.1:8000/mcp
+docker build --build-arg DATA_TAG=data-latest -t foodguide-mcp .   # or build by hand
+```
+
+Released versions are also published to `ghcr.io/aryan-jhaveri/mcp-foodguidecanada` (tags `3.0.0` and `latest`).
+
+What the container setup does, and why:
+
+- **Pinned base image** (by digest), so a rebuild gives the same image.
+- **Non-root user, read-only root filesystem, no capabilities, `no-new-privileges`.** HTTP mode has no session database, so it writes nothing. Only `/tmp` is writable.
+- **Memory limit** of 512 MB.
+- **Published on `127.0.0.1` only.** Anything public goes through a reverse proxy.
+- **No network at run time.** The data is fixed when the image is built. To pick up new data, rebuild or pull a newer image. The weekly Data refresh workflow publishes new datasets, so rebuilding monthly is enough for most uses.
+- **Health check** on `/mcp/`.
+
+### Reverse proxy with a token
+
+Terminate TLS and check a bearer token before the request reaches the server. Example for nginx (put the real token in a secret, not in the file you commit):
+
+```nginx
+location /mcp {
+    if ($http_authorization != "Bearer CHANGE-ME") { return 401; }
+    proxy_pass http://127.0.0.1:8000;
+    proxy_http_version 1.1;
+    proxy_buffering off;               # MCP streams responses
+}
+```
+
+Check how each client sends headers. Some clients can send an `Authorization` header, others only support a URL. Add rate limits at the proxy.
+
+### If you publish a public server
+
+- Credit the data sources and licences (see [data.md](data.md)). The recipes are Crown copyright.
+- Say plainly that the numbers are reference values, not medical advice.
+- The server has 24 tools in this mode: lookups and calculations, with no per-user storage.
+
 ## Tools (46)
 
 The text after each name comes from the first line of the tool's own description (the warning mark on `create_temp_nutrition_session` is dropped).

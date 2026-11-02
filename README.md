@@ -281,6 +281,8 @@ Claude Desktop and most other clients bridge stdio to HTTP with [`mcp-proxy`](ht
 
 Environment variables instead of flags: `MCP_TRANSPORT=http PORT=8000 foodguide-mcp`.
 
+To serve it to other people, use the Docker image and put TLS and a token in front: see [Serving it to others](docs/mcp.md#serving-it-to-others).
+
 ### Troubleshooting
 
 - The server does not appear in the client: check the client's logs (for Claude Desktop, the MCP log files) and run `foodguide-mcp` in a terminal to see the error.
