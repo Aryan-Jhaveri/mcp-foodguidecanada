@@ -4,8 +4,8 @@
 
 A rewrite around an installable package and offline data. The old `v2.0` was the MCP server alone.
 
-- **Package:** installable `foodguide` with a typer CLI (`foodguide`) and the MCP server
-  (`foodguide-mcp`, install with the `mcp` extra). The CLI install is light (no pandas, no fastmcp).
+- **Package:** published as `foodguidecanada` (import name and commands stay `foodguide`): a typer CLI
+  (`foodguide`) and the MCP server (`foodguide-mcp`, install with the `mcp` extra). The CLI install is light (no pandas, no fastmcp).
 - **Offline data, no network at run time:** Canadian Nutrient File 2026 as SQLite (EN/FR full-text search),
   the Food Guide recipes (141, from the new canada.ca pages), Health Canada DRI and EER tables.
 - **CLI:** `cnf`, `recipes`, `dri`, `eer`, `data` (build, status, fetch, manifest, changed).

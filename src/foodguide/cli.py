@@ -54,7 +54,7 @@ def _log(message: str) -> None:
 
 def _package_version() -> str:
     try:
-        return metadata.version("foodguide")
+        return metadata.version("foodguidecanada")
     except Exception:
         return "3.0.0"
 

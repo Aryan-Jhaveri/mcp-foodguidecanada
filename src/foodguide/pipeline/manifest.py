@@ -39,7 +39,7 @@ class ManifestError(Exception):
 def package_version() -> str:
     """Return the installed foodguide package version, or "0.0.0" if unknown."""
     try:
-        return metadata.version("foodguide")
+        return metadata.version("foodguidecanada")
     except Exception:
         return "0.0.0"
 
