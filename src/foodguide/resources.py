@@ -9,7 +9,7 @@ Resources are always available regardless of transport mode (stdio or HTTP).
 """
 
 import json
-from typing import Dict, Any
+
 from fastmcp import FastMCP
 
 from foodguide.data_manager import get_dri_data_manager, get_eer_data_manager

@@ -2,9 +2,11 @@
 Pydantic models for EER (Estimated Energy Requirement) calculations and user profiles.
 """
 
-from pydantic import BaseModel, Field, validator
-from typing import List, Dict, Any, Optional
 from enum import Enum
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field, validator
+
 
 class GenderEnum(str, Enum):
     """Gender options for EER calculations"""
@@ -40,7 +42,7 @@ class CreateUserProfileInput(BaseModel):
     weight_kg: float = Field(..., description="Weight in kilograms", ge=10, le=300)
     pal_category: PALCategoryEnum = Field(..., description="Physical Activity Level category")
     pregnancy_status: PregnancyStatusEnum = Field(
-        PregnancyStatusEnum.NOT_PREGNANT, 
+        PregnancyStatusEnum.NOT_PREGNANT,
         description="Pregnancy status (for females only)"
     )
     lactation_status: LactationStatusEnum = Field(
@@ -58,7 +60,7 @@ class CreateUserProfileInput(BaseModel):
         ge=10, le=50
     )
     use_persistent_storage: bool = Field(
-        False, 
+        False,
         description="Whether to store profile persistently or in virtual session"
     )
 
@@ -153,7 +155,7 @@ class UserProfileResult(BaseModel):
 class PALDescriptionResult(BaseModel):
     """Result model for PAL category descriptions"""
     pal_categories: Dict[str, Dict[str, Any]] = Field(
-        ..., 
+        ...,
         description="Dictionary of PAL categories with descriptions and examples"
     )
 

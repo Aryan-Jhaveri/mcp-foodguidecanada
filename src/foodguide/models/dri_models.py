@@ -5,14 +5,16 @@ This module defines data models for Health Canada's DRI macronutrient reference 
 including input validation and output formatting for the MacronutrientScraper.
 """
 
-from pydantic import BaseModel, Field, validator
-from typing import List, Dict, Any, Optional, Union
 from enum import Enum
+from typing import Dict, List, Optional
+
+from pydantic import BaseModel, Field, validator
+
 
 class DRIValueType(str, Enum):
     """Types of DRI values."""
     EAR = "ear"  # Estimated Average Requirement
-    RDA = "rda"  # Recommended Dietary Allowance  
+    RDA = "rda"  # Recommended Dietary Allowance
     AI = "ai"    # Adequate Intake
     UL = "ul"    # Tolerable Upper Intake Level
 
@@ -45,7 +47,7 @@ class MacronutrientValue(BaseModel):
     is_ai: bool = Field(False, description="True if value is AI, False if RDA")
     unit: str = Field(..., description="Unit of measurement (g/day, g/kg/day, L/day)")
     footnote_refs: List[str] = Field(default=[], description="Footnote reference IDs")
-    
+
     @validator('ear', 'rda_ai', 'ul')
     def validate_positive_values(cls, v):
         """Ensure values are positive if provided."""
@@ -56,7 +58,7 @@ class MacronutrientValue(BaseModel):
 class CarbohydrateValues(BaseModel):
     """Carbohydrate-specific DRI values."""
     ear_g_day: Optional[float] = Field(None, description="EAR in grams per day")
-    rda_ai_g_day: Optional[float] = Field(None, description="RDA/AI in grams per day") 
+    rda_ai_g_day: Optional[float] = Field(None, description="RDA/AI in grams per day")
     ul_g_day: Optional[float] = Field(None, description="UL in grams per day")
     is_ai: bool = Field(False, description="Whether RDA/AI value is an AI")
 
@@ -107,7 +109,7 @@ class AgeGroupDRI(BaseModel):
     age_range: str = Field(..., description="Age range (e.g., '19-30 y', '0-6 mo')")
     category: LifeStageCategory = Field(..., description="Life stage category")
     nutrients: MacronutrientSet = Field(..., description="Complete macronutrient values")
-    
+
     @validator('age_range')
     def validate_age_range(cls, v):
         """Validate age range format."""
@@ -119,7 +121,7 @@ class AminoAcidPattern(BaseModel):
     """Amino acid pattern for protein quality evaluation."""
     name: str = Field(..., description="Amino acid name")
     mg_per_g_protein: float = Field(..., description="Recommended pattern in mg/g protein")
-    
+
     @validator('mg_per_g_protein')
     def validate_positive_value(cls, v):
         """Ensure amino acid pattern value is positive."""
@@ -131,7 +133,7 @@ class AMDRRange(BaseModel):
     """Acceptable Macronutrient Distribution Range."""
     min_percent: float = Field(..., description="Minimum percentage of total energy")
     max_percent: float = Field(..., description="Maximum percentage of total energy")
-    
+
     @validator('max_percent')
     def validate_range(cls, v, values):
         """Ensure max is greater than min."""
@@ -142,7 +144,7 @@ class AMDRRange(BaseModel):
 class AMDRSet(BaseModel):
     """Complete set of AMDR values for an age group."""
     carbohydrate_percent: str = Field(..., description="Carbohydrate AMDR as percentage range")
-    protein_percent: str = Field(..., description="Protein AMDR as percentage range") 
+    protein_percent: str = Field(..., description="Protein AMDR as percentage range")
     fat_percent: str = Field(..., description="Fat AMDR as percentage range")
     n6_pufa_percent: str = Field(..., description="n-6 PUFA AMDR as percentage range")
     n3_pufa_percent: str = Field(..., description="n-3 PUFA AMDR as percentage range")
@@ -154,7 +156,7 @@ class AdditionalRecommendations(BaseModel):
         description="Saturated fat recommendation"
     )
     trans_fatty_acids: str = Field(
-        "As low as possible while consuming a nutritionally adequate diet", 
+        "As low as possible while consuming a nutritionally adequate diet",
         description="Trans fat recommendation"
     )
     dietary_cholesterol: str = Field(
@@ -221,10 +223,10 @@ class DRIError(BaseModel):
 def parse_amdr_range(range_str: str) -> Optional[AMDRRange]:
     """
     Parse AMDR range string like '45-65%' into AMDRRange object.
-    
+
     Args:
         range_str: String like '45-65%' or '10-35%'
-        
+
     Returns:
         AMDRRange object or None if parsing fails
     """
@@ -239,32 +241,32 @@ def parse_amdr_range(range_str: str) -> Optional[AMDRRange]:
             )
     except (ValueError, AttributeError):
         pass
-    
+
     return None
 
 def format_dri_value(value: Optional[float], unit: str, is_ai: bool = False) -> str:
     """
     Format DRI value for display.
-    
+
     Args:
         value: Numeric value
         unit: Unit string
         is_ai: Whether this is an AI value (affects formatting)
-        
+
     Returns:
         Formatted string representation
     """
     if value is None:
         return "ND"
-    
+
     # Format with appropriate precision
     if unit in ['g/day', 'g/kg/day']:
         formatted = f"{value:.1f}"
     else:
         formatted = f"{value:.2f}"
-    
+
     # Add asterisk for AI values
     if is_ai:
         formatted += "*"
-    
+
     return f"{formatted} {unit}"

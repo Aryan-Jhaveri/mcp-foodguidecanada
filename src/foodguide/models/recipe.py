@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from typing import List, Optional
-from datetime import datetime
-import re
+
 
 @dataclass
 class Recipe:
@@ -18,11 +17,11 @@ class Recipe:
     recipe_highlights: List[dict[str, str]] = None # Highlights of the recipe
     nutrition_info: Optional[dict] = None # <--- NOT USED IN THE CURRENT VERSION
     image_url: Optional[str] = None # URL of the recipe image
-    
+
     def __post_init__(self):
         if self.categories is None:
             self.categories = []
-        if self.tips is None:  
+        if self.tips is None:
             self.tips = []
-        if self.recipe_highlights is None:  
+        if self.recipe_highlights is None:
             self.recipe_highlights = []

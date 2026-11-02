@@ -1,5 +1,6 @@
 # Suppress Pydantic deprecation warnings to reduce server startup noise
 import warnings
+
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="pydantic")
 warnings.filterwarnings("ignore", message=".*PydanticDeprecatedSince20.*")
 warnings.filterwarnings("ignore", message=".*min_items.*deprecated.*", category=DeprecationWarning)
@@ -8,27 +9,22 @@ warnings.filterwarnings("ignore", message=".*@validator.*deprecated.*", category
 warnings.filterwarnings("ignore", message=".*class-based.*config.*deprecated.*", category=DeprecationWarning)
 warnings.filterwarnings("ignore", message=".*Valid config keys have changed.*", category=UserWarning, module="pydantic")
 
-from fastmcp import FastMCP
-import sys
-import os
-import logging
-import signal
 import argparse
-from typing import List, Dict, Any, Optional
-from contextlib import contextmanager, redirect_stderr, redirect_stdout
-from io import StringIO
+import logging
+import os
+import signal
+import sys
+from contextlib import contextmanager, redirect_stderr
 
-from foodguide.api.recipe import RecipeFetcher
+from fastmcp import FastMCP
+
 from foodguide.api.recipe import register_recipe_tools
-from foodguide.api.search import RecipeSearcher
-from foodguide.models.filters import SearchFilters
-from foodguide.db.queries import register_db_tools
-from foodguide.db.math_tools import register_math_tools
+from foodguide.db.cnf_tools import register_cnf_tools
 from foodguide.db.dri_tools import register_dri_tools, register_session_dri_tools
 from foodguide.db.eer_tools import register_eer_tools
-from foodguide.db.cnf_tools import register_cnf_tools
+from foodguide.db.math_tools import register_math_tools
+from foodguide.db.queries import register_db_tools
 from foodguide.resources import register_resources
-from foodguide.config import DB_FILE, TOOL_TIMEOUT_SECONDS
 
 # Configure logging suppression based on environment variables
 SUPPRESS_MCP_LOGS = os.getenv('SUPPRESS_MCP_LOGS', 'true').lower() == 'true'
@@ -41,7 +37,7 @@ if SUPPRESS_MCP_LOGS:
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[]  # No handlers = no output
     )
-    
+
     # Suppress ALL framework logging completely
     logging.getLogger('fastmcp').disabled = True
     logging.getLogger('mcp').disabled = True
@@ -50,7 +46,7 @@ if SUPPRESS_MCP_LOGS:
     logging.getLogger('uvicorn.access').disabled = True
     logging.getLogger('uvicorn.error').disabled = True
     logging.getLogger('asyncio').disabled = True
-    
+
     # Disable all logging below CRITICAL globally
     logging.disable(logging.CRITICAL)
 else:
@@ -87,11 +83,11 @@ def connection_error_handler(operation_name: str):
     """Context manager to handle connection errors gracefully."""
     try:
         yield
-    except BrokenPipeError as e:
+    except BrokenPipeError:
         #logger.warning(f"Client disconnected during {operation_name}: {e}")
         # Don't re-raise - this is expected when client disconnects
         pass
-    except ConnectionResetError as e:
+    except ConnectionResetError:
         #logger.warning(f"Connection reset during {operation_name}: {e}")
         # Don't re-raise - this is expected when client disconnects
         pass

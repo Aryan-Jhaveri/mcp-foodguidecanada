@@ -42,3 +42,13 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
+ignore = [
+    # Most of this codebase is legacy (pre-package) code with long data-table
+    # lines and long URLs; new code keeps to the 100-char limit. Do not churn.
+    "E501",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# server.py sets warnings filters before importing fastmcp on purpose
+# (warnings must be configured before pydantic is imported).
+"src/foodguide/server.py" = ["E402"]
