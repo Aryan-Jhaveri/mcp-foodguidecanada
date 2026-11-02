@@ -16,7 +16,10 @@ import signal
 import sys
 from contextlib import contextmanager, redirect_stderr
 
-from fastmcp import FastMCP
+try:
+    from fastmcp import FastMCP
+except ImportError:  # the CLI does not need fastmcp; only the server does
+    raise SystemExit("foodguide-mcp needs the MCP extra: pip install 'foodguide[mcp]'") from None
 
 from foodguide.api.recipe import register_recipe_tools
 from foodguide.db.cnf_tools import register_cnf_tools
