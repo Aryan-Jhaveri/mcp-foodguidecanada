@@ -23,31 +23,9 @@ from .schema import (
 )
 from .math_tools import register_math_tools
 from .dri_tools import register_dri_tools, register_session_dri_tools
-# Handle imports using absolute path resolution  
-import os
-import sys
 
-script_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(script_dir)
-project_root = os.path.dirname(parent_dir)
-
-# Add paths to sys.path
-if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
-try:
-    from foodguide.models.db_models import RecipeInput, FavoriteInput, SessionInput, RecipeQueryInput
-    from foodguide.config import MAX_QUERY_ROWS
-except ImportError:
-    try:
-        from foodguide.models.db_models import RecipeInput, FavoriteInput, SessionInput, RecipeQueryInput
-        from foodguide.config import MAX_QUERY_ROWS
-    except ImportError as e:
-        print(f"Error importing models/config: {e}", file=sys.stderr)
-        # Set fallback
-        MAX_QUERY_ROWS = 100
+from foodguide.models.db_models import RecipeInput, FavoriteInput, SessionInput, RecipeQueryInput
+from foodguide.config import MAX_QUERY_ROWS
 
 def register_db_tools(mcp: FastMCP):
     """Register database tools with the MCP server."""

@@ -11,7 +11,6 @@ This module provides tools for:
 
 import json
 import os
-import sys
 import sqlite3
 import time
 import threading
@@ -20,61 +19,25 @@ from typing import Dict, Any, List, Optional, Callable
 from fastmcp import FastMCP
 import logging
 
-# Handle imports
-script_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(script_dir)
-project_root = os.path.dirname(parent_dir)
-
-# Add paths to sys.path
-if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
 # Global flag for whether CNF tools are available
 CNF_TOOLS_AVAILABLE = False
 
 # Import config first to ensure constants are available
-try:
-    from foodguide.config import CNF_MAX_CONCURRENT, CNF_CACHE_TTL, BULK_OPERATION_TIMEOUT
-except ImportError:
-    try:
-        from foodguide.config import CNF_MAX_CONCURRENT, CNF_CACHE_TTL, BULK_OPERATION_TIMEOUT
-    except ImportError:
-        CNF_MAX_CONCURRENT = 3
-        CNF_CACHE_TTL = 1800
-        BULK_OPERATION_TIMEOUT = 60
+from foodguide.config import CNF_MAX_CONCURRENT, CNF_CACHE_TTL, BULK_OPERATION_TIMEOUT
 
-try:
-    from foodguide.models.cnf_models import (
-        CNFSearchInput, CNFProfileInput, CNFMacronutrientsInput, CNFBulkMacronutrientsInput, CNFSearchAndGetInput,
-        SQLQueryInput, CNFFoodResult, CNFNutrientProfile, IngredientCNFMatch,
-        RecipeNutritionSummary, CNFSessionSummary, IngredientNutritionData,
-        AnalyzeRecipeNutritionInput, RecipeNutritionCalculationInput,
-        IngredientNutritionBreakdownInput, DailyNutritionComparisonInput,
-        RecipeMacrosQueryInput, RecipeMacrosUpdateInput
-    )
-    from foodguide.api.cnf_api import get_cnf_api_client, CORE_MACRONUTRIENT_IDS, parse_measure_name
-    from foodguide.db.schema import get_virtual_session_data, store_recipe_in_virtual_session
-    from foodguide.db.sql_engine import VirtualSQLEngine, get_available_tables_info
-    from foodguide.db.connection import get_db_connection
-    CNF_TOOLS_AVAILABLE = True
-except ImportError:
-    try:
-        from foodguide.models.cnf_models import (
-            CNFSearchInput, CNFProfileInput, CNFMacronutrientsInput, CNFBulkMacronutrientsInput, CNFSearchAndGetInput,
-            SQLQueryInput, CNFFoodResult, CNFNutrientProfile, IngredientCNFMatch,
-            RecipeNutritionSummary, CNFSessionSummary, IngredientNutritionData,
-            AnalyzeRecipeNutritionInput, RecipeNutritionCalculationInput,
-            IngredientNutritionBreakdownInput, DailyNutritionComparisonInput
-        )
-        from foodguide.api.cnf_api import get_cnf_api_client, CORE_MACRONUTRIENT_IDS, parse_measure_name
-        from foodguide.db.schema import get_virtual_session_data, store_recipe_in_virtual_session
-        from foodguide.db.sql_engine import VirtualSQLEngine, get_available_tables_info
-        from foodguide.db.connection import get_db_connection
-        CNF_TOOLS_AVAILABLE = True
-    except ImportError as e:
-        print(f"Warning: CNF tools not available due to import error: {e}", file=sys.stderr)
+from foodguide.models.cnf_models import (
+    CNFSearchInput, CNFProfileInput, CNFMacronutrientsInput, CNFBulkMacronutrientsInput, CNFSearchAndGetInput,
+    SQLQueryInput, CNFFoodResult, CNFNutrientProfile, IngredientCNFMatch,
+    RecipeNutritionSummary, CNFSessionSummary, IngredientNutritionData,
+    AnalyzeRecipeNutritionInput, RecipeNutritionCalculationInput,
+    IngredientNutritionBreakdownInput, DailyNutritionComparisonInput,
+    RecipeMacrosQueryInput, RecipeMacrosUpdateInput
+)
+from foodguide.api.cnf_api import get_cnf_api_client, CORE_MACRONUTRIENT_IDS, parse_measure_name
+from foodguide.db.schema import get_virtual_session_data, store_recipe_in_virtual_session
+from foodguide.db.sql_engine import VirtualSQLEngine, get_available_tables_info
+from foodguide.db.connection import get_db_connection
+CNF_TOOLS_AVAILABLE = True
 
 # Configure logging with environment-based level control
 LOG_LEVEL = os.getenv('FOODGUIDE_LOG_LEVEL', 'ERROR')
