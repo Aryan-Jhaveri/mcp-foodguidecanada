@@ -3,43 +3,13 @@ import json
 import re
 import ast
 import operator
-import os
-import sys
 from typing import Dict, Any, List, Optional
 from fastmcp import FastMCP
 
-# Handle imports using absolute path resolution
-script_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(script_dir)
-project_root = os.path.dirname(parent_dir)
-
-# Add paths to sys.path
-if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
-try:
-    from foodguide.models.math_models import (
-        SimpleMathInput, ServingSizeInput, IngredientScaleInput, BulkIngredientScaleInput, 
-        RecipeComparisonInput, BulkMathInput, BulkMathCalculation
-    )
-except ImportError:
-    try:
-        from foodguide.models.math_models import (
-            SimpleMathInput, ServingSizeInput, IngredientScaleInput, BulkIngredientScaleInput, 
-            RecipeComparisonInput, BulkMathInput, BulkMathCalculation
-        )
-    except ImportError as e:
-        print(f"Error importing math_models: {e}", file=sys.stderr)
-        # Set to None - will cause issues but can't easily fallback for Pydantic models
-        SimpleMathInput = None
-        ServingSizeInput = None
-        IngredientScaleInput = None
-        BulkIngredientScaleInput = None
-        RecipeComparisonInput = None
-        BulkMathInput = None
-        BulkMathCalculation = None
+from foodguide.models.math_models import (
+    SimpleMathInput, ServingSizeInput, IngredientScaleInput, BulkIngredientScaleInput, 
+    RecipeComparisonInput, BulkMathInput, BulkMathCalculation
+)
 
 def register_math_tools(mcp: FastMCP):
     """Register recipe math and calculation tools with the MCP server."""

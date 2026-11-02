@@ -10,75 +10,34 @@ This module provides tools for:
 """
 
 import json
-import os
 import re
 import sys
 from typing import Dict, Any, List, Optional
 from fastmcp import FastMCP
 from datetime import datetime
 
-# Handle imports
-script_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(script_dir)
-project_root = os.path.dirname(parent_dir)
-
-# Add paths to sys.path
-if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
 # Global flag for whether DRI tools are available
 DRI_TOOLS_AVAILABLE = False
 SCHEMA_FUNCTIONS_AVAILABLE = False
 DATA_MANAGER_AVAILABLE = False
 
-try:
-    from foodguide.models.dri_models import (
-        GetMacronutrientDRIInput, GetAMDRInput, CompareIntakeToDRIInput,
-        DRIMacronutrientData, DRIError, MacronutrientType, LifeStageCategory
-    )
-    DRI_TOOLS_AVAILABLE = True
-except ImportError:
-    try:
-        from foodguide.models.dri_models import (
-            GetMacronutrientDRIInput, GetAMDRInput, CompareIntakeToDRIInput,
-            DRIMacronutrientData, DRIError, MacronutrientType, LifeStageCategory
-        )
-        DRI_TOOLS_AVAILABLE = True
-    except ImportError as e:
-        print(f"Error importing DRI models: {e}", file=sys.stderr)
-        DRI_TOOLS_AVAILABLE = False
+from foodguide.models.dri_models import (
+    GetMacronutrientDRIInput, GetAMDRInput, CompareIntakeToDRIInput,
+    DRIMacronutrientData, DRIError, MacronutrientType, LifeStageCategory
+)
+DRI_TOOLS_AVAILABLE = True
 
 # Import data manager (bundled data + lazy refresh)
-_dri_data_manager_factory = None
-try:
-    from foodguide.data_manager import get_dri_data_manager as _dri_dm_import
-    _dri_data_manager_factory = _dri_dm_import
-except ImportError:
-    try:
-        from foodguide.data_manager import get_dri_data_manager as _dri_dm_import
-        _dri_data_manager_factory = _dri_dm_import
-    except ImportError as e:
-        print(f"Error importing data manager: {e}", file=sys.stderr)
+from foodguide.data_manager import get_dri_data_manager as _dri_dm_import
+_dri_data_manager_factory = _dri_dm_import
 
 DATA_MANAGER_AVAILABLE = _dri_data_manager_factory is not None
 
 # Import schema functions for session-aware tools
-try:
-    from foodguide.db.schema import (
-        ensure_dri_session_structure, get_virtual_session_data, get_dri_session_summary
-    )
-    SCHEMA_FUNCTIONS_AVAILABLE = True
-except ImportError:
-    try:
-        from foodguide.db.schema import (
-            ensure_dri_session_structure, get_virtual_session_data, get_dri_session_summary
-        )
-        SCHEMA_FUNCTIONS_AVAILABLE = True
-    except ImportError as e:
-        print(f"Error importing schema functions: {e}", file=sys.stderr)
-        SCHEMA_FUNCTIONS_AVAILABLE = False
+from foodguide.db.schema import (
+    ensure_dri_session_structure, get_virtual_session_data, get_dri_session_summary
+)
+SCHEMA_FUNCTIONS_AVAILABLE = True
 
 
 def _normalize_age_text(text: str) -> str:

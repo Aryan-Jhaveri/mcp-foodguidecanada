@@ -1,30 +1,9 @@
-import os
 import json
 import requests
 from pathlib import Path
 from typing import List, Optional
-import sys
 
-# Dynamically handle imports
-script_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(script_dir)
-project_root = os.path.dirname(parent_dir)
-
-# Try to import with different methods
-try:
-    # Try first with src prefix
-    from foodguide.models.recipe import Recipe
-except ImportError:
-    try:
-        # Next, try with parent directory
-        from foodguide.models.recipe import Recipe
-    except ImportError:
-        # As a last resort, modify sys.path and try again
-        if parent_dir not in sys.path:
-            sys.path.insert(0, parent_dir)
-        if project_root not in sys.path:
-            sys.path.insert(0, project_root)
-        from foodguide.models.recipe import Recipe
+from foodguide.models.recipe import Recipe
 
 class RecipeDownloader:
     def __init__(self, output_dir: str = "downloads"):

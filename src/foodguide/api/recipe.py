@@ -3,54 +3,15 @@ from bs4 import BeautifulSoup
 from typing import Optional, List
 import json
 import re
-import os
-import sys
 from fastmcp import FastMCP
 from typing import List, Dict, Any, Optional
 
-script_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(script_dir)
-src_dir = script_dir
-
-if src_dir not in sys.path:
-    sys.path.insert(0, src_dir)
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
-try:
-    from foodguide.api.search import RecipeSearcher
-    from foodguide.models.filters import SearchFilters
-    from foodguide.db.queries import register_db_tools
-    from foodguide.config import DB_FILE
-    from foodguide.utils.url_builder import FoodGuideURLBuilder
-except ImportError:
-    try:
-        from foodguide.api.search import RecipeSearcher
-        from foodguide.models.filters import SearchFilters
-        from foodguide.db.queries import register_db_tools
-        from foodguide.config import DB_FILE
-        from foodguide.utils.url_builder import FoodGuideURLBuilder
-    except ImportError as e:
-        print(f"Error importing modules: {e}", file=sys.stderr)
-        sys.exit(1)
-
-try:
-    # Try first with src prefix
-    from foodguide.models.recipe import Recipe
-    from foodguide.utils.url_builder import FoodGuideURLBuilder
-except ImportError:
-    try:
-        # Next, try with parent directory
-        from foodguide.models.recipe import Recipe
-        from foodguide.utils.url_builder import FoodGuideURLBuilder
-    except ImportError:
-        # As a last resort, modify sys.path and try again
-        if parent_dir not in sys.path:
-            sys.path.insert(0, parent_dir)
-        if project_root not in sys.path:
-            sys.path.insert(0, project_root)
-        from foodguide.models.recipe import Recipe
-        from foodguide.utils.url_builder import FoodGuideURLBuilder
+from foodguide.api.search import RecipeSearcher
+from foodguide.models.filters import SearchFilters
+from foodguide.db.queries import register_db_tools
+from foodguide.config import DB_FILE
+from foodguide.utils.url_builder import FoodGuideURLBuilder
+from foodguide.models.recipe import Recipe
 
 class RecipeFetcher:
     def __init__(self):

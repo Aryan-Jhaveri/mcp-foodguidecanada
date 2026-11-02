@@ -9,59 +9,25 @@ This module provides tools for:
 """
 
 import json
-import os
 import sys
 from typing import Dict, Any, List, Optional
 from fastmcp import FastMCP
 
-# Handle imports
-script_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(script_dir)
-project_root = os.path.dirname(parent_dir)
-
-# Add paths to sys.path
-if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
 # Global flag for whether EER tools are available
 EER_TOOLS_AVAILABLE = False
 
-try:
-    from foodguide.models.eer_models import (
-        CreateUserProfileInput, CalculateEERInput,
-        GetProfileInput, DeleteProfileInput, GetPALDescriptionsInput,
-        EERCalculationResult, UserProfileResult, PALDescriptionResult,
-        ProfileListResult, EERError
-    )
-    from foodguide.api.eer import EERCalculator, EERProfileManager, get_pal_activity_descriptions
-    EER_TOOLS_AVAILABLE = True
-except ImportError:
-    try:
-        from foodguide.models.eer_models import (
-            CreateUserProfileInput, CalculateEERInput,
-            GetProfileInput, DeleteProfileInput, GetPALDescriptionsInput,
-            EERCalculationResult, UserProfileResult, PALDescriptionResult,
-            ProfileListResult, EERError
-        )
-        from foodguide.api.eer import EERCalculator, EERProfileManager, get_pal_activity_descriptions
-        EER_TOOLS_AVAILABLE = True
-    except ImportError as e:
-        print(f"Error importing EER modules: {e}", file=sys.stderr)
-        EER_TOOLS_AVAILABLE = False
+from foodguide.models.eer_models import (
+    CreateUserProfileInput, CalculateEERInput,
+    GetProfileInput, DeleteProfileInput, GetPALDescriptionsInput,
+    EERCalculationResult, UserProfileResult, PALDescriptionResult,
+    ProfileListResult, EERError
+)
+from foodguide.api.eer import EERCalculator, EERProfileManager, get_pal_activity_descriptions
+EER_TOOLS_AVAILABLE = True
 
 # Import data manager for bundled EER data (fallback when www.canada.ca is unreachable)
-_eer_data_manager_factory = None
-try:
-    from foodguide.data_manager import get_eer_data_manager as _eer_dm_import
-    _eer_data_manager_factory = _eer_dm_import
-except ImportError:
-    try:
-        from foodguide.data_manager import get_eer_data_manager as _eer_dm_import
-        _eer_data_manager_factory = _eer_dm_import
-    except ImportError:
-        pass
+from foodguide.data_manager import get_eer_data_manager as _eer_dm_import
+_eer_data_manager_factory = _eer_dm_import
 
 # Global instances
 _eer_calculator = None

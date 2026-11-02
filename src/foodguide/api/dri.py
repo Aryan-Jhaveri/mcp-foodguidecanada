@@ -15,21 +15,9 @@ from typing import Dict, Optional, List, Tuple, Union, Any
 import re
 import json
 import os
-import sys
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 import time
-
-# Dynamically handle imports
-script_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(script_dir)
-project_root = os.path.dirname(parent_dir)
-
-# Add paths for imports
-if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
 
 class MacronutrientScraper:
     """
@@ -59,7 +47,7 @@ class MacronutrientScraper:
         })
         
         # Cache file setup
-        self.cache_dir = os.path.join(project_root, 'cache')
+        self.cache_dir = os.environ.get("FOODGUIDE_CACHE_DIR", os.path.join(os.getcwd(), "cache"))
         os.makedirs(self.cache_dir, exist_ok=True)
         self.cache_file = os.path.join(self.cache_dir, 'dri_macronutrients.json')
     

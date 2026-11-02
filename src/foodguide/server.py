@@ -12,50 +12,23 @@ from fastmcp import FastMCP
 import sys
 import os
 import logging
-import traceback
 import signal
 import argparse
 from typing import List, Dict, Any, Optional
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from io import StringIO
 
-script_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(script_dir)
-src_dir = script_dir
-
-if src_dir not in sys.path:
-    sys.path.insert(0, src_dir)
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
-try:
-    from foodguide.api.recipe import RecipeFetcher
-    from foodguide.api.recipe import register_recipe_tools
-    from foodguide.api.search import RecipeSearcher
-    from foodguide.models.filters import SearchFilters
-    from foodguide.db.queries import register_db_tools
-    from foodguide.db.math_tools import register_math_tools
-    from foodguide.db.dri_tools import register_dri_tools, register_session_dri_tools
-    from foodguide.db.eer_tools import register_eer_tools
-    from foodguide.db.cnf_tools import register_cnf_tools
-    from foodguide.resources import register_resources
-    from foodguide.config import DB_FILE, TOOL_TIMEOUT_SECONDS
-except ImportError:
-    try:
-        from foodguide.api.recipe import RecipeFetcher
-        from foodguide.api.recipe import register_recipe_tools
-        from foodguide.api.search import RecipeSearcher
-        from foodguide.models.filters import SearchFilters
-        from foodguide.db.queries import register_db_tools
-        from foodguide.db.math_tools import register_math_tools
-        from foodguide.db.dri_tools import register_dri_tools, register_session_dri_tools
-        from foodguide.db.eer_tools import register_eer_tools
-        from foodguide.db.cnf_tools import register_cnf_tools
-        from foodguide.resources import register_resources
-        from foodguide.config import DB_FILE, TOOL_TIMEOUT_SECONDS
-    except ImportError as e:
-        print(f"Error importing modules: {e}", file=sys.stderr)
-        sys.exit(1)
+from foodguide.api.recipe import RecipeFetcher
+from foodguide.api.recipe import register_recipe_tools
+from foodguide.api.search import RecipeSearcher
+from foodguide.models.filters import SearchFilters
+from foodguide.db.queries import register_db_tools
+from foodguide.db.math_tools import register_math_tools
+from foodguide.db.dri_tools import register_dri_tools, register_session_dri_tools
+from foodguide.db.eer_tools import register_eer_tools
+from foodguide.db.cnf_tools import register_cnf_tools
+from foodguide.resources import register_resources
+from foodguide.config import DB_FILE, TOOL_TIMEOUT_SECONDS
 
 # Configure logging suppression based on environment variables
 SUPPRESS_MCP_LOGS = os.getenv('SUPPRESS_MCP_LOGS', 'true').lower() == 'true'
@@ -194,7 +167,9 @@ def create_server(enable_db: bool = True) -> FastMCP:
 
     return mcp
 
-if __name__ == "__main__":
+def main() -> None:
+    global SUPPRESS_MCP_LOGS
+
     # Parse CLI arguments
     parser = argparse.ArgumentParser(description="MCP Food Guide Canada Server")
     parser.add_argument(
@@ -252,3 +227,6 @@ if __name__ == "__main__":
             sys.exit(1)
     finally:
         pass
+
+if __name__ == "__main__":
+    main()

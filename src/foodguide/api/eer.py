@@ -3,29 +3,13 @@ from bs4 import BeautifulSoup
 from typing import Dict, Optional, List, Tuple, Union, Any
 import re
 import json
-import os
-import sys
 import sqlite3
 from datetime import datetime
 from dataclasses import dataclass
 from enum import Enum
 
-# Dynamically handle imports
-script_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(script_dir)
-project_root = os.path.dirname(parent_dir)
-
-# Add paths for imports
-if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
-# Import database connection after path setup
-try:
-    from foodguide.db.connection import get_db_connection
-except ImportError:
-    from foodguide.db.connection import get_db_connection
+# Import database connection
+from foodguide.db.connection import get_db_connection
 
 
 class Gender(Enum):
