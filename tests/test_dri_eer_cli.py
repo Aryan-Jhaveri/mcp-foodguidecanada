@@ -23,7 +23,7 @@ from foodguide.builders.dri_eer import (
 )
 from foodguide.cli import app
 
-runner = CliRunner()
+runner = CliRunner(env={"COLUMNS": "200", "NO_COLOR": "1", "TERM": "dumb"})
 FIXTURES = Path(__file__).parent / "fixtures" / "dri_eer"
 
 

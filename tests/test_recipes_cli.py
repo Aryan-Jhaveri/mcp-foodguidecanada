@@ -10,7 +10,7 @@ from foodguide.cli import app
 from foodguide.recipes.fetch import INDEX_URL, recipe_url
 from foodguide.recipes.source import recipes_data_path
 
-runner = CliRunner()
+runner = CliRunner(env={"COLUMNS": "200", "NO_COLOR": "1", "TERM": "dumb"})
 
 FIXTURES = Path(__file__).parent / "fixtures" / "recipes_html"
 

@@ -25,7 +25,7 @@ from foodguide.cnf.builder import build_cnf_db
 GOLDEN_ZIP_ENV = "FOODGUIDE_TEST_CNF_ZIP"
 DEFAULT_ZIP = "/srv/agent/work/foodguide-tasks/data/cnf_fcen_all-files-data_2026.zip"
 
-runner = CliRunner()
+runner = CliRunner(env={"COLUMNS": "200", "NO_COLOR": "1", "TERM": "dumb"})
 
 
 def _sha256_file(path: Path) -> str:

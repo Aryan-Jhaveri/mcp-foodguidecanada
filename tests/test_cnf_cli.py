@@ -12,7 +12,7 @@ from typer.testing import CliRunner
 from foodguide.cli import app
 from foodguide.cnf.builder import build_cnf_db
 
-runner = CliRunner()
+runner = CliRunner(env={"COLUMNS": "200", "NO_COLOR": "1", "TERM": "dumb"})
 
 
 @pytest.fixture()
