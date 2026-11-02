@@ -2,6 +2,7 @@
 
 import hashlib
 import os
+import re
 from pathlib import Path
 
 import pytest
@@ -69,7 +70,18 @@ def test_parse_recipe_two_groups():
     ]
     assert recipe["tips"] == ["Little chefs can stir the topping ingredients together."]
     assert recipe["tags"] == ["collection__vegetarian", "meal__snack"]
-    assert recipe["page_sha256"] == hashlib.sha256(html_text.encode("utf-8")).hexdigest()
+    stable = re.sub(
+        r"<(script|style|noscript)\b[^>]*>.*?</\1\s*>", "", html_text, flags=re.S | re.I
+    )
+    assert recipe["page_sha256"] == hashlib.sha256(stable.encode("utf-8")).hexdigest()
+    # A dynamic analytics script must not change the hash.
+    dynamic = html_text.replace(
+        "</title>", "</title><script>var analytics = Math.random();</script>"
+    )
+    assert parse_recipe(dynamic, "test-apple-crisp", "https://example.com/x.html", [
+        "collection__vegetarian",
+        "meal__snack",
+    ])["page_sha256"] == recipe["page_sha256"]
     assert list(recipe.keys()) == [
         "slug",
         "url",
