@@ -10,6 +10,9 @@ from bs4 import BeautifulSoup
 # Import database connection
 from foodguide.db.connection import get_db_connection
 
+# Build-tool user agent: canada.ca stalls generic Mozilla/5.0 user agents.
+USER_AGENT = "foodguide-data-build/0.1 (+https://github.com/Aryan-Jhaveri/mcp-foodguidecanada)"
+
 
 class Gender(Enum):
     MALE = "male"
@@ -94,7 +97,8 @@ class EERCalculator:
         self.base_url = "https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes/tables"
         self.session = requests.Session()
         self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (compatible; CanadaFoodGuide-MCP/2.0)'
+            'User-Agent': USER_AGENT,
+            'Accept': '*/*',
         })
 
     def get_specific_eer_equations(self, equation_type: str = "all", pal_category: str = "all") -> Dict[str, Any]:
@@ -111,7 +115,7 @@ class EERCalculator:
         url = f"{self.base_url}/equations-estimate-energy-requirement.html"
 
         try:
-            response = self.session.get(url, timeout=10)
+            response = self.session.get(url, timeout=30)
             response.raise_for_status()
 
             soup = BeautifulSoup(response.content, 'html.parser')

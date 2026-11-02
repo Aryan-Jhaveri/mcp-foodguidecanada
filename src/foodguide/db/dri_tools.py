@@ -112,8 +112,9 @@ def register_dri_tools(mcp: FastMCP):
         - Developing nutrition education materials
         - Creating nutrition assessment tools
 
-        Data is available immediately from bundled snapshots. A background refresh
-        from the live website is attempted on first use to verify freshness.
+        Data is served from local files (a data-dir snapshot if one was built,
+        otherwise the bundled snapshot). No network access happens at tool-call
+        time; run `foodguide data build dri` to refresh the local snapshot.
 
         Args:
             force_refresh: If True, attempt to fetch fresh data from website
@@ -135,10 +136,6 @@ def register_dri_tools(mcp: FastMCP):
         """
         try:
             result = _get_dri_data(force_refresh=force_refresh)
-
-            # Trigger background refresh on first use (non-blocking)
-            if _dri_data_manager_factory is not None:
-                _dri_data_manager_factory().try_background_refresh()
 
             return result
 

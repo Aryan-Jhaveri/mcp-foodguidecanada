@@ -21,8 +21,10 @@ from pathlib import Path
 import requests
 import typer
 
+from foodguide.builders.dri_eer import BuildError, build_dri, build_eer, calculate_eer
 from foodguide.cnf import db as cnf_db
 from foodguide.cnf.builder import DEFAULT_DATASET_ID, DEFAULT_ZIP_URL, build_cnf_db
+from foodguide.data_manager import get_dri_data_manager, get_eer_data_manager
 from foodguide.recipes.builder import build_recipes_json
 from foodguide.recipes.source import LocalRecipeSource, recipes_data_path
 
@@ -40,12 +42,6 @@ class OutputFormat(str, Enum):
 def _log(message: str) -> None:
     """Write a log line to stderr (never stdout)."""
     typer.echo(message, err=True)
-
-
-def _stub(ticket: str) -> None:
-    """Print the standard stub message for an unimplemented command and exit 1."""
-    _log(f"not implemented yet ({ticket})")
-    raise typer.Exit(code=1)
 
 
 def _package_version() -> str:
@@ -81,6 +77,8 @@ app = typer.Typer(
         "Examples:\n"
         "  foodguide cnf search lentils\n"
         "  foodguide cnf nutrients 3393 --measure \"1 cup\"\n"
+        "  foodguide dri tables --age-range \"19-30 y\"\n"
+        "  foodguide eer calc --sex male --age 30 --weight-kg 70 --height-cm 175\n"
         "  foodguide data status"
     ),
     context_settings={"help_option_names": ["-h", "--help"]},
@@ -465,39 +463,441 @@ def cnf_measures(
     raise typer.Exit(code=0)
 
 
+# ---------------------------------------------------------------- dri/eer helpers
+
+_PAL_KEYS = ("inactive", "low_active", "active", "very_active")
+
+
+def _cli_normalize_text(text: str) -> str:
+    """Tolerant normalization: NBSP/narrow NBSP and en/em dashes become plain, lowercase, collapsed."""
+    text = text.replace("\u00a0", " ").replace("\u202f", " ")
+    text = text.replace("\u2013", "-").replace("\u2014", "-")
+    return re.sub(r"\s+", " ", text).strip().lower()
+
+
+def _normalize_age_text(text: str) -> str:
+    """Normalize age range text (same rules as foodguide.db.dri_tools)."""
+    if not text:
+        return text
+    text = text.replace("\u00a0", " ").replace("\xa0", " ")
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+
+def _flexible_age_match(target_age: str, available_age: str) -> bool:
+    """Flexible age-range matching (copied from foodguide.db.dri_tools)."""
+    target_norm = _normalize_age_text(target_age).lower()
+    available_norm = _normalize_age_text(available_age).lower()
+
+    if target_norm == available_norm:
+        return True
+
+    variations = [
+        (re.sub(r"\s*-\s*", "-", target_norm), re.sub(r"\s*-\s*", "-", available_norm)),
+        (re.sub(r"\byears?\b", "y", target_norm), re.sub(r"\byears?\b", "y", available_norm)),
+        (re.sub(r"\bmonths?\b", "mo", target_norm), re.sub(r"\bmonths?\b", "mo", available_norm)),
+        (re.sub(r"\s+", "", target_norm), re.sub(r"\s+", "", available_norm)),
+    ]
+
+    for target_var, available_var in variations:
+        if target_var == available_var:
+            return True
+
+    return False
+
+
+def _dri_age_match(target: str, available: str) -> bool:
+    """Age-range match with CLI-normalized text on both sides."""
+    return _flexible_age_match(_cli_normalize_text(target), _cli_normalize_text(available))
+
+
+_DRI_NUTRIENT_ALIASES = {
+    "protein": ("protein",),
+    "carbohydrate": ("carbohydrate", "carbs"),
+    "total_fat": ("total_fat", "fat"),
+    "linoleic_acid": ("linoleic_acid", "linoleic"),
+    "alpha_linolenic_acid": ("alpha_linolenic_acid", "ala"),
+    "total_fibre": ("total_fibre", "fibre", "fiber"),
+    "total_water": ("total_water", "water"),
+}
+
+
+def _resolve_dri_nutrient(name: str) -> str | None:
+    """Map a user-supplied nutrient name (with aliases) to the canonical data key."""
+    key = _cli_normalize_text(name).replace("-", "_").replace(" ", "_")
+    for canonical, aliases in _DRI_NUTRIENT_ALIASES.items():
+        if key in aliases:
+            return canonical
+    return None
+
+
+_DRI_FIELD_PREFIXES = {"ear": "EAR", "rda_ai": "RDA/AI", "ai": "AI", "ul": "UL"}
+_DRI_FIELD_UNITS = (
+    ("g_kg_day", "g/kg/day"),
+    ("litres_day", "L/day"),
+    ("g_day", "g/day"),
+)
+
+
+def _dri_field_label(field: str) -> str:
+    """Human label for a DRI value field, e.g. rda_ai_g_kg_day -> 'RDA/AI (g/kg/day)'."""
+    for suffix, unit in _DRI_FIELD_UNITS:
+        if field.endswith(suffix):
+            prefix = field[: -len(suffix)].rstrip("_")
+            prefix_label = _DRI_FIELD_PREFIXES.get(prefix, prefix.replace("_", " ").upper())
+            return f"{prefix_label} ({unit})"
+    return field.replace("_", " ")
+
+
+def _dri_nutrient_value_pairs(nutrient: dict) -> list[tuple[str, object]]:
+    """(field, value) pairs for the non-null, non-flag fields of one nutrient."""
+    return [
+        (field, value)
+        for field, value in nutrient.items()
+        if field != "is_ai" and value is not None
+    ]
+
+
+def _dri_render_nutrient(name: str, nutrient: dict) -> str:
+    """One-line rendering of one nutrient's values, e.g. 'protein: RDA/AI (g/day) 56 (AI)'."""
+    pairs = _dri_nutrient_value_pairs(nutrient)
+    parts = [
+        f"{_dri_field_label(field)} {value:g}"
+        + (" (AI)" if nutrient.get("is_ai") else "")
+        for field, value in pairs
+    ]
+    return f"  {name}: " + (", ".join(parts) if parts else "no values recorded")
+
+
+def _dri_available_age_ranges(rows: list) -> list[str]:
+    seen: list[str] = []
+    for row in rows:
+        age = str(row.get("age_range", ""))
+        if age and age not in seen:
+            seen.append(age)
+    return seen
+
+
+def _dri_available_categories(rows: list) -> list[str]:
+    seen: list[str] = []
+    for row in rows:
+        cat = str(row.get("category", ""))
+        if cat and cat not in seen:
+            seen.append(cat)
+    return seen
+
+
+def _dri_lookup_nutrient_key(nutrient: dict) -> str:
+    """Pick the most specific non-null value field of a nutrient for single-value display."""
+    preferred = (
+        "rda_ai_g_day",
+        "ai_g_day",
+        "rda_ai_g_kg_day",
+        "ai_litres_day",
+        "ear_g_day",
+        "ear_g_kg_day",
+        "ul_g_day",
+        "ul_litres_day",
+    )
+    for field in preferred:
+        if nutrient.get(field) is not None:
+            return field
+    for field, value in _dri_nutrient_value_pairs(nutrient):
+        return field
+    return ""
+
+
+def _resolve_eer_type(value: str) -> str:
+    key = _cli_normalize_text(value)
+    if key not in ("adult", "child", "pregnancy", "lactation", "all"):
+        _log(f"invalid --type {value!r}; use adult, child, pregnancy, lactation or all")
+        raise typer.Exit(code=1)
+    return key
+
+
+def _resolve_eer_pal(value: str) -> str:
+    key = re.sub(r"[\s_-]+", "_", _cli_normalize_text(value))
+    if key not in _PAL_KEYS + ("all",):
+        _log(f"invalid --pal {value!r}; use one of {', '.join(_PAL_KEYS)}, all")
+        raise typer.Exit(code=1)
+    return key
+
+
+def _eer_formula_rows(equations: dict) -> list[tuple[str, str, str, str]]:
+    """Flatten EER equation sections into (section, who, pal, formula) rows."""
+    rows: list[tuple[str, str, str, str]] = []
+
+    def coeffs_formula(coeffs: dict) -> str:
+        return (
+            f"EER = {coeffs.get('intercept', '?')} + ({coeffs.get('age', 0)} * age)"
+            f" + ({coeffs.get('height_cm', 0)} * height_cm)"
+            f" + ({coeffs.get('weight_kg', 0)} * weight_kg)"
+        )
+
+    for section_key, section in equations.items():
+        if not isinstance(section, dict):
+            continue
+        for sex in ("male", "female"):
+            entry = section.get(sex)
+            if not isinstance(entry, dict):
+                continue
+            if "formula" in entry:
+                rows.append((section_key, sex, "", str(entry["formula"])))
+            for pal in _PAL_KEYS:
+                sub = entry.get(pal)
+                if isinstance(sub, dict) and "formula" in sub:
+                    rows.append((section_key, sex, pal, str(sub["formula"])))
+        by_pal = section.get("equations_by_pal")
+        if isinstance(by_pal, dict):
+            for pal in _PAL_KEYS:
+                sub = by_pal.get(pal)
+                if isinstance(sub, dict) and "formula" in sub:
+                    rows.append((section_key, "", pal, str(sub["formula"])))
+        base = section.get("base_equations")
+        if isinstance(base, dict):
+            for age_key, group in base.items():
+                if not isinstance(group, dict):
+                    continue
+                for pal in _PAL_KEYS:
+                    sub = group.get(pal)
+                    if isinstance(sub, dict) and isinstance(sub.get("coefficients"), dict):
+                        rows.append(
+                            (section_key, f"base {age_key}", pal, coeffs_formula(sub["coefficients"]))
+                        )
+    return rows
+
+
 # ---------------------------------------------------------------- dri
 
 dri_app = typer.Typer(
     name="dri",
     help=(
-        "Dietary Reference Intakes: reference values for macronutrients "
-        "by age/sex group, from the bundled Health Canada DRI snapshot."
+        "Dietary Reference Intakes: reference values for macronutrients and "
+        "AMDRs by age/sex group (offline: data-dir snapshot first, bundled "
+        "fallback; refresh with `foodguide data build dri`)."
     ),
-    epilog="Example:\n  foodguide dri tables",
+    epilog=(
+        "Examples:\n"
+        "  foodguide dri tables\n"
+        "  foodguide dri tables --age-range \"19-30 y\" --format json\n"
+        "  foodguide dri amdr --format csv\n"
+        "  foodguide dri lookup --age-range \"19-30 y\" --nutrient protein\n"
+    ),
     context_settings={"help_option_names": ["-h", "--help"]},
     no_args_is_help=True,
 )
 app.add_typer(dri_app, help="Dietary Reference Intakes lookups")
 
 
+def _run_dri_tables(
+    ctx: typer.Context,
+    age_range: str | None,
+    category: str | None,
+    format: OutputFormat | None,
+) -> None:
+    """Shared implementation for `dri tables` and `dri table`."""
+    fmt = format if format is not None else ctx.obj["format"]
+    data = get_dri_data_manager().get_dri_data()
+    rows = data.get("reference_values", [])
+    matching = [
+        row
+        for row in rows
+        if (age_range is None or _dri_age_match(age_range, str(row.get("age_range", ""))))
+        and (category is None or _cli_normalize_text(category) in _cli_normalize_text(str(row.get("category", ""))))
+    ]
+    if not matching:
+        _log(
+            f"no DRI rows match age_range={age_range!r} category={category!r}; "
+            f"available age ranges: {', '.join(_dri_available_age_ranges(rows)) or 'none'}"
+        )
+        raise typer.Exit(code=1)
+
+    if fmt == OutputFormat.json:
+        typer.echo(json.dumps(matching, indent=2, ensure_ascii=False))
+    elif fmt == OutputFormat.csv:
+        writer = csv.writer(sys.stdout)
+        writer.writerow(["age_range", "category", "nutrient", "field", "value", "is_ai"])
+        for row in matching:
+            for name, nutrient in row.get("nutrients", {}).items():
+                if not isinstance(nutrient, dict):
+                    continue
+                pairs = _dri_nutrient_value_pairs(nutrient)
+                if not pairs:
+                    writer.writerow(
+                        [row.get("age_range", ""), row.get("category", ""), name, "", "", bool(nutrient.get("is_ai"))]
+                    )
+                for field, value in pairs:
+                    writer.writerow(
+                        [
+                            row.get("age_range", ""),
+                            row.get("category", ""),
+                            name,
+                            field,
+                            value,
+                            bool(nutrient.get("is_ai")),
+                        ]
+                    )
+    else:
+        for row in matching:
+            typer.echo(f"{row.get('category', '?')} \u2014 {row.get('age_range', '?')}")
+            nutrients = row.get("nutrients", {})
+            if not nutrients:
+                typer.echo("  (no nutrient values)")
+            for name, nutrient in nutrients.items():
+                if isinstance(nutrient, dict):
+                    typer.echo(_dri_render_nutrient(name, nutrient))
+    raise typer.Exit(code=0)
+
+
 @dri_app.command("tables")
-def dri_tables() -> None:
-    """Show DRI tables (RDA/AI per macronutrient) by age/sex group.
+@dri_app.command("table")
+def dri_tables(
+    ctx: typer.Context,
+    age_range: str | None = typer.Option(
+        None, "--age-range", help='Only rows for this age range, e.g. "19-30 y" (tolerant matching).'
+    ),
+    category: str | None = typer.Option(
+        None,
+        "--category",
+        help="Only rows for this life-stage category, e.g. Infants, Males, Females, Pregnancy, Lactation (case-insensitive).",
+    ),
+    format: OutputFormat | None = typer.Option(
+        None, "--format", help="Output format for data on stdout"
+    ),
+) -> None:
+    """Show DRI tables (EAR/RDA-AI/UL per macronutrient) by age/sex group.
 
     Example:
-      foodguide dri tables
+      foodguide dri tables --age-range "19-30 y"
     """
-    _stub("HOM-77")
+    _run_dri_tables(ctx, age_range, category, format)
 
 
 @dri_app.command("amdr")
-def dri_amdr() -> None:
-    """Show Acceptable Macronutrient Distribution Ranges (AMDR).
+def dri_amdr(
+    ctx: typer.Context,
+    age_range: str | None = typer.Option(
+        None, "--age-range", help='Only AMDR rows for this age range, e.g. "4-18 y" (tolerant matching).'
+    ),
+    format: OutputFormat | None = typer.Option(
+        None, "--format", help="Output format for data on stdout"
+    ),
+) -> None:
+    """Show Acceptable Macronutrient Distribution Ranges (AMDR) by age group.
 
     Example:
       foodguide dri amdr
     """
-    _stub("HOM-77")
+    fmt = format if format is not None else ctx.obj["format"]
+    data = get_dri_data_manager().get_dri_data()
+    amdrs = data.get("amdrs", {})
+    matching = {
+        age: values
+        for age, values in amdrs.items()
+        if age_range is None or _dri_age_match(age_range, str(age))
+    }
+    if not matching:
+        _log(
+            f"no AMDR rows match age_range={age_range!r}; "
+            f"available age ranges: {', '.join(str(k) for k in amdrs) or 'none'}"
+        )
+        raise typer.Exit(code=1)
+
+    if fmt == OutputFormat.json:
+        typer.echo(json.dumps(matching, indent=2, ensure_ascii=False))
+    elif fmt == OutputFormat.csv:
+        writer = csv.writer(sys.stdout)
+        writer.writerow(["age_range", "nutrient", "percent_range"])
+        for age, values in matching.items():
+            for nutrient, percent in values.items():
+                writer.writerow([age, nutrient, percent])
+    else:
+        for age, values in matching.items():
+            typer.echo(age)
+            for nutrient, percent in values.items():
+                typer.echo(f"  {nutrient.replace('_', ' ')}: {percent}")
+    raise typer.Exit(code=0)
+
+
+@dri_app.command("lookup")
+def dri_lookup(
+    ctx: typer.Context,
+    age_range: str = typer.Option(
+        ..., "--age-range", help='Age range to look up, e.g. "19-30 y" (tolerant matching).'
+    ),
+    nutrient: str = typer.Option(
+        ..., "--nutrient", help="Nutrient name or alias, e.g. protein, carbs, fibre, water."
+    ),
+    format: OutputFormat | None = typer.Option(
+        None, "--format", help="Output format for data on stdout"
+    ),
+) -> None:
+    """Look up one macronutrient's DRI values for an age range across categories.
+
+    Example:
+      foodguide dri lookup --age-range "19-30 y" --nutrient protein
+    """
+    fmt = format if format is not None else ctx.obj["format"]
+    canonical = _resolve_dri_nutrient(nutrient)
+    data = get_dri_data_manager().get_dri_data()
+    rows = data.get("reference_values", [])
+    if canonical is None:
+        _log(
+            f"unknown nutrient {nutrient!r}; available nutrients: "
+            + ", ".join(_DRI_NUTRIENT_ALIASES)
+        )
+        raise typer.Exit(code=1)
+    matching = [row for row in rows if _dri_age_match(age_range, str(row.get("age_range", "")))]
+    if not matching:
+        _log(
+            f"no DRI rows match age_range={age_range!r}; "
+            f"available age ranges: {', '.join(_dri_available_age_ranges(rows)) or 'none'}"
+        )
+        raise typer.Exit(code=1)
+
+    matches = []
+    for row in matching:
+        nutrient_data = row.get("nutrients", {}).get(canonical)
+        if isinstance(nutrient_data, dict):
+            matches.append(
+                {
+                    "category": row.get("category", ""),
+                    "age_range": row.get("age_range", ""),
+                    "nutrient": canonical,
+                    "values": nutrient_data,
+                }
+            )
+    if not matches:
+        _log(f"nutrient {canonical!r} has no values for age range {age_range!r}")
+        raise typer.Exit(code=1)
+
+    if fmt == OutputFormat.json:
+        typer.echo(json.dumps(matches, indent=2, ensure_ascii=False))
+    elif fmt == OutputFormat.csv:
+        writer = csv.writer(sys.stdout)
+        writer.writerow(["category", "age_range", "nutrient", "field", "value", "is_ai"])
+        for match in matches:
+            pairs = _dri_nutrient_value_pairs(match["values"])
+            if not pairs:
+                writer.writerow(
+                    [match["category"], match["age_range"], match["nutrient"], "", "", bool(match["values"].get("is_ai"))]
+                )
+            for field, value in pairs:
+                writer.writerow(
+                    [
+                        match["category"],
+                        match["age_range"],
+                        match["nutrient"],
+                        field,
+                        value,
+                        bool(match["values"].get("is_ai")),
+                    ]
+                )
+    else:
+        for match in matches:
+            typer.echo(f"{match['category']} \u2014 {match['age_range']}")
+            typer.echo(_dri_render_nutrient(match["nutrient"], match["values"]))
+    raise typer.Exit(code=0)
 
 
 # ---------------------------------------------------------------- eer
@@ -506,9 +906,14 @@ eer_app = typer.Typer(
     name="eer",
     help=(
         "Estimated Energy Requirement: Health Canada / Institute of "
-        "Medicine EER equations from the bundled snapshot."
+        "Medicine EER equations (offline: data-dir snapshot first, bundled "
+        "fallback; refresh with `foodguide data build eer`)."
     ),
-    epilog="Example:\n  foodguide eer calc --age 35 --sex male",
+    epilog=(
+        "Examples:\n"
+        "  foodguide eer calc --sex male --age 30 --weight-kg 70 --height-cm 175\n"
+        "  foodguide eer equations --type adult --pal active --format csv\n"
+    ),
     context_settings={"help_option_names": ["-h", "--help"]},
     no_args_is_help=True,
 )
@@ -516,23 +921,134 @@ app.add_typer(eer_app, help="Estimated Energy Requirement calculations")
 
 
 @eer_app.command("calc")
-def eer_calc() -> None:
+def eer_calc(
+    ctx: typer.Context,
+    sex: str = typer.Option(..., "--sex", help="Sex: male or female (m/f accepted)."),
+    age: float = typer.Option(..., "--age", help="Age in years (e.g. 30, or 1.5 for 18 months)."),
+    weight_kg: float = typer.Option(..., "--weight-kg", help="Weight in kilograms."),
+    height_cm: float = typer.Option(..., "--height-cm", help="Height in centimetres."),
+    pal: str = typer.Option(
+        "active", "--pal", help="Physical activity level: inactive, low_active, active or very_active."
+    ),
+    format: OutputFormat | None = typer.Option(
+        None, "--format", help="Output format for data on stdout"
+    ),
+) -> None:
     """Compute EER from age, sex, height, weight and physical activity level (PAL).
 
     Example:
-      foodguide eer calc --age 35 --sex male
+      foodguide eer calc --sex male --age 30 --weight-kg 70 --height-cm 175
     """
-    _stub("HOM-78")
+    fmt = format if format is not None else ctx.obj["format"]
+    data = get_eer_data_manager().get_eer_data()
+    try:
+        result = calculate_eer(data, sex, age, weight_kg, height_cm, pal)
+    except ValueError as exc:
+        _log(str(exc))
+        raise typer.Exit(code=1) from None
+    inputs = {
+        "sex": sex,
+        "age_years": age,
+        "weight_kg": weight_kg,
+        "height_cm": height_cm,
+        "pal": pal,
+    }
+
+    if fmt == OutputFormat.json:
+        typer.echo(json.dumps({**result, "inputs": inputs}, indent=2, ensure_ascii=False))
+    elif fmt == OutputFormat.csv:
+        writer = csv.writer(sys.stdout)
+        writer.writerow(["eer_kcal", "sex", "age_years", "weight_kg", "height_cm", "pal", "formula"])
+        writer.writerow(
+            [
+                result["eer_kcal"],
+                sex,
+                age,
+                weight_kg,
+                height_cm,
+                result["pal"],
+                result["formula"],
+            ]
+        )
+    else:
+        typer.echo(
+            f"EER ({sex}, {age:g} y, {weight_kg:.1f} kg, {height_cm:.1f} cm, {result['pal']}):"
+            f" {result['eer_kcal']} kcal/day"
+        )
+        typer.echo(f"formula: {result['formula']}")
+        if result.get("growth_constant") is not None:
+            typer.echo(f"growth constant: {result['growth_constant']} kcal/day")
+    raise typer.Exit(code=0)
 
 
 @eer_app.command("equations")
-def eer_equations() -> None:
+def eer_equations(
+    ctx: typer.Context,
+    type: str = typer.Option(
+        "all",
+        "--type",
+        help="Equation family: adult, child, pregnancy, lactation or all.",
+    ),
+    pal: str = typer.Option(
+        "all",
+        "--pal",
+        help="Physical activity level filter: inactive, low_active, active, very_active or all.",
+    ),
+    format: OutputFormat | None = typer.Option(
+        None, "--format", help="Output format for data on stdout"
+    ),
+) -> None:
     """List the Health Canada EER equations and their variables.
 
     Example:
-      foodguide eer equations
+      foodguide eer equations --type adult --pal active
     """
-    _stub("HOM-78")
+    fmt = format if format is not None else ctx.obj["format"]
+    equation_type = _resolve_eer_type(type)
+    pal_category = _resolve_eer_pal(pal)
+    payload = get_eer_data_manager().get_equations(equation_type, pal_category)
+
+    if fmt == OutputFormat.json:
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=False))
+        raise typer.Exit(code=0)
+
+    rows = _eer_formula_rows(payload.get("equations", {}))
+    if not rows:
+        _log(f"no EER equations match type={equation_type!r} pal={pal_category!r}")
+        raise typer.Exit(code=1)
+
+    if fmt == OutputFormat.csv:
+        writer = csv.writer(sys.stdout)
+        writer.writerow(["section", "who", "pal", "formula"])
+        for section, who, pal_key, formula in rows:
+            writer.writerow([section, who, pal_key, formula])
+        raise typer.Exit(code=0)
+
+    sections = payload.get("equations", {})
+    for section_key, section in sections.items():
+        if not isinstance(section, dict):
+            continue
+        typer.echo(f"{section_key} ({section.get('age_range', '?')}): {section.get('description', '')}")
+        if section.get("note"):
+            typer.echo(f"  note: {section['note']}")
+        for row_section, who, pal_key, formula in rows:
+            if row_section != section_key:
+                continue
+            label = " ".join(part for part in (who, f"({pal_key})" if pal_key else "") if part)
+            typer.echo(f"  {label}: {formula}" if label else f"  {formula}")
+        for sex in ("male", "female"):
+            entry = section.get(sex)
+            if isinstance(entry, dict) and isinstance(entry.get("growth_constants"), dict):
+                constants = ", ".join(f"{k}={v:g}" for k, v in entry["growth_constants"].items())
+                typer.echo(f"  {sex} growth constants (kcal/day): {constants}")
+        if isinstance(section.get("milk_energy_constants"), dict):
+            constants = ", ".join(
+                f"{k}={v.get('total_addition_kcal', '?'):g}"
+                for k, v in section["milk_energy_constants"].items()
+                if isinstance(v, dict)
+            )
+            typer.echo(f"  milk energy constants (kcal/day): {constants}")
+    raise typer.Exit(code=0)
 
 
 # ---------------------------------------------------------------- recipes
@@ -768,21 +1284,41 @@ def _recipes_info() -> dict:
     return LocalRecipeSource().status()
 
 
+def _provenance_summary(provenance: object) -> str:
+    """One-line provenance summary for table output ('-' when absent)."""
+    if not isinstance(provenance, dict) or not provenance:
+        return "-"
+    parts = [str(provenance[key]) for key in ("source_url", "page_sha256", "page_date_modified", "fetched_at") if provenance.get(key)]
+    return "; ".join(parts) if parts else "-"
+
+
+def _dri_info() -> dict:
+    """Describe the active DRI data source (data-dir file or bundled snapshot)."""
+    return get_dri_data_manager().get_status()
+
+
+def _eer_info() -> dict:
+    """Describe the active EER data source (data-dir file or bundled snapshot)."""
+    return get_eer_data_manager().get_status()
+
+
 _RECIPES_PROVENANCE_KEYS = ("fetched_at", "index_sha256")
 
 
 data_app = typer.Typer(
     name="data",
     help=(
-        "Local data management: inspect bundled DRI/EER snapshots, the CNF "
-        "SQLite database and the recipes.json recipe snapshot (build them "
-        "with `foodguide data build cnf` / `foodguide data build recipes`)."
+        "Local data management: inspect the DRI/EER data files (data-dir "
+        "snapshot first, bundled fallback — build the data-dir ones with "
+        "`foodguide data build dri` / `foodguide data build eer`), the CNF "
+        "SQLite database and the recipes.json recipe snapshot (built with "
+        "`foodguide data build cnf` / `foodguide data build recipes`)."
     ),
     epilog="Example:\n  foodguide data status --format json",
     context_settings={"help_option_names": ["-h", "--help"]},
     no_args_is_help=True,
 )
-app.add_typer(data_app, help="Local data management (bundled snapshots, CNF database)")
+app.add_typer(data_app, help="Local data management (DRI/EER snapshots, CNF database, recipes)")
 
 
 @data_app.command("status")
@@ -792,7 +1328,7 @@ def data_status(
         None, "--format", help="Output format for data on stdout"
     ),
 ) -> None:
-    """List local data files: bundled DRI/EER snapshots and the CNF database.
+    """List local data files: DRI/EER data (data-dir first, bundled fallback), CNF database, recipes.
 
     Example:
       foodguide data status --format json
@@ -801,10 +1337,15 @@ def data_status(
     files_info = _bundled_file_info()
     cnf = _cnf_db_info()
     recipes = _recipes_info()
+    dri = _dri_info()
+    eer = _eer_info()
 
     if fmt == OutputFormat.json:
         typer.echo(
-            json.dumps({"files": files_info, "cnf_db": cnf, "recipes": recipes}, indent=2)
+            json.dumps(
+                {"files": files_info, "cnf_db": cnf, "recipes": recipes, "dri": dri, "eer": eer},
+                indent=2,
+            )
         )
         raise typer.Exit(code=0)
 
@@ -813,6 +1354,12 @@ def data_status(
         writer.writerow(["file", "size_bytes", "provenance"])
         for info in files_info:
             writer.writerow([info["file"], info["size_bytes"], info["provenance"] or ""])
+        for label, info in (("dri", dri), ("eer", eer)):
+            writer.writerow([label, info.get("size_bytes") or "", f"{info.get('source')}: {info.get('path')}"])
+            provenance = info.get("provenance")
+            if isinstance(provenance, dict) and provenance:
+                for key, value in sorted(provenance.items()):
+                    writer.writerow([f"{label}_provenance", key, value])
         if cnf["built"]:
             writer.writerow(["cnf_db", cnf["size_bytes"], cnf["path"]])
             for key, value in sorted(cnf["provenance"].items()):
@@ -835,6 +1382,13 @@ def data_status(
     for info in files_info:
         prov = info["provenance"] or "-"
         typer.echo(f"{info['file']:<{width}}  {info['size_bytes']:>10}  {prov}")
+    for label, info in (("DRI data", dri), ("EER data", eer)):
+        source = info.get("source") or "unknown"
+        path = info.get("path") or "?"
+        size = info.get("size_bytes")
+        size_text = f"{size} bytes" if size is not None else "size unknown"
+        typer.echo(f"{label}: {path} ({size_text}, source: {source})")
+        typer.echo(f"  provenance: {_provenance_summary(info.get('provenance'))}")
     if cnf["built"]:
         typer.echo(f"CNF database: {cnf['path']} ({cnf['size_bytes']} bytes)")
         for key, value in sorted(cnf["provenance"].items()):
@@ -970,6 +1524,64 @@ def data_build_recipes(
     typer.echo(f"  size: {summary['size_bytes']} bytes")
     typer.echo(f"  index_sha256: {summary['index_sha256']}")
     typer.echo(f"  build_time: {summary['build_time']}")
+
+
+@data_build_app.command("dri")
+def data_build_dri(
+    out: Path | None = typer.Option(
+        None, "--out", help="Output path (default: <data dir>/dri_macronutrients.json)."
+    ),
+) -> None:
+    """Fetch the Health Canada DRI macronutrients page and write dri_macronutrients.json.
+
+    The output is always these human-readable summary lines; the global
+    --format option is ignored. Once written to the data dir, the file takes
+    priority over the bundled snapshot for all offline lookups.
+
+    Example:
+      foodguide data build dri
+    """
+    out_path = out if out is not None else cnf_db.get_data_dir() / "dri_macronutrients.json"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        summary = build_dri(out_path)
+    except BuildError as exc:
+        _log(f"DRI build failed: {exc}")
+        raise typer.Exit(code=1) from None
+    typer.echo(f"Built {summary['path']}")
+    typer.echo(f"  size: {summary['size_bytes']} bytes")
+    typer.echo(f"  page_sha256: {summary['page_sha256']}")
+    typer.echo(f"  page_date_modified: {summary['page_date_modified']}")
+    typer.echo(f"  fetched_at: {summary['fetched_at']}")
+
+
+@data_build_app.command("eer")
+def data_build_eer(
+    out: Path | None = typer.Option(
+        None, "--out", help="Output path (default: <data dir>/eer_equations.json)."
+    ),
+) -> None:
+    """Fetch the Health Canada EER equations page and write eer_equations.json.
+
+    The output is always these human-readable summary lines; the global
+    --format option is ignored. Once written to the data dir, the file takes
+    priority over the bundled snapshot for all offline lookups.
+
+    Example:
+      foodguide data build eer
+    """
+    out_path = out if out is not None else cnf_db.get_data_dir() / "eer_equations.json"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        summary = build_eer(out_path)
+    except BuildError as exc:
+        _log(f"EER build failed: {exc}")
+        raise typer.Exit(code=1) from None
+    typer.echo(f"Built {summary['path']}")
+    typer.echo(f"  size: {summary['size_bytes']} bytes")
+    typer.echo(f"  page_sha256: {summary['page_sha256']}")
+    typer.echo(f"  page_date_modified: {summary['page_date_modified']}")
+    typer.echo(f"  fetched_at: {summary['fetched_at']}")
 
 
 # ---------------------------------------------------------------- version

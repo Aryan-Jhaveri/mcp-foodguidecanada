@@ -9,15 +9,16 @@ official DRI tables for macronutrients including:
 - Acceptable Macronutrient Distribution Ranges (AMDRs)
 """
 
-import json
-import os
 import re
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import requests
 from bs4 import BeautifulSoup
+
+# Build-tool user agent: canada.ca stalls generic Mozilla/5.0 user agents.
+USER_AGENT = "foodguide-data-build/0.1 (+https://github.com/Aryan-Jhaveri/mcp-foodguidecanada)"
 
 
 class MacronutrientScraper:
@@ -28,29 +29,22 @@ class MacronutrientScraper:
     official DRI tables, providing structured JSON output for nutrition analysis.
     """
 
-    def __init__(self, cache_duration_hours: int = 24, rate_limit: float = 1.5):
+    def __init__(self, rate_limit: float = 1.5):
         """
         Initialize the MacronutrientScraper.
 
         Args:
-            cache_duration_hours: How long to cache scraped data (default 24 hours)
             rate_limit: Seconds to wait between requests (default 1.5)
         """
         self.base_url = "https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes/tables/reference-values-macronutrients.html"
-        self.cache_duration = timedelta(hours=cache_duration_hours)
         self.session = requests.Session()
         self.rate_limit = rate_limit
         self._last_request_time = 0
 
-        # Simple user agent like successful EER scraper
         self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (compatible; CanadaFoodGuide-MCP/2.0)'
+            'User-Agent': USER_AGENT,
+            'Accept': '*/*',
         })
-
-        # Cache file setup
-        self.cache_dir = os.environ.get("FOODGUIDE_CACHE_DIR", os.path.join(os.getcwd(), "cache"))
-        os.makedirs(self.cache_dir, exist_ok=True)
-        self.cache_file = os.path.join(self.cache_dir, 'dri_macronutrients.json')
 
     def _rate_limit_wait(self):
         """Ensure we don't exceed rate limits like CNF scraper."""
@@ -66,23 +60,17 @@ class MacronutrientScraper:
         Main method to fetch and parse all macronutrient data from Health Canada DRI tables.
 
         Args:
-            force_refresh: If True, bypass cache and fetch fresh data
+            force_refresh: Kept for API compatibility; data is always fetched fresh.
 
         Returns:
             Dict containing all parsed macronutrient data in structured format
         """
         try:
-            # Check cache first unless force refresh
-            if not force_refresh and self._is_cache_valid():
-                cached_data = self._load_cache()
-                if cached_data:
-                    return cached_data
-
-            # Fetch fresh data from website - simplified like EER scraper
+            # Fetch fresh data from the website (no caching).
             print("Fetching fresh DRI macronutrient data from Health Canada...")
             self._rate_limit_wait()
 
-            response = self.session.get(self.base_url, timeout=10)
+            response = self.session.get(self.base_url, timeout=30)
             response.raise_for_status()
 
             soup = BeautifulSoup(response.content, 'html.parser')
@@ -115,9 +103,6 @@ class MacronutrientScraper:
             # Add detailed validation metrics
             validation_results = self._validate_parsed_values(result)
             result["data_quality"].update(validation_results)
-
-            # Save to cache
-            self._save_cache(result)
 
             return result
 
@@ -215,8 +200,9 @@ class MacronutrientScraper:
             if len(cells) < 18:
                 return None
 
-            age_range = cells[0].get_text(strip=True)
-            age_range = self._normalize_text(age_range)
+            # Preserve the page's non-breaking spaces verbatim (e.g. '0–6\xa0mo');
+            # only strip the outer whitespace, do not normalize internal characters.
+            age_range = cells[0].get_text().strip()
             if not age_range:
                 return None
 
@@ -559,37 +545,13 @@ class MacronutrientScraper:
 
         return validation_results
 
-    def _is_cache_valid(self) -> bool:
-        """Check if cached data is still valid."""
-        if not os.path.exists(self.cache_file):
-            return False
-
-        file_time = datetime.fromtimestamp(os.path.getmtime(self.cache_file))
-        return datetime.now() - file_time < self.cache_duration
-
-    def _load_cache(self) -> Optional[Dict[str, Any]]:
-        """Load data from cache file."""
-        try:
-            with open(self.cache_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            return None
-
-    def _save_cache(self, data: Dict[str, Any]) -> None:
-        """Save data to cache file."""
-        try:
-            with open(self.cache_file, 'w', encoding='utf-8') as f:
-                json.dump(data, f, indent=2, ensure_ascii=False)
-        except Exception as e:
-            print(f"Warning: Could not save cache: {e}")
-
 
 def get_macronutrient_dri_data(force_refresh: bool = False) -> Dict[str, Any]:
     """
     Convenience function to get DRI macronutrient data.
 
     Args:
-        force_refresh: If True, bypass cache and fetch fresh data
+        force_refresh: Kept for API compatibility; data is always fetched fresh.
 
     Returns:
         Dictionary containing all DRI macronutrient data
