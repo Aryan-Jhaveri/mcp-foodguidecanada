@@ -13,7 +13,7 @@ import json
 from pathlib import Path
 
 import pytest
-from pages_fixture import fixture_recipe_cache_dir
+from pages_fixture import FIXTURE_DIR, fixture_recipe_cache_dir
 from typer.testing import CliRunner
 
 from foodguide.cli import app
@@ -23,6 +23,9 @@ runner = CliRunner(env={"COLUMNS": "200", "NO_COLOR": "1", "TERM": "dumb"})
 
 #: The fixture recipe pages exercised by the offline CLI tests.
 SLUGS = ["apple-sandwiches", "baked-fish-chips", "colourful-quinoa-salad"]
+
+#: Every committed recipe page: a full fixture-set build (CLI --only).
+ALL_FIXTURE_SLUGS = sorted(p.stem for p in (FIXTURE_DIR / "recipes").glob("*.html"))
 
 FIXTURE_INDEX = Path(__file__).parent / "fixtures" / "pages" / "recipes_index.html"
 #: sha256 of the raw committed index page (what an HTTP fetch delivers, byte
@@ -242,7 +245,13 @@ def test_data_build_recipes_via_local_server(tmp_path, monkeypatch, pages_server
     monkeypatch.setenv("FOODGUIDE_SOURCE_BASE_URL", pages_server.base_url)
     out_path = tmp_path / "built" / "r.json"
 
-    result = runner.invoke(app, ["data", "build", "recipes", "--out", str(out_path)])
+    # The real index lists 141 recipes but only 12 pages are committed as
+    # fixtures; --only keeps the crawl inside the fixture set (development
+    # option, also used by `data build all`'s recipes_only parameter).
+    result = runner.invoke(
+        app,
+        ["data", "build", "recipes", "--out", str(out_path), "--only", ",".join(ALL_FIXTURE_SLUGS)],
+    )
     assert result.exit_code == 0, result.output
     assert "recipes: 12" in result.stdout
     assert "filters: 9" in result.stdout
