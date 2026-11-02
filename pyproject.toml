@@ -35,6 +35,10 @@ packages = ["src/foodguide"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    # Opt-in marker for slow, network-dependent tests (tests/test_dri_eer_snapshot.py).
+    "live: fetches live canada.ca pages (skipped when FOODGUIDE_SKIP_LIVE_TESTS=1)",
+]
 
 [tool.ruff]
 line-length = 100
