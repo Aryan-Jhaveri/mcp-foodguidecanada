@@ -11,6 +11,25 @@ import re
 
 SLUG_RE = r"recipes/([a-z0-9-]+)\.html"
 
+# canada.ca serves a dynamic analytics script whose bytes differ between fetches
+# of an otherwise identical page; strip these blocks before hashing.
+_DYNAMIC_BLOCK_RE = re.compile(
+    r"<(script|style|noscript)\b[^>]*>.*?</\1\s*>", re.S | re.I
+)
+
+
+def _page_sha256(html_text: str) -> str:
+    """Reproducible sha256 of a page: script/style blocks stripped first.
+
+    canada.ca injects a dynamic analytics script (Akamai boomerang) whose
+    bytes differ between fetches of the same page; stripping script, style
+    and noscript blocks makes the hash depend only on the stable page content
+    (the same approach the DRI/EER builders use).
+    """
+    return hashlib.sha256(
+        _DYNAMIC_BLOCK_RE.sub("", html_text).encode("utf-8")
+    ).hexdigest()
+
 
 def _text(fragment: str) -> str:
     return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", "", fragment))).strip()
@@ -129,5 +148,5 @@ def parse_recipe(html_text: str, slug: str, url: str, tags: list[str]) -> dict:
         "directions": directions,
         "tips": tips,
         "tags": list(tags),
-        "page_sha256": hashlib.sha256(html_text.encode("utf-8")).hexdigest(),
+        "page_sha256": _page_sha256(html_text),
     }

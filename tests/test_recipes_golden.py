@@ -36,8 +36,9 @@ CACHE_DIR = Path(
     or "/nonexistent/foodguide-test-data/recipes_cache"
 )
 SHA_NOTE = (
-    "canada.ca serves a dynamic analytics script, so page_sha256 differs between "
-    "fetches; the page content itself was verified identical"
+    "the golden key hashes raw pages while the parser hashes pages with "
+    "script/style blocks stripped (canada.ca serves a dynamic analytics script); "
+    "the page content itself was verified identical"
 )
 
 

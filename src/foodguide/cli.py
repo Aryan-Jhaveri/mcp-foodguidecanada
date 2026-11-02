@@ -25,6 +25,14 @@ from foodguide.builders.dri_eer import BuildError, build_dri, build_eer, calcula
 from foodguide.cnf import db as cnf_db
 from foodguide.cnf.builder import DEFAULT_DATASET_ID, DEFAULT_ZIP_URL, build_cnf_db
 from foodguide.data_manager import get_dri_data_manager, get_eer_data_manager
+from foodguide.pipeline import build_all as pipeline_build_all
+from foodguide.pipeline import install as pipeline_install
+from foodguide.pipeline.manifest import (
+    ManifestError,
+    changed_datasets,
+    load_manifest,
+    write_manifest,
+)
 from foodguide.recipes.builder import build_recipes_json
 from foodguide.recipes.source import LocalRecipeSource, recipes_data_path
 
@@ -1314,7 +1322,13 @@ data_app = typer.Typer(
         "SQLite database and the recipes.json recipe snapshot (built with "
         "`foodguide data build cnf` / `foodguide data build recipes`)."
     ),
-    epilog="Example:\n  foodguide data status --format json",
+    epilog=(
+        "Examples:\n"
+        "  foodguide data status --format json\n"
+        "  foodguide data fetch --from-dir /path/to/release --dest ~/.local/state/foodguide\n"
+        "  foodguide data manifest ./out\n"
+        "  foodguide data changed old/manifest.json new/manifest.json"
+    ),
     context_settings={"help_option_names": ["-h", "--help"]},
     no_args_is_help=True,
 )
@@ -1339,11 +1353,19 @@ def data_status(
     recipes = _recipes_info()
     dri = _dri_info()
     eer = _eer_info()
+    install = pipeline_install.status(cnf_db.get_data_dir())
 
     if fmt == OutputFormat.json:
         typer.echo(
             json.dumps(
-                {"files": files_info, "cnf_db": cnf, "recipes": recipes, "dri": dri, "eer": eer},
+                {
+                    "files": files_info,
+                    "cnf_db": cnf,
+                    "recipes": recipes,
+                    "dri": dri,
+                    "eer": eer,
+                    "install": install,
+                },
                 indent=2,
             )
         )
@@ -1374,6 +1396,12 @@ def data_status(
             writer.writerow(
                 ["recipes_json", "", "not built (run: foodguide data build recipes)"]
             )
+        if install.get("installed"):
+            writer.writerow(
+                ["install", "manifest_built_at", install["manifest"]["built_at"]]
+            )
+            for info in install["files"]:
+                writer.writerow(["install", info["name"], info["state"]])
         raise typer.Exit(code=0)
 
     # table (default)
@@ -1401,7 +1429,33 @@ def data_status(
             typer.echo(f"  {key}: {recipes[key]}")
     else:
         typer.echo("Recipes data: not built (run: foodguide data build recipes)")
+    _echo_install_status(install)
     raise typer.Exit(code=0)
+
+
+def _echo_install_status(install: dict) -> None:
+    """Append the manifest install status (data-dir manifest.json) to table output."""
+    if not install.get("installed"):
+        typer.echo(
+            "Installed release: no manifest.json in the data dir "
+            "(run: foodguide data fetch --from-dir <release dir>)"
+        )
+        return
+    md = install["manifest"]
+    typer.echo(
+        f"Installed release: built_at={md['built_at']} "
+        f"package_version={md['package_version']} (manifest.json in the data dir)"
+    )
+    for info in install["files"]:
+        if info["state"] == "ok":
+            typer.echo(f"  {info['name']}: ok")
+        else:
+            typer.echo(
+                f"  {info['name']}: {info['state']} "
+                f"(expected sha256={info['expected_sha256']})"
+            )
+    if not install["all_ok"]:
+        typer.echo("  some files do not match the manifest; re-run: foodguide data fetch")
 
 
 # ---------------------------------------------------------------- data build
@@ -1582,6 +1636,199 @@ def data_build_eer(
     typer.echo(f"  page_sha256: {summary['page_sha256']}")
     typer.echo(f"  page_date_modified: {summary['page_date_modified']}")
     typer.echo(f"  fetched_at: {summary['fetched_at']}")
+
+
+@data_build_app.command("all")
+def data_build_all(
+    cnf_zip: Path | None = typer.Option(
+        None,
+        "--cnf-zip",
+        help="Path to the CNF zip (otherwise --download-cnf is required, or --skip cnf).",
+    ),
+    download_cnf: bool = typer.Option(
+        False,
+        "--download-cnf",
+        help="Find the CNF zip URL in the open.canada.ca CKAN record, download it "
+        "(temporary, never published) and record its sha256.",
+    ),
+    out_dir: Path = typer.Option(
+        ..., "--out-dir", help="Directory every dataset is built into."
+    ),
+    skip: list[str] = typer.Option(
+        [],
+        "--skip",
+        help="Skip a dataset (cnf, recipes, dri, eer); repeatable.",
+    ),
+) -> None:
+    """Build every dataset into one directory, then write manifest.json.
+
+    Builds cnf.sqlite (+ cnf.sqlite.gz, gzip with mtime 0), recipes.json,
+    dri_macronutrients.json and eer_equations.json into a temporary directory
+    and only moves them into --out-dir when every builder succeeded — a
+    failure never leaves a partial output directory. manifest.json records
+    per-file sha256/size, content hashes, record counts and upstream version
+    info, so `foodguide data changed` can compare two builds and `foodguide
+    data fetch` can verify a release.
+
+    Example:
+      foodguide data build all --cnf-zip cnf.zip --out-dir ./out
+    """
+    metadata_modified = None
+    if cnf_zip is not None and not download_cnf:
+        # Best-effort: 'unknown' when the CKAN metadata lookup fails offline.
+        metadata_modified = _fetch_metadata_modified()
+    pipeline_build_all.run_build_all(
+        out_dir,
+        cnf_zip=cnf_zip,
+        download_cnf=download_cnf,
+        skip=list(skip),
+        log=_log,
+        metadata_modified=metadata_modified,
+    )
+
+
+# ---------------------------------------------------------------- manifest /
+# ---------------------------------------------------------------- changed / fetch
+
+
+def _manifest_or_exit(path: Path) -> dict:
+    """Load a manifest file or exit 1 with a clear message."""
+    try:
+        return load_manifest(path)
+    except ManifestError as exc:
+        _log(f"invalid manifest {path}: {exc}")
+        raise typer.Exit(code=1) from None
+
+
+@data_app.command("manifest")
+def data_manifest(
+    ctx: typer.Context,
+    directory: Path = typer.Argument(
+        ..., help="Directory containing the built dataset files."
+    ),
+    format: OutputFormat | None = typer.Option(
+        None, "--format", help="Output format for data on stdout"
+    ),
+) -> None:
+    """Write manifest.json in DIR describing its dataset files.
+
+    Scans DIR for cnf.sqlite(.gz), recipes.json, dri_macronutrients.json and
+    eer_equations.json and records per-file sha256/size, content hashes,
+    record counts and upstream version info. Run automatically by
+    `foodguide data build all`.
+
+    Example:
+      foodguide data manifest ./out --format json
+    """
+    try:
+        manifest = write_manifest(directory)
+    except ManifestError as exc:
+        _log(f"manifest failed: {exc}")
+        raise typer.Exit(code=1) from None
+    fmt = format if format is not None else ctx.obj["format"]
+    if fmt == OutputFormat.json:
+        typer.echo(json.dumps(manifest, indent=2, sort_keys=True))
+        raise typer.Exit(code=0)
+    typer.echo(f"Wrote {directory / 'manifest.json'}")
+    typer.echo(f"  built_at: {manifest['built_at']}")
+    typer.echo(f"  package_version: {manifest['package_version']}")
+    for name in sorted(manifest["datasets"]):
+        entry = manifest["datasets"][name]
+        typer.echo(f"  {name}: {entry['size']} bytes, sha256={entry['sha256']}")
+    raise typer.Exit(code=0)
+
+
+@data_app.command("changed")
+def data_changed(
+    old: Path = typer.Argument(..., help="Old manifest.json path."),
+    new: Path = typer.Argument(..., help="New manifest.json path."),
+) -> None:
+    """Exit 0 and print nothing when the datasets are equivalent; else exit 10.
+
+    Compares content identities (CNF content_hash, recipes index_sha256 +
+    recipe count, DRI/EER page_sha256 + date modified), ignoring built_at,
+    package_version and gzip bytes. Prints one changed dataset per line.
+
+    Example:
+      foodguide data changed data1/manifest.json data2/manifest.json
+    """
+    old_manifest = _manifest_or_exit(old)
+    new_manifest = _manifest_or_exit(new)
+    changed = changed_datasets(old_manifest, new_manifest)
+    if not changed:
+        raise typer.Exit(code=0)
+    for name in changed:
+        typer.echo(name)
+    raise typer.Exit(code=10)
+
+
+@data_app.command("fetch")
+def data_fetch(
+    tag: str = typer.Option(
+        pipeline_install.DEFAULT_TAG, "--tag", help="Release tag to fetch."
+    ),
+    repo: str = typer.Option(
+        pipeline_install.DEFAULT_REPO,
+        "--repo",
+        help="GitHub repository (owner/name) publishing the data release.",
+    ),
+    from_dir: Path | None = typer.Option(
+        None,
+        "--from-dir",
+        help="Install from a local release directory instead of GitHub.",
+    ),
+    dest: Path | None = typer.Option(
+        None,
+        "--dest",
+        help="Data dir to install into (default: the foodguide data dir).",
+    ),
+    only: list[str] = typer.Option(
+        [],
+        "--only",
+        help="Install only these datasets (cnf, recipes, dri, eer); repeatable.",
+    ),
+    base_url: str | None = typer.Option(
+        None,
+        "--base-url",
+        help="Override the release download base URL (tests and mirrors).",
+    ),
+) -> None:
+    """Install datasets from a data release (GitHub release or local dir).
+
+    Plain HTTPS, no token needed: assets are downloaded from
+    https://github.com/<repo>/releases/download/<tag>/<asset>. manifest.json
+    is fetched first and every asset is verified against it before anything
+    is written; cnf.sqlite is installed by decompressing cnf.sqlite.gz.
+    Idempotent: files already matching the manifest are skipped.
+
+    Examples:
+      foodguide data fetch --tag data-latest
+      foodguide data fetch --from-dir ./release --dest ./data
+    """
+    dest_dir = dest if dest is not None else cnf_db.get_data_dir()
+    try:
+        if from_dir is not None:
+            installed = pipeline_install.fetch_from_dir(
+                from_dir, dest_dir, only=list(only), log=_log
+            )
+        else:
+            installed = pipeline_install.fetch_from_http(
+                repo, tag, dest_dir, only=list(only), base_url=base_url, log=_log
+            )
+    except (pipeline_install.FetchError, ManifestError) as exc:
+        _log(f"fetch failed: {exc}")
+        raise typer.Exit(code=1) from None
+    for record in installed:
+        upstream = record.get("upstream") or {}
+        upstream_text = ", ".join(f"{k}={v}" for k, v in sorted(upstream.items()))
+        typer.echo(f"{record['name']}: {record['size']} bytes, sha256={record['sha256']}")
+        if record.get("content_hash"):
+            typer.echo(f"  content_hash: {record['content_hash']}")
+        if upstream_text:
+            typer.echo(f"  upstream: {upstream_text}")
+        typer.echo(f"  source: {record['source']}")
+    if not installed:
+        typer.echo("already up to date; nothing installed")
 
 
 # ---------------------------------------------------------------- version
