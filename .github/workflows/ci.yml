@@ -42,7 +42,9 @@ jobs:
       - name: Runs as a non-root user
         run: test "$(docker exec fg id -u)" = "10001"
       - name: Data is installed and verified
-        run: docker exec fg foodguide data status | tee status.txt; test "$(grep -c ': ok' status.txt)" -ge 5
+        run: |
+          docker exec fg foodguide data status | tee status.txt
+          test "$(grep -c ': ok' status.txt)" -ge 5
       - name: 24 tools over HTTP
         run: |
           uv run --with fastmcp python - <<'EOF'
