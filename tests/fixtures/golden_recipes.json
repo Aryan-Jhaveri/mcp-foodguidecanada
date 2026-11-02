@@ -1,0 +1,206 @@
+{
+ "source": {
+  "index_url": "https://www.canada.ca/en/health-canada/services/food-guide/eating-support/kitchen/recipes.html",
+  "recipe_count": 141,
+  "sample_offset": 4
+ },
+ "recipes": [
+  {
+   "slug": "apple-sandwiches",
+   "title": "Apple sandwiches",
+   "ingredients": [
+    "60 (¼ cup) natural almond or peanut butter or non-nut alternative",
+    "85 mL (⅓ cup) 0% plain Greek yogurt",
+    "Sprinkle of cinnamon",
+    "2 apples, cored and thinly sliced horizontally",
+    "Optional toppings: sliced almonds, dried fruit, unsweetened shredded coconut, seeds"
+   ],
+   "directions": [
+    "In a small bowl, combine nut or non-nut butter with Greek yogurt and cinnamon. Stir until combined.",
+    "On a clean cutting board, lay apple slices and spread about 10 mL (2 tsp) of yogurt/nut butter mix on each. Add toppings of choice!"
+   ],
+   "prep_time": "10 min",
+   "cook_time": "0 min",
+   "servings": "4",
+   "page_sha256": "cbf4cd1632ee3da954f724c9c5e5c0040f3fa4d5fc9860fdf30f33a10102a5b1"
+  },
+  {
+   "slug": "carrot-potato-pancakes",
+   "title": "Carrot potato pancakes",
+   "ingredients": [
+    "4 eggs",
+    "500 mL (2 cups) finely grated carrot",
+    "500 mL (2 cups) finely grated potato",
+    "15 mL (1 tbsp) finely grated onion",
+    "30 mL (2 tbsp) whole wheat flour",
+    "2 mL (½ tsp) baking powder"
+   ],
+   "directions": [
+    "Beat eggs in a large bowl. Stir in carrot, potato, onion, flour, and baking powder. Mix well.",
+    "Spray griddle or non-stick skillet lightly with cooking spray. Heat over medium heat. Using 125 mL (½ cup) measuring cup, pour batter onto hot griddle. Cook for about 2 minutes or until light golden brown. Flip over and cook for another minute or until light golden brown. Repeat with remaining batter."
+   ],
+   "prep_time": "10 min",
+   "cook_time": "10 min",
+   "servings": "4",
+   "page_sha256": "9944150b32d4b163d7c81809c643f62812bb02cf281044d796bb9663672502e9"
+  },
+  {
+   "slug": "colourful-quinoa-salad",
+   "title": "Quinoa salad",
+   "ingredients": [
+    "250 mL (1 cup) quinoa, rinsed well",
+    "440 mL (1 ¾ cups) sodium-reduced vegetable broth",
+    "1 clove garlic, minced",
+    "5 mL (1 tsp) chopped fresh thyme or 2 mL (½ tsp) dried thyme leaves",
+    "2 red, yellow or green bell peppers, seeded and quartered",
+    "1 carrot, peeled and sliced lengthwise",
+    "1 zucchini, sliced lengthwise",
+    "10 mL (2 tsp) vegetable oil",
+    "2 mL (½ tsp) grated lemon rind",
+    "1 mL (¼ tsp) ground pepper",
+    "60 mL (¼ cup) chopped fresh basil",
+    "30 mL (2 tbsp) cider or white wine vinegar",
+    "15 mL (1 tbsp) lemon juice (about ½ lemon)"
+   ],
+   "directions": [
+    "In a non-stick skillet set over medium heat, toast quinoa, stirring frequently for about 5 minutes or until starting to pop. Pour in vegetable broth, garlic and thyme, stir and bring to a boil. Once boiling, reduce heat to low; cover and cook for about 15 minutes or until broth is absorbed; set aside.",
+    "Meanwhile, in a large bowl, toss together peppers, carrot and zucchini with oil, lemon rind and pepper. Place on greased grill over medium-high heat and grill, turning occasionally for about 10 minutes or until golden and tender crisp. Remove to cutting board and chop into bite-size pieces. Return to bowl.",
+    "Fluff quinoa with a fork and put into bowl with grilled vegetables. Stir in basil, vinegar and lemon juice until combined."
+   ],
+   "prep_time": "15 min",
+   "cook_time": "30 min",
+   "servings": "6",
+   "page_sha256": "970fcbf36786cee4fa27e6ba983001a1c3d0825737593d72f1028246c49ced69"
+  },
+  {
+   "slug": "egg-veggie-scramble",
+   "title": "Egg and veggie scramble",
+   "ingredients": [
+    "6 eggs",
+    "60 mL (¼ cup) skim milk",
+    "1 mL (¼ tsp) ground black pepper",
+    "5 mL (1 tsp) vegetable oil",
+    "375 mL (1 ½ cups) mixed frozen or fresh vegetables (such as onions, bell peppers, mushrooms)"
+   ],
+   "directions": [
+    "In a medium bowl, beat together eggs, milk and pepper with a fork. Set aside.",
+    "In a medium 25 cm (10 inch) non-stick skillet, heat oil over medium heat. Add mixed vegetables and cook for 2 to 3 minutes stirring often until tender. If vegetables release too much liquid, increase heat for the last minute until liquid evaporates.",
+    "Reduce heat to medium-low and pour egg mixture over the vegetables. Continue cooking, without stirring, for 3 minutes or until eggs start to set. Use a heatproof spatula or wooden spoon and gently push mixture towards the centre of the pan and fold over, forming large pieces.",
+    "Continue gently folding eggs until cooked through, about 3 to 5 more minutes. Remove from heat and serve immediately."
+   ],
+   "prep_time": "5 min",
+   "cook_time": "10 min",
+   "servings": "4",
+   "page_sha256": "b1ca8a5c3bfd857416ae1d3189f012a8f209709b92887cbab1b1f83df2ef3cfc"
+  },
+  {
+   "slug": "kale-chickpea-curry",
+   "title": "Kale and chickpea curry",
+   "ingredients": [
+    "30 mL (2 tbsp) vegetable oil",
+    "1 green chili, thinly sliced",
+    "2 cloves garlic, peeled and thinly sliced",
+    "5 mL (1 tsp) cumin seeds",
+    "1 onion, peeled and thinly sliced",
+    "750 mL (3 cups) kale, stems removed and finely chopped, leaves roughly torn",
+    "5 mL (1 tsp) ground coriander",
+    "2 mL (½ tsp) turmeric powder",
+    "2 mL (½ tsp) cayenne powder",
+    "1 can (540 mL/19 oz) no salt added chickpeas, drained and rinsed",
+    "100 mL (⅓ cup + 1 tbsp) light coconut milk",
+    "Salt to taste"
+   ],
+   "directions": [
+    "In a pan, heat oil over medium-high heat. Add sliced chili, garlic, and cumin seeds and cook for 15 to 20 seconds, then add onions and chopped kale stems. Sauté for 1 minute or until onions are soft but not browned. Add kale leaves and sauté until wilted.",
+    "Add ground coriander, turmeric powder and cayenne powder. Stir to combine well and coat kale in the spices. Add chickpeas and 250 mL (1 cup) of water, and cook for 5 minutes.",
+    "Add coconut milk and simmer for another 5 minutes, then remove from heat.",
+    "Serve and enjoy!"
+   ],
+   "prep_time": "15 min",
+   "cook_time": "25 min",
+   "servings": "4",
+   "page_sha256": "119321bd4214aab01e66c2152d3430b841f045bd5c91b601dc34c1af587bd2d6"
+  },
+  {
+   "slug": "okroshka-cold-summer-soup",
+   "title": "Okroshka (cold summer soup)",
+   "ingredients": [
+    "1 boiled potato, cubed",
+    "3 hard-boiled eggs, cubed",
+    "1 large cucumber, halved, seeds removed and diced into small cubes",
+    "1 bunch radishes, thinly sliced (about 250 mL/1 cup)",
+    "1 bunch scallions, dark and light green parts, thinly sliced (about 250 mL/1 cup)",
+    "250 mL (1 cup) fresh dill, finely chopped",
+    "500 mL (2 cups) 1% kefir",
+    "45 mL (3 tbsp) of lemon juice (about 1 lemon)",
+    "Salt to taste"
+   ],
+   "directions": [
+    "Thinly slice radishes using a mandolin or sharp knife. Arrange slices in small stacks on your cutting board. Thinly slice the stacks of radish to make thin matchsticks.",
+    "In a large bowl, combine boiled potato, hard cooked eggs, cucumber, radish, scallions, and dill. Pour kefir over mixture, add lemon juice and stir well to combine.",
+    "Refrigerate and serve when ready."
+   ],
+   "prep_time": "30 min",
+   "cook_time": "35 min",
+   "servings": "4",
+   "page_sha256": "01ea63c9fc8e4f924dcdbb35fa4b266b47fcfedcab43087a9b24bd5e105e0073"
+  },
+  {
+   "slug": "slow-cooker-burrito-bowls",
+   "title": "Slow-cooker burrito bowls",
+   "ingredients": [
+    "2 boneless skinless chicken breasts (about 680 g/1 ½ lb)",
+    "375 mL (1 ½ cups) canned (no salt added) diced tomatoes",
+    "310 mL (1 ¼ cups) lower sodium chicken broth",
+    "10 mL (2 tsp) chili powder",
+    "5 mL (1 tsp) ground cumin",
+    "5 ml (1 tsp) garlic powder",
+    "1 can (540 mL/19 oz) black beans, drained and rinsed",
+    "250 mL (1 cup) uncooked brown rice",
+    "250 mL (1 cup) frozen or canned (no salt added) corn",
+    "Optional toppings: lower fat shredded mozzarella, lower fat plain yogurt, lower sodium salsa, diced fresh avocado"
+   ],
+   "directions": [
+    "Lightly spray inside of large slow cooker with cooking spray.",
+    "In a large slow cooker, combine the chicken, diced tomatoes (with juice), chicken broth, chili powder, cumin, and garlic powder. Make sure the chicken broth covers the chicken, adding more if needed. Cover and cook for 3 to 4 hours on the low setting.",
+    "Uncover and stir in the beans, brown rice, and corn. Cover and cook for another 3 to 4 hours on the low setting.",
+    "In the last hour of cooking, check the brown rice occasionally, stirring once or twice to make sure it cooks evenly and adding more chicken broth if the mixture seems dry. Cooking is done when the brown rice is tender.",
+    "Remove the chicken and place in a large bowl or cutting board. Use 2 forks to shred the chicken into bite-sized pieces. Transfer the chicken back to the slow cooker and mix.",
+    "Serve in individual bowls alongside optional toppings of choice."
+   ],
+   "prep_time": "15 min",
+   "cook_time": "360 min",
+   "servings": "6",
+   "page_sha256": "40c6d8ae4a14ebf2fa2faa7ec2c920ec28837a2956acde0a13154af4f2542e8a"
+  },
+  {
+   "slug": "tofu-masala-curry",
+   "title": "Tofu masala curry",
+   "ingredients": [
+    "15 mL (1 tbsp) vegetable oil",
+    "1 onion, chopped",
+    "8 cloves garlic, minced",
+    "30 ml (2 tbsp) minced ginger",
+    "10 mL (2 tsp) cumin",
+    "10 mL (2 tsp) paprika",
+    "10 mL (2 tsp) chili powder",
+    "10 mL (2 tsp) Garam masala",
+    "10 mL (2 tsp) coriander",
+    "2 mL (½ tsp) salt",
+    "1 can (796 mL/28 oz) diced tomatoes",
+    "250 mL (1 cup) water",
+    "85 mL (⅓ cup) coconut milk",
+    "1 package (400 g/14 oz) extra firm tofu, diced"
+   ],
+   "directions": [
+    "In a large pot, heat oil and add onion. Cook for 2 to 3 minutes, until translucent. Stir in garlic, ginger, cumin, paprika, chili powder, garam masala, coriander, and salt. Cook for 1 minute.",
+    "Pour in tomatoes, water, and coconut milk. Bring to a simmer and cook for 20 minutes to thicken.",
+    "Blend sauce until smooth. Add tofu and stir gently to coat. Simmer for 5 minutes."
+   ],
+   "prep_time": "10 min",
+   "cook_time": "30 min",
+   "servings": "6",
+   "page_sha256": "581368efcebfe5791452d3f72d78a9495b768f8a898083836f3451c92b9a1db5"
+  }
+ ]
+}

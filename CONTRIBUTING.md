@@ -111,7 +111,7 @@ from dataclasses import dataclass
 
 # External imports first, then internal imports
 from fastmcp import FastMCP
-from src.models.recipe import Recipe
+from foodguide.db import connection
 ```
 
 ### Type Hints
@@ -162,7 +162,7 @@ Understanding the project structure helps you contribute effectively:
 ### Core Architecture
 
 - **`src/server.py`**: Main MCP server with 42+ tools across 6 categories
-- **`src/api/`**: Health Canada integrations (CNF, DRI, recipes, search)
+- **`src/api/`**: Health Canada integrations (CNF, DRI, recipes)
 - **`src/db/`**: Database operations and calculation tools
 - **`src/models/`**: Data structures and validation
 - **`src/utils/`**: Helper functions and utilities
@@ -445,7 +445,7 @@ from dataclasses import dataclass
 
 # External imports first, then internal imports
 from fastmcp import FastMCP
-from src.models.recipe import Recipe
+from foodguide.db import connection
 ```
 
 ### Type Hints
@@ -496,7 +496,7 @@ Understanding the project structure helps you contribute effectively:
 ### Core Architecture
 
 - **`src/server.py`**: Main MCP server with 42+ tools across 6 categories
-- **`src/api/`**: Health Canada integrations (CNF, DRI, recipes, search)
+- **`src/api/`**: Health Canada integrations (CNF, DRI, recipes)
 - **`src/db/`**: Database operations and calculation tools
 - **`src/models/`**: Data structures and validation
 - **`src/utils/`**: Helper functions and utilities

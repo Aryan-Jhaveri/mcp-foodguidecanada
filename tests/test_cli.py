@@ -12,7 +12,7 @@ runner = CliRunner()
 def test_help_shows_all_command_groups() -> None:
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
-    for name in ("cnf", "dri", "eer", "recipe", "data", "version"):
+    for name in ("cnf", "dri", "eer", "recipes", "data", "version"):
         assert name in result.stdout
 
 
@@ -44,9 +44,19 @@ def test_dri_tables_stub_exits_1() -> None:
     assert result.exit_code == 1
 
 
-def test_recipe_search_stub_exits_1() -> None:
-    result = runner.invoke(app, ["recipe", "search", "x"])
+def test_recipes_help_exits_0_and_lists_examples() -> None:
+    result = runner.invoke(app, ["recipes", "--help"])
+    assert result.exit_code == 0
+    assert "foodguide recipes search lentil" in result.stdout
+    assert "foodguide recipes search --tag collection__vegetarian --limit 5" in result.stdout
+
+
+def test_recipes_search_missing_data_exits_1(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("FOODGUIDE_DATA_DIR", str(tmp_path))
+    result = runner.invoke(app, ["recipes", "search", "no-such-thing-xyz"])
     assert result.exit_code == 1
+    assert "Recipes data not found" in result.output
+    assert "foodguide data build recipes" in result.output
 
 
 def test_unknown_command_exits_2() -> None:

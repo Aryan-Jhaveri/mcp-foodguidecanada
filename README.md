@@ -8,7 +8,7 @@
 
 The **FoodGuide MCP Server** bundles three powerful Health Canada resources into a single toolset for comprehensive nutritional analysis:
 
-*   **Official Recipes:** Search and scrape the [Canada's Food Guide](https://food-guide.canada.ca/en/recipes/) recipe database.
+*   **Official Recipes:** Search recipes from [Canada's Food Guide](https://www.canada.ca/en/health-canada/services/food-guide/eating-support/kitchen/recipes.html) via a local offline `recipes.json` snapshot (build it once with `foodguide data build recipes`, then all recipe tools run with zero network access).
 *   **CNF Database:** Fetch exact nutrient data for ingredients from the [Canadian Nutrient File API](https://produits-sante.canada.ca/api/documentation/cnf-documentation-en.html).
 *   **DRI Calculations:** Use cached [Dietary Reference Intake](https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/dietary-reference-intakes.html) tables to calculate demographic-specific macronutrient targets and energy requirements (EER).
 
@@ -267,5 +267,6 @@ Built using <a href="https://github.com/jlowin/fastmcp" target="_blank">FastMCP<
   The database is built locally with `foodguide data build cnf --zip …`; the zip is not
   bundled. Contains information licensed under the Open Government Licence – Canada.
 - **DRI and EER tables:** Health Canada reference values, shipped as JSON in `data/`.
-- **Recipes:** Health Canada pages on canada.ca (Crown copyright). Not bundled. The recipe
-  tools are currently unavailable because the site moved (see issue HOM-78).
+- **Recipes:** Health Canada pages on canada.ca (Crown copyright). Not bundled: build the
+  offline `recipes.json` snapshot yourself with `foodguide data build recipes` (crawls
+  Health Canada's Food Guide kitchen recipe pages once); recipe tools then read it locally.
