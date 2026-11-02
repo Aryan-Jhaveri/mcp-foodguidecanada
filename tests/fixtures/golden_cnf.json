@@ -1,0 +1,6142 @@
+{
+ "source": {
+  "dataset": "1b6139bd-ed7e-4043-bc28-ff00e10f3109",
+  "zip_url": "https://open.canada.ca/data/dataset/1b6139bd-ed7e-4043-bc28-ff00e10f3109/resource/019f2a90-e3a9-489d-b6e1-f74f4ba1d006/download/cnf_fcen_all-files-data_2026.zip",
+  "zip_sha256": "f5faad8977ee6bbdd9d69c8649077cacd87d8658ad200509a4047db1e29edcdd",
+  "metadata_modified": "2026-10-04T06:45:58.876972",
+  "sample_offset": 7,
+  "counts": {
+   "foods": 5993,
+   "nutrient_amount_rows": 565409
+  }
+ },
+ "foods": [
+  {
+   "code": "10",
+   "name_en": "Frozen entree, turkey with potato, vegetables and gravy, heated",
+   "name_fr": "Met surgelé, dinde avec pommes de terre, légumes et sauce, réchauffé",
+   "nutrients": [
+    {
+     "code": "203",
+     "symbol": "PROT",
+     "unit": "Gram",
+     "name_en": "Protein",
+     "amount": "4.778658985"
+    },
+    {
+     "code": "204",
+     "symbol": "FAT",
+     "unit": "Gram",
+     "name_en": "Fat (total lipids)",
+     "amount": "2.125347839"
+    },
+    {
+     "code": "205",
+     "symbol": "CARB",
+     "unit": "Gram",
+     "name_en": "Carbohydrate, total (by difference)",
+     "amount": "15.603643233"
+    },
+    {
+     "code": "207",
+     "symbol": "ASH",
+     "unit": "Gram",
+     "name_en": "Ash, total",
+     "amount": "1.262345162"
+    },
+    {
+     "code": "208",
+     "symbol": "KCAL",
+     "unit": "kilocalorie",
+     "name_en": "Energy (kilocalories)",
+     "amount": "100.657339422"
+    },
+    {
+     "code": "210",
+     "symbol": "SUCR",
+     "unit": "Gram",
+     "name_en": "Sucrose",
+     "amount": "1.412321519"
+    },
+    {
+     "code": "211",
+     "symbol": "GLUC",
+     "unit": "Gram",
+     "name_en": "Glucose",
+     "amount": "1.311458680"
+    },
+    {
+     "code": "212",
+     "symbol": "FRUC",
+     "unit": "Gram",
+     "name_en": "Fructose",
+     "amount": "0.989383152"
+    },
+    {
+     "code": "213",
+     "symbol": "LACT",
+     "unit": "Gram",
+     "name_en": "Lactose",
+     "amount": "0"
+    },
+    {
+     "code": "214",
+     "symbol": "MALT",
+     "unit": "Gram",
+     "name_en": "Maltose",
+     "amount": "0.386297973"
+    },
+    {
+     "code": "221",
+     "symbol": "ALCO",
+     "unit": "Gram",
+     "name_en": "Alcohol",
+     "amount": "0"
+    },
+    {
+     "code": "255",
+     "symbol": "H2O",
+     "unit": "Gram",
+     "name_en": "Moisture",
+     "amount": "76.236810525"
+    },
+    {
+     "code": "262",
+     "symbol": "CAFF",
+     "unit": "Milligram",
+     "name_en": "Caffeine",
+     "amount": "0"
+    },
+    {
+     "code": "263",
+     "symbol": "THBR",
+     "unit": "Milligram",
+     "name_en": "Theobromine",
+     "amount": "0"
+    },
+    {
+     "code": "268",
+     "symbol": "KJ",
+     "unit": "kilojoule",
+     "name_en": "Energy (kilojoules)",
+     "amount": "421.150308140"
+    },
+    {
+     "code": "269",
+     "symbol": "TSUG",
+     "unit": "Gram",
+     "name_en": "Sugars, total",
+     "amount": "4.099461323"
+    },
+    {
+     "code": "287",
+     "symbol": "GAL",
+     "unit": "Gram",
+     "name_en": "Galactose",
+     "amount": "0"
+    },
+    {
+     "code": "291",
+     "symbol": "TDF",
+     "unit": "Gram",
+     "name_en": "Fibre, total dietary",
+     "amount": "1.423126882"
+    },
+    {
+     "code": "301",
+     "symbol": "CA",
+     "unit": "Milligram",
+     "name_en": "Calcium",
+     "amount": "19.605240279"
+    },
+    {
+     "code": "303",
+     "symbol": "FE",
+     "unit": "Milligram",
+     "name_en": "Iron",
+     "amount": "0.743761073"
+    },
+    {
+     "code": "304",
+     "symbol": "MG",
+     "unit": "Milligram",
+     "name_en": "Magnesium",
+     "amount": "13.734308929"
+    },
+    {
+     "code": "305",
+     "symbol": "P",
+     "unit": "Milligram",
+     "name_en": "Phosphorus",
+     "amount": "77.024093016"
+    },
+    {
+     "code": "306",
+     "symbol": "K",
+     "unit": "Milligram",
+     "name_en": "Potassium",
+     "amount": "170.064706468"
+    },
+    {
+     "code": "307",
+     "symbol": "NA",
+     "unit": "Milligram",
+     "name_en": "Sodium",
+     "amount": "292.031372867"
+    },
+    {
+     "code": "309",
+     "symbol": "ZN",
+     "unit": "Milligram",
+     "name_en": "Zinc",
+     "amount": "0.403742448"
+    },
+    {
+     "code": "312",
+     "symbol": "CU",
+     "unit": "Milligram",
+     "name_en": "Copper",
+     "amount": "0.058375574"
+    },
+    {
+     "code": "315",
+     "symbol": "MN",
+     "unit": "Milligram",
+     "name_en": "Manganese",
+     "amount": "0.118680121"
+    },
+    {
+     "code": "317",
+     "symbol": "SE",
+     "unit": "Microgram",
+     "name_en": "Selenium",
+     "amount": "4.816185886"
+    },
+    {
+     "code": "319",
+     "symbol": "RT-µg",
+     "unit": "Microgram",
+     "name_en": "Retinol",
+     "amount": "0"
+    },
+    {
+     "code": "320",
+     "symbol": "RAE",
+     "unit": "Microgram",
+     "name_en": "Retinol activity equivalents",
+     "amount": "6.500000000"
+    },
+    {
+     "code": "321",
+     "symbol": "BC-µg",
+     "unit": "Microgram",
+     "name_en": "Beta carotene",
+     "amount": "78.000000000"
+    },
+    {
+     "code": "324",
+     "symbol": "D3+D2-IU",
+     "unit": "International Unit",
+     "name_en": "Vitamin D (International Units)",
+     "amount": "1.796000000"
+    },
+    {
+     "code": "325",
+     "symbol": "D2-µg",
+     "unit": "Microgram",
+     "name_en": "Vitamin D2, ergocalciferol",
+     "amount": "0.044900000"
+    },
+    {
+     "code": "328",
+     "symbol": "D3+D2-µg",
+     "unit": "Microgram",
+     "name_en": "Vitamin D (D2 + D3)",
+     "amount": "0.044900000"
+    },
+    {
+     "code": "401",
+     "symbol": "VITC",
+     "unit": "Milligram",
+     "name_en": "Vitamin C",
+     "amount": "0.240000000"
+    },
+    {
+     "code": "404",
+     "symbol": "THIA",
+     "unit": "Milligram",
+     "name_en": "Thiamine",
+     "amount": "0.078571772"
+    },
+    {
+     "code": "405",
+     "symbol": "RIBO",
+     "unit": "Milligram",
+     "name_en": "Riboflavin",
+     "amount": "0.068759631"
+    },
+    {
+     "code": "406",
+     "symbol": "N-MG",
+     "unit": "Milligram",
+     "name_en": "Niacin (nicotinic acid) preformed",
+     "amount": "1.519331945"
+    },
+    {
+     "code": "409",
+     "symbol": "N-NE",
+     "unit": "Niacin Equivalents",
+     "name_en": "Total niacin equivalent",
+     "amount": "2.557705512"
+    },
+    {
+     "code": "415",
+     "symbol": "B6",
+     "unit": "Milligram",
+     "name_en": "Vitamin B-6",
+     "amount": "0.098131573"
+    },
+    {
+     "code": "417",
+     "symbol": "FOLA",
+     "unit": "Microgram",
+     "name_en": "Total folacin",
+     "amount": "19.052660081"
+    },
+    {
+     "code": "418",
+     "symbol": "B12",
+     "unit": "Microgram",
+     "name_en": "Vitamin B-12",
+     "amount": "0.071974829"
+    },
+    {
+     "code": "431",
+     "symbol": "FOAC",
+     "unit": "Microgram",
+     "name_en": "Folic acid",
+     "amount": "13.909075613"
+    },
+    {
+     "code": "432",
+     "symbol": "FOLN",
+     "unit": "Microgram",
+     "name_en": "Naturally occurring folate",
+     "amount": "5.143584468"
+    },
+    {
+     "code": "435",
+     "symbol": "DFE",
+     "unit": "Microgram",
+     "name_en": "Dietary folate equivalents",
+     "amount": "28.789013010"
+    },
+    {
+     "code": "501",
+     "symbol": "TRP",
+     "unit": "Gram",
+     "name_en": "Tryptophan",
+     "amount": "0.062302414"
+    },
+    {
+     "code": "502",
+     "symbol": "THR",
+     "unit": "Gram",
+     "name_en": "Threonine",
+     "amount": "0.254167148"
+    },
+    {
+     "code": "503",
+     "symbol": "ISO",
+     "unit": "Gram",
+     "name_en": "Isoleucine",
+     "amount": "0.251902425"
+    },
+    {
+     "code": "504",
+     "symbol": "LEU",
+     "unit": "Gram",
+     "name_en": "Leucine",
+     "amount": "0.445493649"
+    },
+    {
+     "code": "505",
+     "symbol": "LYS",
+     "unit": "Gram",
+     "name_en": "Lysine",
+     "amount": "0.517053984"
+    },
+    {
+     "code": "506",
+     "symbol": "MET",
+     "unit": "Gram",
+     "name_en": "Methionine",
+     "amount": "0.041799963"
+    },
+    {
+     "code": "507",
+     "symbol": "CYS",
+     "unit": "Gram",
+     "name_en": "Cystine",
+     "amount": "0.047279583"
+    },
+    {
+     "code": "508",
+     "symbol": "PHE",
+     "unit": "Gram",
+     "name_en": "Phenylalanine",
+     "amount": "0.243897229"
+    },
+    {
+     "code": "509",
+     "symbol": "TYR",
+     "unit": "Gram",
+     "name_en": "Tyrosine",
+     "amount": "0.204409918"
+    },
+    {
+     "code": "510",
+     "symbol": "VAL",
+     "unit": "Gram",
+     "name_en": "Valine",
+     "amount": "0.276690242"
+    },
+    {
+     "code": "511",
+     "symbol": "ARG",
+     "unit": "Gram",
+     "name_en": "Arginine",
+     "amount": "0.359041570"
+    },
+    {
+     "code": "512",
+     "symbol": "HIS",
+     "unit": "Gram",
+     "name_en": "Histidine",
+     "amount": "0.158482968"
+    },
+    {
+     "code": "513",
+     "symbol": "ALA",
+     "unit": "Gram",
+     "name_en": "Alanine",
+     "amount": "0.293006640"
+    },
+    {
+     "code": "514",
+     "symbol": "ASP",
+     "unit": "Gram",
+     "name_en": "Aspartic acid",
+     "amount": "0.556176386"
+    },
+    {
+     "code": "515",
+     "symbol": "GLU",
+     "unit": "Gram",
+     "name_en": "Glutamic acid",
+     "amount": "1.053237587"
+    },
+    {
+     "code": "516",
+     "symbol": "GLY",
+     "unit": "Gram",
+     "name_en": "Glycine",
+     "amount": "0.214263857"
+    },
+    {
+     "code": "517",
+     "symbol": "PRO",
+     "unit": "Gram",
+     "name_en": "Proline",
+     "amount": "0.312391744"
+    },
+    {
+     "code": "518",
+     "symbol": "SER",
+     "unit": "Gram",
+     "name_en": "Serine",
+     "amount": "0.229377887"
+    },
+    {
+     "code": "601",
+     "symbol": "CHOL",
+     "unit": "Milligram",
+     "name_en": "Cholesterol",
+     "amount": "11.382507112"
+    },
+    {
+     "code": "605",
+     "symbol": "TRFA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, trans, total",
+     "amount": "0"
+    },
+    {
+     "code": "606",
+     "symbol": "TSAT",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, total",
+     "amount": "0.497082244"
+    },
+    {
+     "code": "607",
+     "symbol": "4:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 4:0, butanoic",
+     "amount": "0"
+    },
+    {
+     "code": "608",
+     "symbol": "6:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 6:0, hexanoic",
+     "amount": "0"
+    },
+    {
+     "code": "609",
+     "symbol": "8:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 8:0, octanoic",
+     "amount": "0"
+    },
+    {
+     "code": "610",
+     "symbol": "10:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 10:0, decanoic",
+     "amount": "0"
+    },
+    {
+     "code": "611",
+     "symbol": "12:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 12:0, dodecanoic",
+     "amount": "0"
+    },
+    {
+     "code": "612",
+     "symbol": "14:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 14:0, tetradecanoic",
+     "amount": "0"
+    },
+    {
+     "code": "613",
+     "symbol": "16:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 16:0, hexadecanoic",
+     "amount": "0.371787146"
+    },
+    {
+     "code": "614",
+     "symbol": "18:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 18:0, octadecanoic",
+     "amount": "0.125295098"
+    },
+    {
+     "code": "615",
+     "symbol": "20:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 20:0, eicosanoic",
+     "amount": "0"
+    },
+    {
+     "code": "617",
+     "symbol": "18:1undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 18:1undifferentiated, octadecenoic",
+     "amount": "0.638791135"
+    },
+    {
+     "code": "618",
+     "symbol": "18:2undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:2undifferentiated, linoleic, octadecadienoic",
+     "amount": "0.768787899"
+    },
+    {
+     "code": "619",
+     "symbol": "18:3undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:3undifferentiated, linolenic, octadecatrienoic",
+     "amount": "0.085600448"
+    },
+    {
+     "code": "620",
+     "symbol": "20:4undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:4, eicosatetraenoic",
+     "amount": "0"
+    },
+    {
+     "code": "621",
+     "symbol": "22:6n-3DHA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 22:6 n-3, docosahexaenoic (DHA)",
+     "amount": "0"
+    },
+    {
+     "code": "624",
+     "symbol": "22:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 22:0, docosanoic",
+     "amount": "0"
+    },
+    {
+     "code": "625",
+     "symbol": "14:01",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 14:1, tetradecenoic",
+     "amount": "0"
+    },
+    {
+     "code": "626",
+     "symbol": "16:1undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 16:1undifferentiated, hexadecenoic",
+     "amount": "0.041691386"
+    },
+    {
+     "code": "627",
+     "symbol": "18:04",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:4, octadecatetraenoic",
+     "amount": "0"
+    },
+    {
+     "code": "628",
+     "symbol": "20:01",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 20:1, eicosenoic",
+     "amount": "0"
+    },
+    {
+     "code": "629",
+     "symbol": "20:5n-3EPA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:5 n-3, eicosapentaenoic (EPA)",
+     "amount": "0"
+    },
+    {
+     "code": "630",
+     "symbol": "22:1undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 22:1undifferentiated, docosenoic",
+     "amount": "0"
+    },
+    {
+     "code": "631",
+     "symbol": "22:5n-3DPA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 22:5 n-3, docosapentaenoic (DPA)",
+     "amount": "0"
+    },
+    {
+     "code": "645",
+     "symbol": "MUFA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, total",
+     "amount": "0.680482522"
+    },
+    {
+     "code": "646",
+     "symbol": "PUFA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, total",
+     "amount": "0.854388346"
+    },
+    {
+     "code": "652",
+     "symbol": "15:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 15:0, pentadecanoic",
+     "amount": "0"
+    },
+    {
+     "code": "653",
+     "symbol": "17:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 17:0, heptadecanoic",
+     "amount": "0"
+    },
+    {
+     "code": "654",
+     "symbol": "24:00:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 24:0, tetracosanoic",
+     "amount": "0"
+    },
+    {
+     "code": "662",
+     "symbol": "16:1t",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 16:1t, hexadecenoic",
+     "amount": "0"
+    },
+    {
+     "code": "663",
+     "symbol": "18:1t",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 18:1t, octadecenoic",
+     "amount": "0"
+    },
+    {
+     "code": "664",
+     "symbol": "22:1t",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 22:1t, docosenoic",
+     "amount": "0"
+    },
+    {
+     "code": "666",
+     "symbol": "18:2i",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:2i, linoleic, octadecadienoic",
+     "amount": "0"
+    },
+    {
+     "code": "669",
+     "symbol": "18:2t,t",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:2t,t , octadecadienenoic",
+     "amount": "0"
+    },
+    {
+     "code": "670",
+     "symbol": "18:2cla",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, conjugated, 18:2 cla, linoleic, octadecadienoic",
+     "amount": "0"
+    },
+    {
+     "code": "671",
+     "symbol": "24:1c",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 24:1c, tetracosenoic",
+     "amount": "0"
+    },
+    {
+     "code": "672",
+     "symbol": "20:2cc",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:2 c,c  eicosadienoic",
+     "amount": "0"
+    },
+    {
+     "code": "673",
+     "symbol": "16:1c",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 16:1c, hexadecenoic",
+     "amount": "0.041691386"
+    },
+    {
+     "code": "674",
+     "symbol": "18:1c",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 18:1c, octadecenoic",
+     "amount": "0.638791135"
+    },
+    {
+     "code": "675",
+     "symbol": "18:2ccn-6",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:2 c,c n-6,  linoleic, octadecadienoic",
+     "amount": "0.768787899"
+    },
+    {
+     "code": "676",
+     "symbol": "22:1c",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 22:1c, docosenoic",
+     "amount": "0"
+    },
+    {
+     "code": "685",
+     "symbol": "18:3cccn-6",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:3 c,c,c n-6, g-linolenic, octadecatrienoic",
+     "amount": "0"
+    },
+    {
+     "code": "687",
+     "symbol": "17:01",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 17:1, heptadecenoic",
+     "amount": "0"
+    },
+    {
+     "code": "689",
+     "symbol": "20:3undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:3, eicosatrienoic",
+     "amount": "0"
+    },
+    {
+     "code": "693",
+     "symbol": "TRMO",
+     "unit": "Gram",
+     "name_en": "Fatty acids, total trans-monoenoic",
+     "amount": "0"
+    },
+    {
+     "code": "695",
+     "symbol": "TRPO",
+     "unit": "Gram",
+     "name_en": "Fatty acids, total trans-polyenoic",
+     "amount": "0"
+    },
+    {
+     "code": "696",
+     "symbol": "13:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 13:0 tridecanoic",
+     "amount": "0"
+    },
+    {
+     "code": "697",
+     "symbol": "15:01",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 15:1, pentadecenoic",
+     "amount": "0"
+    },
+    {
+     "code": "851",
+     "symbol": "18:3cccn-3",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:3 c,c,c n-3  linolenic, octadecatrienoic",
+     "amount": "0.085600448"
+    },
+    {
+     "code": "852",
+     "symbol": "20:3n-3",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:3 n-3 eicosatrienoic",
+     "amount": "0"
+    },
+    {
+     "code": "853",
+     "symbol": "20:3n-6",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:3 n-6, eicosatrienoic",
+     "amount": "0"
+    },
+    {
+     "code": "855",
+     "symbol": "20:4n-6",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:4 n-6, arachidonic",
+     "amount": "0"
+    },
+    {
+     "code": "856",
+     "symbol": "18:3i",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:3i, linolenic, octadecatrienoic",
+     "amount": "0"
+    },
+    {
+     "code": "857",
+     "symbol": "21:05",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 21:5",
+     "amount": "0"
+    },
+    {
+     "code": "858",
+     "symbol": "22:4n-6",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 22:4 n-6, docosatetraenoic",
+     "amount": "0"
+    },
+    {
+     "code": "860",
+     "symbol": "12:01",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 12:1, lauroleic",
+     "amount": "0"
+    },
+    {
+     "code": "862",
+     "symbol": "22:02",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 22:2, docosadienoic",
+     "amount": "0"
+    },
+    {
+     "code": "884",
+     "symbol": "18:1 10c",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 18:1 10c",
+     "amount": "0"
+    },
+    {
+     "code": "885",
+     "symbol": "18:1 11c",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 18:1 11c",
+     "amount": "0.034028153"
+    },
+    {
+     "code": "886",
+     "symbol": "18:1 12c",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 18:1 12c",
+     "amount": "0"
+    },
+    {
+     "code": "888",
+     "symbol": "18:1 13c",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 18:1 13c",
+     "amount": "0"
+    },
+    {
+     "code": "891",
+     "symbol": "18:1 14c",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 18:1 14c",
+     "amount": "0"
+    },
+    {
+     "code": "895",
+     "symbol": "18:1 15c",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 18:1 15c",
+     "amount": "0"
+    },
+    {
+     "code": "896",
+     "symbol": "18:1 16c",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 18:1 16c",
+     "amount": "0"
+    },
+    {
+     "code": "897",
+     "symbol": "18:1 11t",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 18:1 11t",
+     "amount": "0"
+    },
+    {
+     "code": "898",
+     "symbol": "18:1 4t",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 18:1 4t",
+     "amount": "0"
+    },
+    {
+     "code": "899",
+     "symbol": "18:1 5t",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 18:1 5t",
+     "amount": "0"
+    },
+    {
+     "code": "904",
+     "symbol": "18:1 6t-8t",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 18:1 6t-8t",
+     "amount": "0"
+    },
+    {
+     "code": "905",
+     "symbol": "18:1 10t",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 18:1 10t",
+     "amount": "0"
+    },
+    {
+     "code": "906",
+     "symbol": "18:1 12t",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 18:1 12t",
+     "amount": "0"
+    },
+    {
+     "code": "907",
+     "symbol": "18:1 13t",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 18:1 13t + 14t + 6c-8c",
+     "amount": "0"
+    },
+    {
+     "code": "908",
+     "symbol": "18:1 16t",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 18:1 16t",
+     "amount": "0"
+    },
+    {
+     "code": "909",
+     "symbol": "20:1 5c",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 20:1 5c",
+     "amount": "0"
+    },
+    {
+     "code": "910",
+     "symbol": "18:2 9c13c",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:2 9c,13c",
+     "amount": "0"
+    },
+    {
+     "code": "911",
+     "symbol": "18:2 9c14c",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:2 9c,14c",
+     "amount": "0"
+    },
+    {
+     "code": "912",
+     "symbol": "18:2 9c15c",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:2 9c,15c",
+     "amount": "0"
+    },
+    {
+     "code": "913",
+     "symbol": "22:5n-6",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 22:5n-6",
+     "amount": "0"
+    }
+   ],
+   "measures": [
+    {
+     "measure_code": "174",
+     "description_en": "1 package",
+     "conversion": "393.7019644"
+    },
+    {
+     "measure_code": "750",
+     "description_en": "total refuse",
+     "conversion": "0"
+    },
+    {
+     "measure_code": "1457",
+     "description_en": "140 g",
+     "conversion": "140"
+    }
+   ]
+  },
+  {
+   "code": "1071",
+   "name_en": "Soup, tomato rice, canned, condensed, water added",
+   "name_fr": "Soupe, tomates et riz, conserve, condensée, eau ajoutée",
+   "nutrients": [
+    {
+     "code": "203",
+     "symbol": "PROT",
+     "unit": "Gram",
+     "name_en": "Protein",
+     "amount": "0.820000000"
+    },
+    {
+     "code": "204",
+     "symbol": "FAT",
+     "unit": "Gram",
+     "name_en": "Fat (total lipids)",
+     "amount": "1.060000000"
+    },
+    {
+     "code": "205",
+     "symbol": "CARB",
+     "unit": "Gram",
+     "name_en": "Carbohydrate, total (by difference)",
+     "amount": "8.540000000"
+    },
+    {
+     "code": "207",
+     "symbol": "ASH",
+     "unit": "Gram",
+     "name_en": "Ash, total",
+     "amount": "1.070000000"
+    },
+    {
+     "code": "208",
+     "symbol": "KCAL",
+     "unit": "kilocalorie",
+     "name_en": "Energy (kilocalories)",
+     "amount": "47.000000000"
+    },
+    {
+     "code": "221",
+     "symbol": "ALCO",
+     "unit": "Gram",
+     "name_en": "Alcohol",
+     "amount": "0"
+    },
+    {
+     "code": "255",
+     "symbol": "H2O",
+     "unit": "Gram",
+     "name_en": "Moisture",
+     "amount": "88.520000000"
+    },
+    {
+     "code": "262",
+     "symbol": "CAFF",
+     "unit": "Milligram",
+     "name_en": "Caffeine",
+     "amount": "0"
+    },
+    {
+     "code": "263",
+     "symbol": "THBR",
+     "unit": "Milligram",
+     "name_en": "Theobromine",
+     "amount": "0"
+    },
+    {
+     "code": "268",
+     "symbol": "KJ",
+     "unit": "kilojoule",
+     "name_en": "Energy (kilojoules)",
+     "amount": "195.000000000"
+    },
+    {
+     "code": "269",
+     "symbol": "TSUG",
+     "unit": "Gram",
+     "name_en": "Sugars, total",
+     "amount": "2.950000000"
+    },
+    {
+     "code": "291",
+     "symbol": "TDF",
+     "unit": "Gram",
+     "name_en": "Fibre, total dietary",
+     "amount": "0.700000000"
+    },
+    {
+     "code": "301",
+     "symbol": "CA",
+     "unit": "Milligram",
+     "name_en": "Calcium",
+     "amount": "11.000000000"
+    },
+    {
+     "code": "303",
+     "symbol": "FE",
+     "unit": "Milligram",
+     "name_en": "Iron",
+     "amount": "0.310000000"
+    },
+    {
+     "code": "304",
+     "symbol": "MG",
+     "unit": "Milligram",
+     "name_en": "Magnesium",
+     "amount": "2.000000000"
+    },
+    {
+     "code": "305",
+     "symbol": "P",
+     "unit": "Milligram",
+     "name_en": "Phosphorus",
+     "amount": "13.000000000"
+    },
+    {
+     "code": "306",
+     "symbol": "K",
+     "unit": "Milligram",
+     "name_en": "Potassium",
+     "amount": "129.000000000"
+    },
+    {
+     "code": "307",
+     "symbol": "NA",
+     "unit": "Milligram",
+     "name_en": "Sodium",
+     "amount": "319.000000000"
+    },
+    {
+     "code": "309",
+     "symbol": "ZN",
+     "unit": "Milligram",
+     "name_en": "Zinc",
+     "amount": "0.200000000"
+    },
+    {
+     "code": "312",
+     "symbol": "CU",
+     "unit": "Milligram",
+     "name_en": "Copper",
+     "amount": "0.055000000"
+    },
+    {
+     "code": "315",
+     "symbol": "MN",
+     "unit": "Milligram",
+     "name_en": "Manganese",
+     "amount": "0.150000000"
+    },
+    {
+     "code": "317",
+     "symbol": "SE",
+     "unit": "Microgram",
+     "name_en": "Selenium",
+     "amount": "0.900000000"
+    },
+    {
+     "code": "319",
+     "symbol": "RT-µg",
+     "unit": "Microgram",
+     "name_en": "Retinol",
+     "amount": "1.000000000"
+    },
+    {
+     "code": "320",
+     "symbol": "RAE",
+     "unit": "Microgram",
+     "name_en": "Retinol activity equivalents",
+     "amount": "12.000000000"
+    },
+    {
+     "code": "321",
+     "symbol": "BC-µg",
+     "unit": "Microgram",
+     "name_en": "Beta carotene",
+     "amount": "124.000000000"
+    },
+    {
+     "code": "322",
+     "symbol": "AC-µg",
+     "unit": "Microgram",
+     "name_en": "Alpha carotene",
+     "amount": "0"
+    },
+    {
+     "code": "323",
+     "symbol": "ATMG",
+     "unit": "Milligram",
+     "name_en": "Alpha-tocopherol",
+     "amount": "0.860000000"
+    },
+    {
+     "code": "324",
+     "symbol": "D3+D2-IU",
+     "unit": "International Unit",
+     "name_en": "Vitamin D (International Units)",
+     "amount": "0"
+    },
+    {
+     "code": "328",
+     "symbol": "D3+D2-µg",
+     "unit": "Microgram",
+     "name_en": "Vitamin D (D2 + D3)",
+     "amount": "0"
+    },
+    {
+     "code": "334",
+     "symbol": "CRYPX",
+     "unit": "Microgram",
+     "name_en": "Beta cryptoxanthin",
+     "amount": "0"
+    },
+    {
+     "code": "337",
+     "symbol": "LYCPN",
+     "unit": "Microgram",
+     "name_en": "Lycopene",
+     "amount": "8591.000000000"
+    },
+    {
+     "code": "338",
+     "symbol": "LUT+ZEA",
+     "unit": "Microgram",
+     "name_en": "Lutein and zeaxanthin",
+     "amount": "1.000000000"
+    },
+    {
+     "code": "401",
+     "symbol": "VITC",
+     "unit": "Milligram",
+     "name_en": "Vitamin C",
+     "amount": "5.800000000"
+    },
+    {
+     "code": "404",
+     "symbol": "THIA",
+     "unit": "Milligram",
+     "name_en": "Thiamine",
+     "amount": "0.024000000"
+    },
+    {
+     "code": "405",
+     "symbol": "RIBO",
+     "unit": "Milligram",
+     "name_en": "Riboflavin",
+     "amount": "0.020000000"
+    },
+    {
+     "code": "406",
+     "symbol": "N-MG",
+     "unit": "Milligram",
+     "name_en": "Niacin (nicotinic acid) preformed",
+     "amount": "0.411000000"
+    },
+    {
+     "code": "409",
+     "symbol": "N-NE",
+     "unit": "Niacin Equivalents",
+     "name_en": "Total niacin equivalent",
+     "amount": "0.561330000"
+    },
+    {
+     "code": "410",
+     "symbol": "PANT",
+     "unit": "Milligram",
+     "name_en": "Pantothenic acid",
+     "amount": "0.050000000"
+    },
+    {
+     "code": "415",
+     "symbol": "B6",
+     "unit": "Milligram",
+     "name_en": "Vitamin B-6",
+     "amount": "0.030000000"
+    },
+    {
+     "code": "417",
+     "symbol": "FOLA",
+     "unit": "Microgram",
+     "name_en": "Total folacin",
+     "amount": "6.000000000"
+    },
+    {
+     "code": "418",
+     "symbol": "B12",
+     "unit": "Microgram",
+     "name_en": "Vitamin B-12",
+     "amount": "0"
+    },
+    {
+     "code": "421",
+     "symbol": "CHOLN",
+     "unit": "Milligram",
+     "name_en": "Choline, total",
+     "amount": "7.800000000"
+    },
+    {
+     "code": "430",
+     "symbol": "VITK",
+     "unit": "Microgram",
+     "name_en": "Vitamin K (phylloquinone)",
+     "amount": "1.500000000"
+    },
+    {
+     "code": "431",
+     "symbol": "FOAC",
+     "unit": "Microgram",
+     "name_en": "Folic acid",
+     "amount": "0"
+    },
+    {
+     "code": "432",
+     "symbol": "FOLN",
+     "unit": "Microgram",
+     "name_en": "Naturally occurring folate",
+     "amount": "6.000000000"
+    },
+    {
+     "code": "435",
+     "symbol": "DFE",
+     "unit": "Microgram",
+     "name_en": "Dietary folate equivalents",
+     "amount": "6.000000000"
+    },
+    {
+     "code": "601",
+     "symbol": "CHOL",
+     "unit": "Milligram",
+     "name_en": "Cholesterol",
+     "amount": "1.000000000"
+    },
+    {
+     "code": "606",
+     "symbol": "TSAT",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, total",
+     "amount": "0.200000000"
+    },
+    {
+     "code": "607",
+     "symbol": "4:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 4:0, butanoic",
+     "amount": "0"
+    },
+    {
+     "code": "608",
+     "symbol": "6:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 6:0, hexanoic",
+     "amount": "0.005000000"
+    },
+    {
+     "code": "609",
+     "symbol": "8:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 8:0, octanoic",
+     "amount": "0"
+    },
+    {
+     "code": "610",
+     "symbol": "10:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 10:0, decanoic",
+     "amount": "0"
+    },
+    {
+     "code": "611",
+     "symbol": "12:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 12:0, dodecanoic",
+     "amount": "0.005000000"
+    },
+    {
+     "code": "612",
+     "symbol": "14:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 14:0, tetradecanoic",
+     "amount": "0.015000000"
+    },
+    {
+     "code": "613",
+     "symbol": "16:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 16:0, hexadecanoic",
+     "amount": "0.110000000"
+    },
+    {
+     "code": "614",
+     "symbol": "18:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 18:0, octadecanoic",
+     "amount": "0.050000000"
+    },
+    {
+     "code": "617",
+     "symbol": "18:1undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 18:1undifferentiated, octadecenoic",
+     "amount": "0.230000000"
+    },
+    {
+     "code": "618",
+     "symbol": "18:2undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:2undifferentiated, linoleic, octadecadienoic",
+     "amount": "0.435000000"
+    },
+    {
+     "code": "619",
+     "symbol": "18:3undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:3undifferentiated, linolenic, octadecatrienoic",
+     "amount": "0.090000000"
+    },
+    {
+     "code": "620",
+     "symbol": "20:4undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:4, eicosatetraenoic",
+     "amount": "0"
+    },
+    {
+     "code": "621",
+     "symbol": "22:6n-3DHA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 22:6 n-3, docosahexaenoic (DHA)",
+     "amount": "0"
+    },
+    {
+     "code": "626",
+     "symbol": "16:1undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 16:1undifferentiated, hexadecenoic",
+     "amount": "0.005000000"
+    },
+    {
+     "code": "627",
+     "symbol": "18:04",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:4, octadecatetraenoic",
+     "amount": "0"
+    },
+    {
+     "code": "628",
+     "symbol": "20:01",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 20:1, eicosenoic",
+     "amount": "0"
+    },
+    {
+     "code": "629",
+     "symbol": "20:5n-3EPA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:5 n-3, eicosapentaenoic (EPA)",
+     "amount": "0"
+    },
+    {
+     "code": "630",
+     "symbol": "22:1undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 22:1undifferentiated, docosenoic",
+     "amount": "0"
+    },
+    {
+     "code": "631",
+     "symbol": "22:5n-3DPA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 22:5 n-3, docosapentaenoic (DPA)",
+     "amount": "0"
+    },
+    {
+     "code": "645",
+     "symbol": "MUFA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, total",
+     "amount": "0.235000000"
+    },
+    {
+     "code": "646",
+     "symbol": "PUFA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, total",
+     "amount": "0.525000000"
+    },
+    {
+     "code": "664",
+     "symbol": "22:1t",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 22:1t, docosenoic",
+     "amount": "0"
+    },
+    {
+     "code": "676",
+     "symbol": "22:1c",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 22:1c, docosenoic",
+     "amount": "0"
+    },
+    {
+     "code": "685",
+     "symbol": "18:3cccn-6",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:3 c,c,c n-6, g-linolenic, octadecatrienoic",
+     "amount": "0"
+    },
+    {
+     "code": "851",
+     "symbol": "18:3cccn-3",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:3 c,c,c n-3  linolenic, octadecatrienoic",
+     "amount": "0.090000000"
+    },
+    {
+     "code": "852",
+     "symbol": "20:3n-3",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:3 n-3 eicosatrienoic",
+     "amount": "0"
+    },
+    {
+     "code": "853",
+     "symbol": "20:3n-6",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:3 n-6, eicosatrienoic",
+     "amount": "0"
+    }
+   ],
+   "measures": [
+    {
+     "measure_code": "40",
+     "description_en": "1 can diluted",
+     "conversion": "592.628"
+    },
+    {
+     "measure_code": "341",
+     "description_en": "100 ml",
+     "conversion": "104.396"
+    },
+    {
+     "measure_code": "383",
+     "description_en": "125 ml",
+     "conversion": "130.495"
+    },
+    {
+     "measure_code": "415",
+     "description_en": "250 ml",
+     "conversion": "260.989"
+    },
+    {
+     "measure_code": "750",
+     "description_en": "total refuse",
+     "conversion": "0"
+    }
+   ]
+  },
+  {
+   "code": "1907",
+   "name_en": "Pork, loin, rib half (country-style ribs), lean and fat, roasted",
+   "name_fr": "Porc, longe, côte demi bout (côtes style campagnard), maigre et gras, rôtie",
+   "nutrients": [
+    {
+     "code": "203",
+     "symbol": "PROT",
+     "unit": "Gram",
+     "name_en": "Protein",
+     "amount": "21.750000000"
+    },
+    {
+     "code": "204",
+     "symbol": "FAT",
+     "unit": "Gram",
+     "name_en": "Fat (total lipids)",
+     "amount": "29.460000000"
+    },
+    {
+     "code": "205",
+     "symbol": "CARB",
+     "unit": "Gram",
+     "name_en": "Carbohydrate, total (by difference)",
+     "amount": "0"
+    },
+    {
+     "code": "207",
+     "symbol": "ASH",
+     "unit": "Gram",
+     "name_en": "Ash, total",
+     "amount": "0.990000000"
+    },
+    {
+     "code": "208",
+     "symbol": "KCAL",
+     "unit": "kilocalorie",
+     "name_en": "Energy (kilocalories)",
+     "amount": "359.000000000"
+    },
+    {
+     "code": "210",
+     "symbol": "SUCR",
+     "unit": "Gram",
+     "name_en": "Sucrose",
+     "amount": "0"
+    },
+    {
+     "code": "211",
+     "symbol": "GLUC",
+     "unit": "Gram",
+     "name_en": "Glucose",
+     "amount": "0"
+    },
+    {
+     "code": "212",
+     "symbol": "FRUC",
+     "unit": "Gram",
+     "name_en": "Fructose",
+     "amount": "0"
+    },
+    {
+     "code": "213",
+     "symbol": "LACT",
+     "unit": "Gram",
+     "name_en": "Lactose",
+     "amount": "0"
+    },
+    {
+     "code": "214",
+     "symbol": "MALT",
+     "unit": "Gram",
+     "name_en": "Maltose",
+     "amount": "0"
+    },
+    {
+     "code": "221",
+     "symbol": "ALCO",
+     "unit": "Gram",
+     "name_en": "Alcohol",
+     "amount": "0"
+    },
+    {
+     "code": "255",
+     "symbol": "H2O",
+     "unit": "Gram",
+     "name_en": "Moisture",
+     "amount": "48.380000000"
+    },
+    {
+     "code": "260",
+     "symbol": "MANN",
+     "unit": "Gram",
+     "name_en": "Mannitol",
+     "amount": "0"
+    },
+    {
+     "code": "261",
+     "symbol": "SORB",
+     "unit": "Gram",
+     "name_en": "Sorbitol",
+     "amount": "0"
+    },
+    {
+     "code": "262",
+     "symbol": "CAFF",
+     "unit": "Milligram",
+     "name_en": "Caffeine",
+     "amount": "0"
+    },
+    {
+     "code": "263",
+     "symbol": "THBR",
+     "unit": "Milligram",
+     "name_en": "Theobromine",
+     "amount": "0"
+    },
+    {
+     "code": "268",
+     "symbol": "KJ",
+     "unit": "kilojoule",
+     "name_en": "Energy (kilojoules)",
+     "amount": "1500.000000000"
+    },
+    {
+     "code": "269",
+     "symbol": "TSUG",
+     "unit": "Gram",
+     "name_en": "Sugars, total",
+     "amount": "0"
+    },
+    {
+     "code": "287",
+     "symbol": "GAL",
+     "unit": "Gram",
+     "name_en": "Galactose",
+     "amount": "0"
+    },
+    {
+     "code": "291",
+     "symbol": "TDF",
+     "unit": "Gram",
+     "name_en": "Fibre, total dietary",
+     "amount": "0"
+    },
+    {
+     "code": "301",
+     "symbol": "CA",
+     "unit": "Milligram",
+     "name_en": "Calcium",
+     "amount": "25.000000000"
+    },
+    {
+     "code": "303",
+     "symbol": "FE",
+     "unit": "Milligram",
+     "name_en": "Iron",
+     "amount": "1.000000000"
+    },
+    {
+     "code": "304",
+     "symbol": "MG",
+     "unit": "Milligram",
+     "name_en": "Magnesium",
+     "amount": "22.000000000"
+    },
+    {
+     "code": "305",
+     "symbol": "P",
+     "unit": "Milligram",
+     "name_en": "Phosphorus",
+     "amount": "214.000000000"
+    },
+    {
+     "code": "306",
+     "symbol": "K",
+     "unit": "Milligram",
+     "name_en": "Potassium",
+     "amount": "322.000000000"
+    },
+    {
+     "code": "307",
+     "symbol": "NA",
+     "unit": "Milligram",
+     "name_en": "Sodium",
+     "amount": "52.000000000"
+    },
+    {
+     "code": "309",
+     "symbol": "ZN",
+     "unit": "Milligram",
+     "name_en": "Zinc",
+     "amount": "2.200000000"
+    },
+    {
+     "code": "312",
+     "symbol": "CU",
+     "unit": "Milligram",
+     "name_en": "Copper",
+     "amount": "0.057000000"
+    },
+    {
+     "code": "315",
+     "symbol": "MN",
+     "unit": "Milligram",
+     "name_en": "Manganese",
+     "amount": "0.003000000"
+    },
+    {
+     "code": "317",
+     "symbol": "SE",
+     "unit": "Microgram",
+     "name_en": "Selenium",
+     "amount": "34.500000000"
+    },
+    {
+     "code": "319",
+     "symbol": "RT-µg",
+     "unit": "Microgram",
+     "name_en": "Retinol",
+     "amount": "2.000000000"
+    },
+    {
+     "code": "320",
+     "symbol": "RAE",
+     "unit": "Microgram",
+     "name_en": "Retinol activity equivalents",
+     "amount": "2.000000000"
+    },
+    {
+     "code": "321",
+     "symbol": "BC-µg",
+     "unit": "Microgram",
+     "name_en": "Beta carotene",
+     "amount": "0"
+    },
+    {
+     "code": "322",
+     "symbol": "AC-µg",
+     "unit": "Microgram",
+     "name_en": "Alpha carotene",
+     "amount": "0"
+    },
+    {
+     "code": "323",
+     "symbol": "ATMG",
+     "unit": "Milligram",
+     "name_en": "Alpha-tocopherol",
+     "amount": "0"
+    },
+    {
+     "code": "324",
+     "symbol": "D3+D2-IU",
+     "unit": "International Unit",
+     "name_en": "Vitamin D (International Units)",
+     "amount": "72.000000000"
+    },
+    {
+     "code": "328",
+     "symbol": "D3+D2-µg",
+     "unit": "Microgram",
+     "name_en": "Vitamin D (D2 + D3)",
+     "amount": "1.800000000"
+    },
+    {
+     "code": "334",
+     "symbol": "CRYPX",
+     "unit": "Microgram",
+     "name_en": "Beta cryptoxanthin",
+     "amount": "0"
+    },
+    {
+     "code": "337",
+     "symbol": "LYCPN",
+     "unit": "Microgram",
+     "name_en": "Lycopene",
+     "amount": "0"
+    },
+    {
+     "code": "338",
+     "symbol": "LUT+ZEA",
+     "unit": "Microgram",
+     "name_en": "Lutein and zeaxanthin",
+     "amount": "0"
+    },
+    {
+     "code": "401",
+     "symbol": "VITC",
+     "unit": "Milligram",
+     "name_en": "Vitamin C",
+     "amount": "0.300000000"
+    },
+    {
+     "code": "404",
+     "symbol": "THIA",
+     "unit": "Milligram",
+     "name_en": "Thiamine",
+     "amount": "0.820000000"
+    },
+    {
+     "code": "405",
+     "symbol": "RIBO",
+     "unit": "Milligram",
+     "name_en": "Riboflavin",
+     "amount": "0.329000000"
+    },
+    {
+     "code": "406",
+     "symbol": "N-MG",
+     "unit": "Milligram",
+     "name_en": "Niacin (nicotinic acid) preformed",
+     "amount": "4.196000000"
+    },
+    {
+     "code": "409",
+     "symbol": "N-NE",
+     "unit": "Niacin Equivalents",
+     "name_en": "Total niacin equivalent",
+     "amount": "8.779330000"
+    },
+    {
+     "code": "410",
+     "symbol": "PANT",
+     "unit": "Milligram",
+     "name_en": "Pantothenic acid",
+     "amount": "0.726000000"
+    },
+    {
+     "code": "415",
+     "symbol": "B6",
+     "unit": "Milligram",
+     "name_en": "Vitamin B-6",
+     "amount": "0.419000000"
+    },
+    {
+     "code": "417",
+     "symbol": "FOLA",
+     "unit": "Microgram",
+     "name_en": "Total folacin",
+     "amount": "4.000000000"
+    },
+    {
+     "code": "418",
+     "symbol": "B12",
+     "unit": "Microgram",
+     "name_en": "Vitamin B-12",
+     "amount": "0.760000000"
+    },
+    {
+     "code": "421",
+     "symbol": "CHOLN",
+     "unit": "Milligram",
+     "name_en": "Choline, total",
+     "amount": "3.300000000"
+    },
+    {
+     "code": "430",
+     "symbol": "VITK",
+     "unit": "Microgram",
+     "name_en": "Vitamin K (phylloquinone)",
+     "amount": "0"
+    },
+    {
+     "code": "431",
+     "symbol": "FOAC",
+     "unit": "Microgram",
+     "name_en": "Folic acid",
+     "amount": "0"
+    },
+    {
+     "code": "432",
+     "symbol": "FOLN",
+     "unit": "Microgram",
+     "name_en": "Naturally occurring folate",
+     "amount": "4.000000000"
+    },
+    {
+     "code": "435",
+     "symbol": "DFE",
+     "unit": "Microgram",
+     "name_en": "Dietary folate equivalents",
+     "amount": "4.000000000"
+    },
+    {
+     "code": "454",
+     "symbol": "BETN",
+     "unit": "Milligram",
+     "name_en": "Betaine",
+     "amount": "0.200000000"
+    },
+    {
+     "code": "501",
+     "symbol": "TRP",
+     "unit": "Gram",
+     "name_en": "Tryptophan",
+     "amount": "0.275000000"
+    },
+    {
+     "code": "502",
+     "symbol": "THR",
+     "unit": "Gram",
+     "name_en": "Threonine",
+     "amount": "0.992000000"
+    },
+    {
+     "code": "503",
+     "symbol": "ISO",
+     "unit": "Gram",
+     "name_en": "Isoleucine",
+     "amount": "1.019000000"
+    },
+    {
+     "code": "504",
+     "symbol": "LEU",
+     "unit": "Gram",
+     "name_en": "Leucine",
+     "amount": "1.747000000"
+    },
+    {
+     "code": "505",
+     "symbol": "LYS",
+     "unit": "Gram",
+     "name_en": "Lysine",
+     "amount": "1.955000000"
+    },
+    {
+     "code": "506",
+     "symbol": "MET",
+     "unit": "Gram",
+     "name_en": "Methionine",
+     "amount": "0.577000000"
+    },
+    {
+     "code": "507",
+     "symbol": "CYS",
+     "unit": "Gram",
+     "name_en": "Cystine",
+     "amount": "0.276000000"
+    },
+    {
+     "code": "508",
+     "symbol": "PHE",
+     "unit": "Gram",
+     "name_en": "Phenylalanine",
+     "amount": "0.869000000"
+    },
+    {
+     "code": "509",
+     "symbol": "TYR",
+     "unit": "Gram",
+     "name_en": "Tyrosine",
+     "amount": "0.761000000"
+    },
+    {
+     "code": "510",
+     "symbol": "VAL",
+     "unit": "Gram",
+     "name_en": "Valine",
+     "amount": "1.177000000"
+    },
+    {
+     "code": "511",
+     "symbol": "ARG",
+     "unit": "Gram",
+     "name_en": "Arginine",
+     "amount": "1.354000000"
+    },
+    {
+     "code": "512",
+     "symbol": "HIS",
+     "unit": "Gram",
+     "name_en": "Histidine",
+     "amount": "0.870000000"
+    },
+    {
+     "code": "513",
+     "symbol": "ALA",
+     "unit": "Gram",
+     "name_en": "Alanine",
+     "amount": "1.266000000"
+    },
+    {
+     "code": "514",
+     "symbol": "ASP",
+     "unit": "Gram",
+     "name_en": "Aspartic acid",
+     "amount": "2.018000000"
+    },
+    {
+     "code": "515",
+     "symbol": "GLU",
+     "unit": "Gram",
+     "name_en": "Glutamic acid",
+     "amount": "3.402000000"
+    },
+    {
+     "code": "516",
+     "symbol": "GLY",
+     "unit": "Gram",
+     "name_en": "Glycine",
+     "amount": "1.031000000"
+    },
+    {
+     "code": "517",
+     "symbol": "PRO",
+     "unit": "Gram",
+     "name_en": "Proline",
+     "amount": "0.874000000"
+    },
+    {
+     "code": "518",
+     "symbol": "SER",
+     "unit": "Gram",
+     "name_en": "Serine",
+     "amount": "0.899000000"
+    },
+    {
+     "code": "521",
+     "symbol": "HYP",
+     "unit": "Gram",
+     "name_en": "Hydroxyproline",
+     "amount": "0.002000000"
+    },
+    {
+     "code": "601",
+     "symbol": "CHOL",
+     "unit": "Milligram",
+     "name_en": "Cholesterol",
+     "amount": "91.000000000"
+    },
+    {
+     "code": "605",
+     "symbol": "TRFA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, trans, total",
+     "amount": "0.048000000"
+    },
+    {
+     "code": "606",
+     "symbol": "TSAT",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, total",
+     "amount": "10.689000000"
+    },
+    {
+     "code": "607",
+     "symbol": "4:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 4:0, butanoic",
+     "amount": "0"
+    },
+    {
+     "code": "608",
+     "symbol": "6:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 6:0, hexanoic",
+     "amount": "0"
+    },
+    {
+     "code": "609",
+     "symbol": "8:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 8:0, octanoic",
+     "amount": "0"
+    },
+    {
+     "code": "610",
+     "symbol": "10:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 10:0, decanoic",
+     "amount": "0.024000000"
+    },
+    {
+     "code": "611",
+     "symbol": "12:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 12:0, dodecanoic",
+     "amount": "0.023000000"
+    },
+    {
+     "code": "612",
+     "symbol": "14:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 14:0, tetradecanoic",
+     "amount": "0.387000000"
+    },
+    {
+     "code": "613",
+     "symbol": "16:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 16:0, hexadecanoic",
+     "amount": "6.512000000"
+    },
+    {
+     "code": "614",
+     "symbol": "18:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 18:0, octadecanoic",
+     "amount": "3.532000000"
+    },
+    {
+     "code": "615",
+     "symbol": "20:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 20:0, eicosanoic",
+     "amount": "0.012000000"
+    },
+    {
+     "code": "617",
+     "symbol": "18:1undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 18:1undifferentiated, octadecenoic",
+     "amount": "11.671000000"
+    },
+    {
+     "code": "618",
+     "symbol": "18:2undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:2undifferentiated, linoleic, octadecadienoic",
+     "amount": "2.649000000"
+    },
+    {
+     "code": "619",
+     "symbol": "18:3undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:3undifferentiated, linolenic, octadecatrienoic",
+     "amount": "0.098000000"
+    },
+    {
+     "code": "620",
+     "symbol": "20:4undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:4, eicosatetraenoic",
+     "amount": "0.090000000"
+    },
+    {
+     "code": "621",
+     "symbol": "22:6n-3DHA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 22:6 n-3, docosahexaenoic (DHA)",
+     "amount": "0"
+    },
+    {
+     "code": "624",
+     "symbol": "22:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 22:0, docosanoic",
+     "amount": "0"
+    },
+    {
+     "code": "625",
+     "symbol": "14:01",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 14:1, tetradecenoic",
+     "amount": "0.001000000"
+    },
+    {
+     "code": "626",
+     "symbol": "16:1undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 16:1undifferentiated, hexadecenoic",
+     "amount": "0.797000000"
+    },
+    {
+     "code": "627",
+     "symbol": "18:04",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:4, octadecatetraenoic",
+     "amount": "0"
+    },
+    {
+     "code": "628",
+     "symbol": "20:01",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 20:1, eicosenoic",
+     "amount": "0.248000000"
+    },
+    {
+     "code": "629",
+     "symbol": "20:5n-3EPA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:5 n-3, eicosapentaenoic (EPA)",
+     "amount": "0"
+    },
+    {
+     "code": "630",
+     "symbol": "22:1undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 22:1undifferentiated, docosenoic",
+     "amount": "0"
+    },
+    {
+     "code": "631",
+     "symbol": "22:5n-3DPA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 22:5 n-3, docosapentaenoic (DPA)",
+     "amount": "0"
+    },
+    {
+     "code": "645",
+     "symbol": "MUFA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, total",
+     "amount": "12.825000000"
+    },
+    {
+     "code": "646",
+     "symbol": "PUFA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, total",
+     "amount": "2.972000000"
+    },
+    {
+     "code": "652",
+     "symbol": "15:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 15:0, pentadecanoic",
+     "amount": "0.004000000"
+    },
+    {
+     "code": "653",
+     "symbol": "17:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 17:0, heptadecanoic",
+     "amount": "0.024000000"
+    },
+    {
+     "code": "654",
+     "symbol": "24:00:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 24:0, tetracosanoic",
+     "amount": "0"
+    },
+    {
+     "code": "672",
+     "symbol": "20:2cc",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:2 c,c  eicosadienoic",
+     "amount": "0.042000000"
+    },
+    {
+     "code": "685",
+     "symbol": "18:3cccn-6",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:3 c,c,c n-6, g-linolenic, octadecatrienoic",
+     "amount": "0"
+    },
+    {
+     "code": "687",
+     "symbol": "17:01",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 17:1, heptadecenoic",
+     "amount": "0"
+    },
+    {
+     "code": "689",
+     "symbol": "20:3undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:3, eicosatrienoic",
+     "amount": "0.006000000"
+    },
+    {
+     "code": "697",
+     "symbol": "15:01",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 15:1, pentadecenoic",
+     "amount": "0"
+    },
+    {
+     "code": "851",
+     "symbol": "18:3cccn-3",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:3 c,c,c n-3  linolenic, octadecatrienoic",
+     "amount": "0.060000000"
+    },
+    {
+     "code": "852",
+     "symbol": "20:3n-3",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:3 n-3 eicosatrienoic",
+     "amount": "0"
+    },
+    {
+     "code": "853",
+     "symbol": "20:3n-6",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:3 n-6, eicosatrienoic",
+     "amount": "0"
+    }
+   ],
+   "measures": [
+    {
+     "measure_code": "683",
+     "description_en": "100 g raw as purchased",
+     "conversion": "53.131"
+    },
+    {
+     "measure_code": "750",
+     "description_en": "total refuse",
+     "conversion": "30"
+    },
+    {
+     "measure_code": "751",
+     "description_en": "bone",
+     "conversion": "30"
+    },
+    {
+     "measure_code": "1122",
+     "description_en": "100 ml chopped or diced",
+     "conversion": "56.64"
+    },
+    {
+     "measure_code": "1124",
+     "description_en": "250 ml chopped or diced",
+     "conversion": "141.6"
+    },
+    {
+     "measure_code": "1455",
+     "description_en": "100 g",
+     "conversion": "100"
+    },
+    {
+     "measure_code": "1496",
+     "description_en": "75 g",
+     "conversion": "75"
+    },
+    {
+     "measure_code": "502562",
+     "description_en": "1 rack",
+     "conversion": "138"
+    }
+   ]
+  },
+  {
+   "code": "2550",
+   "name_en": "Nuts, Chinese chestnuts, dried",
+   "name_fr": "Noix, châtaignes chinoises, séchées",
+   "nutrients": [
+    {
+     "code": "203",
+     "symbol": "PROT",
+     "unit": "Gram",
+     "name_en": "Protein",
+     "amount": "6.820000000"
+    },
+    {
+     "code": "204",
+     "symbol": "FAT",
+     "unit": "Gram",
+     "name_en": "Fat (total lipids)",
+     "amount": "1.810000000"
+    },
+    {
+     "code": "205",
+     "symbol": "CARB",
+     "unit": "Gram",
+     "name_en": "Carbohydrate, total (by difference)",
+     "amount": "79.760000000"
+    },
+    {
+     "code": "207",
+     "symbol": "ASH",
+     "unit": "Gram",
+     "name_en": "Ash, total",
+     "amount": "2.710000000"
+    },
+    {
+     "code": "208",
+     "symbol": "KCAL",
+     "unit": "kilocalorie",
+     "name_en": "Energy (kilocalories)",
+     "amount": "363.000000000"
+    },
+    {
+     "code": "221",
+     "symbol": "ALCO",
+     "unit": "Gram",
+     "name_en": "Alcohol",
+     "amount": "0"
+    },
+    {
+     "code": "255",
+     "symbol": "H2O",
+     "unit": "Gram",
+     "name_en": "Moisture",
+     "amount": "8.900000000"
+    },
+    {
+     "code": "262",
+     "symbol": "CAFF",
+     "unit": "Milligram",
+     "name_en": "Caffeine",
+     "amount": "0"
+    },
+    {
+     "code": "263",
+     "symbol": "THBR",
+     "unit": "Milligram",
+     "name_en": "Theobromine",
+     "amount": "0"
+    },
+    {
+     "code": "268",
+     "symbol": "KJ",
+     "unit": "kilojoule",
+     "name_en": "Energy (kilojoules)",
+     "amount": "1519.000000000"
+    },
+    {
+     "code": "301",
+     "symbol": "CA",
+     "unit": "Milligram",
+     "name_en": "Calcium",
+     "amount": "29.000000000"
+    },
+    {
+     "code": "303",
+     "symbol": "FE",
+     "unit": "Milligram",
+     "name_en": "Iron",
+     "amount": "2.290000000"
+    },
+    {
+     "code": "304",
+     "symbol": "MG",
+     "unit": "Milligram",
+     "name_en": "Magnesium",
+     "amount": "137.000000000"
+    },
+    {
+     "code": "305",
+     "symbol": "P",
+     "unit": "Milligram",
+     "name_en": "Phosphorus",
+     "amount": "155.000000000"
+    },
+    {
+     "code": "306",
+     "symbol": "K",
+     "unit": "Milligram",
+     "name_en": "Potassium",
+     "amount": "726.000000000"
+    },
+    {
+     "code": "307",
+     "symbol": "NA",
+     "unit": "Milligram",
+     "name_en": "Sodium",
+     "amount": "5.000000000"
+    },
+    {
+     "code": "309",
+     "symbol": "ZN",
+     "unit": "Milligram",
+     "name_en": "Zinc",
+     "amount": "1.410000000"
+    },
+    {
+     "code": "312",
+     "symbol": "CU",
+     "unit": "Milligram",
+     "name_en": "Copper",
+     "amount": "0.590000000"
+    },
+    {
+     "code": "315",
+     "symbol": "MN",
+     "unit": "Milligram",
+     "name_en": "Manganese",
+     "amount": "2.601000000"
+    },
+    {
+     "code": "319",
+     "symbol": "RT-µg",
+     "unit": "Microgram",
+     "name_en": "Retinol",
+     "amount": "0"
+    },
+    {
+     "code": "320",
+     "symbol": "RAE",
+     "unit": "Microgram",
+     "name_en": "Retinol activity equivalents",
+     "amount": "16.000000000"
+    },
+    {
+     "code": "321",
+     "symbol": "BC-µg",
+     "unit": "Microgram",
+     "name_en": "Beta carotene",
+     "amount": "196.200180000"
+    },
+    {
+     "code": "324",
+     "symbol": "D3+D2-IU",
+     "unit": "International Unit",
+     "name_en": "Vitamin D (International Units)",
+     "amount": "0"
+    },
+    {
+     "code": "328",
+     "symbol": "D3+D2-µg",
+     "unit": "Microgram",
+     "name_en": "Vitamin D (D2 + D3)",
+     "amount": "0"
+    },
+    {
+     "code": "401",
+     "symbol": "VITC",
+     "unit": "Milligram",
+     "name_en": "Vitamin C",
+     "amount": "58.500000000"
+    },
+    {
+     "code": "404",
+     "symbol": "THIA",
+     "unit": "Milligram",
+     "name_en": "Thiamine",
+     "amount": "0.260000000"
+    },
+    {
+     "code": "405",
+     "symbol": "RIBO",
+     "unit": "Milligram",
+     "name_en": "Riboflavin",
+     "amount": "0.293000000"
+    },
+    {
+     "code": "406",
+     "symbol": "N-MG",
+     "unit": "Milligram",
+     "name_en": "Niacin (nicotinic acid) preformed",
+     "amount": "1.300000000"
+    },
+    {
+     "code": "409",
+     "symbol": "N-NE",
+     "unit": "Niacin Equivalents",
+     "name_en": "Total niacin equivalent",
+     "amount": "2.633330000"
+    },
+    {
+     "code": "410",
+     "symbol": "PANT",
+     "unit": "Milligram",
+     "name_en": "Pantothenic acid",
+     "amount": "0.902000000"
+    },
+    {
+     "code": "415",
+     "symbol": "B6",
+     "unit": "Milligram",
+     "name_en": "Vitamin B-6",
+     "amount": "0.666000000"
+    },
+    {
+     "code": "417",
+     "symbol": "FOLA",
+     "unit": "Microgram",
+     "name_en": "Total folacin",
+     "amount": "110.000000000"
+    },
+    {
+     "code": "418",
+     "symbol": "B12",
+     "unit": "Microgram",
+     "name_en": "Vitamin B-12",
+     "amount": "0"
+    },
+    {
+     "code": "431",
+     "symbol": "FOAC",
+     "unit": "Microgram",
+     "name_en": "Folic acid",
+     "amount": "0"
+    },
+    {
+     "code": "432",
+     "symbol": "FOLN",
+     "unit": "Microgram",
+     "name_en": "Naturally occurring folate",
+     "amount": "110.000000000"
+    },
+    {
+     "code": "435",
+     "symbol": "DFE",
+     "unit": "Microgram",
+     "name_en": "Dietary folate equivalents",
+     "amount": "110.000000000"
+    },
+    {
+     "code": "501",
+     "symbol": "TRP",
+     "unit": "Gram",
+     "name_en": "Tryptophan",
+     "amount": "0.080000000"
+    },
+    {
+     "code": "502",
+     "symbol": "THR",
+     "unit": "Gram",
+     "name_en": "Threonine",
+     "amount": "0.272000000"
+    },
+    {
+     "code": "503",
+     "symbol": "ISO",
+     "unit": "Gram",
+     "name_en": "Isoleucine",
+     "amount": "0.255000000"
+    },
+    {
+     "code": "504",
+     "symbol": "LEU",
+     "unit": "Gram",
+     "name_en": "Leucine",
+     "amount": "0.421000000"
+    },
+    {
+     "code": "505",
+     "symbol": "LYS",
+     "unit": "Gram",
+     "name_en": "Lysine",
+     "amount": "0.371000000"
+    },
+    {
+     "code": "506",
+     "symbol": "MET",
+     "unit": "Gram",
+     "name_en": "Methionine",
+     "amount": "0.165000000"
+    },
+    {
+     "code": "507",
+     "symbol": "CYS",
+     "unit": "Gram",
+     "name_en": "Cystine",
+     "amount": "0.179000000"
+    },
+    {
+     "code": "508",
+     "symbol": "PHE",
+     "unit": "Gram",
+     "name_en": "Phenylalanine",
+     "amount": "0.309000000"
+    },
+    {
+     "code": "509",
+     "symbol": "TYR",
+     "unit": "Gram",
+     "name_en": "Tyrosine",
+     "amount": "0.203000000"
+    },
+    {
+     "code": "510",
+     "symbol": "VAL",
+     "unit": "Gram",
+     "name_en": "Valine",
+     "amount": "0.358000000"
+    },
+    {
+     "code": "511",
+     "symbol": "ARG",
+     "unit": "Gram",
+     "name_en": "Arginine",
+     "amount": "0.699000000"
+    },
+    {
+     "code": "512",
+     "symbol": "HIS",
+     "unit": "Gram",
+     "name_en": "Histidine",
+     "amount": "0.197000000"
+    },
+    {
+     "code": "513",
+     "symbol": "ALA",
+     "unit": "Gram",
+     "name_en": "Alanine",
+     "amount": "0.324000000"
+    },
+    {
+     "code": "514",
+     "symbol": "ASP",
+     "unit": "Gram",
+     "name_en": "Aspartic acid",
+     "amount": "1.385000000"
+    },
+    {
+     "code": "515",
+     "symbol": "GLU",
+     "unit": "Gram",
+     "name_en": "Glutamic acid",
+     "amount": "0.873000000"
+    },
+    {
+     "code": "516",
+     "symbol": "GLY",
+     "unit": "Gram",
+     "name_en": "Glycine",
+     "amount": "0.299000000"
+    },
+    {
+     "code": "517",
+     "symbol": "PRO",
+     "unit": "Gram",
+     "name_en": "Proline",
+     "amount": "0.263000000"
+    },
+    {
+     "code": "518",
+     "symbol": "SER",
+     "unit": "Gram",
+     "name_en": "Serine",
+     "amount": "0.299000000"
+    },
+    {
+     "code": "601",
+     "symbol": "CHOL",
+     "unit": "Milligram",
+     "name_en": "Cholesterol",
+     "amount": "0"
+    },
+    {
+     "code": "605",
+     "symbol": "TRFA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, trans, total",
+     "amount": "0.003260000"
+    },
+    {
+     "code": "606",
+     "symbol": "TSAT",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, total",
+     "amount": "0.266000000"
+    },
+    {
+     "code": "613",
+     "symbol": "16:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 16:0, hexadecanoic",
+     "amount": "0.246000000"
+    },
+    {
+     "code": "614",
+     "symbol": "18:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 18:0, octadecanoic",
+     "amount": "0.019000000"
+    },
+    {
+     "code": "617",
+     "symbol": "18:1undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 18:1undifferentiated, octadecenoic",
+     "amount": "0.909000000"
+    },
+    {
+     "code": "618",
+     "symbol": "18:2undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:2undifferentiated, linoleic, octadecadienoic",
+     "amount": "0.419000000"
+    },
+    {
+     "code": "619",
+     "symbol": "18:3undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:3undifferentiated, linolenic, octadecatrienoic",
+     "amount": "0.045000000"
+    },
+    {
+     "code": "620",
+     "symbol": "20:4undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:4, eicosatetraenoic",
+     "amount": "0"
+    },
+    {
+     "code": "621",
+     "symbol": "22:6n-3DHA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 22:6 n-3, docosahexaenoic (DHA)",
+     "amount": "0"
+    },
+    {
+     "code": "626",
+     "symbol": "16:1undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 16:1undifferentiated, hexadecenoic",
+     "amount": "0.012000000"
+    },
+    {
+     "code": "628",
+     "symbol": "20:01",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 20:1, eicosenoic",
+     "amount": "0.017000000"
+    },
+    {
+     "code": "629",
+     "symbol": "20:5n-3EPA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:5 n-3, eicosapentaenoic (EPA)",
+     "amount": "0"
+    },
+    {
+     "code": "631",
+     "symbol": "22:5n-3DPA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 22:5 n-3, docosapentaenoic (DPA)",
+     "amount": "0"
+    },
+    {
+     "code": "645",
+     "symbol": "MUFA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, total",
+     "amount": "0.945000000"
+    },
+    {
+     "code": "646",
+     "symbol": "PUFA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, total",
+     "amount": "0.468000000"
+    },
+    {
+     "code": "675",
+     "symbol": "18:2ccn-6",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:2 c,c n-6,  linoleic, octadecadienoic",
+     "amount": "0.419000000"
+    },
+    {
+     "code": "685",
+     "symbol": "18:3cccn-6",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:3 c,c,c n-6, g-linolenic, octadecatrienoic",
+     "amount": "0"
+    },
+    {
+     "code": "689",
+     "symbol": "20:3undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:3, eicosatrienoic",
+     "amount": "0"
+    },
+    {
+     "code": "851",
+     "symbol": "18:3cccn-3",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:3 c,c,c n-3  linolenic, octadecatrienoic",
+     "amount": "0.045000000"
+    },
+    {
+     "code": "852",
+     "symbol": "20:3n-3",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:3 n-3 eicosatrienoic",
+     "amount": "0"
+    },
+    {
+     "code": "853",
+     "symbol": "20:3n-6",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:3 n-6, eicosatrienoic",
+     "amount": "0"
+    },
+    {
+     "code": "855",
+     "symbol": "20:4n-6",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:4 n-6, arachidonic",
+     "amount": "0"
+    }
+   ],
+   "measures": [
+    {
+     "measure_code": "640",
+     "description_en": "60 ml",
+     "conversion": "39.31"
+    },
+    {
+     "measure_code": "750",
+     "description_en": "total refuse",
+     "conversion": "0"
+    },
+    {
+     "measure_code": "1454",
+     "description_en": "30 g",
+     "conversion": "30"
+    }
+   ]
+  },
+  {
+   "code": "3322",
+   "name_en": "Soy flour, full-fat",
+   "name_fr": "Soya, farine, non dégraissée",
+   "nutrients": [
+    {
+     "code": "203",
+     "symbol": "PROT",
+     "unit": "Gram",
+     "name_en": "Protein",
+     "amount": "37.810000000"
+    },
+    {
+     "code": "204",
+     "symbol": "FAT",
+     "unit": "Gram",
+     "name_en": "Fat (total lipids)",
+     "amount": "20.650000000"
+    },
+    {
+     "code": "205",
+     "symbol": "CARB",
+     "unit": "Gram",
+     "name_en": "Carbohydrate, total (by difference)",
+     "amount": "31.920000000"
+    },
+    {
+     "code": "207",
+     "symbol": "ASH",
+     "unit": "Gram",
+     "name_en": "Ash, total",
+     "amount": "4.460000000"
+    },
+    {
+     "code": "208",
+     "symbol": "KCAL",
+     "unit": "kilocalorie",
+     "name_en": "Energy (kilocalories)",
+     "amount": "434.000000000"
+    },
+    {
+     "code": "221",
+     "symbol": "ALCO",
+     "unit": "Gram",
+     "name_en": "Alcohol",
+     "amount": "0"
+    },
+    {
+     "code": "255",
+     "symbol": "H2O",
+     "unit": "Gram",
+     "name_en": "Moisture",
+     "amount": "5.160000000"
+    },
+    {
+     "code": "262",
+     "symbol": "CAFF",
+     "unit": "Milligram",
+     "name_en": "Caffeine",
+     "amount": "0"
+    },
+    {
+     "code": "263",
+     "symbol": "THBR",
+     "unit": "Milligram",
+     "name_en": "Theobromine",
+     "amount": "0"
+    },
+    {
+     "code": "268",
+     "symbol": "KJ",
+     "unit": "kilojoule",
+     "name_en": "Energy (kilojoules)",
+     "amount": "1816.000000000"
+    },
+    {
+     "code": "269",
+     "symbol": "TSUG",
+     "unit": "Gram",
+     "name_en": "Sugars, total",
+     "amount": "7.500000000"
+    },
+    {
+     "code": "291",
+     "symbol": "TDF",
+     "unit": "Gram",
+     "name_en": "Fibre, total dietary",
+     "amount": "9.600000000"
+    },
+    {
+     "code": "301",
+     "symbol": "CA",
+     "unit": "Milligram",
+     "name_en": "Calcium",
+     "amount": "206.000000000"
+    },
+    {
+     "code": "303",
+     "symbol": "FE",
+     "unit": "Milligram",
+     "name_en": "Iron",
+     "amount": "6.370000000"
+    },
+    {
+     "code": "304",
+     "symbol": "MG",
+     "unit": "Milligram",
+     "name_en": "Magnesium",
+     "amount": "429.000000000"
+    },
+    {
+     "code": "305",
+     "symbol": "P",
+     "unit": "Milligram",
+     "name_en": "Phosphorus",
+     "amount": "494.000000000"
+    },
+    {
+     "code": "306",
+     "symbol": "K",
+     "unit": "Milligram",
+     "name_en": "Potassium",
+     "amount": "2515.000000000"
+    },
+    {
+     "code": "307",
+     "symbol": "NA",
+     "unit": "Milligram",
+     "name_en": "Sodium",
+     "amount": "13.000000000"
+    },
+    {
+     "code": "309",
+     "symbol": "ZN",
+     "unit": "Milligram",
+     "name_en": "Zinc",
+     "amount": "3.920000000"
+    },
+    {
+     "code": "312",
+     "symbol": "CU",
+     "unit": "Milligram",
+     "name_en": "Copper",
+     "amount": "2.920000000"
+    },
+    {
+     "code": "315",
+     "symbol": "MN",
+     "unit": "Milligram",
+     "name_en": "Manganese",
+     "amount": "2.275000000"
+    },
+    {
+     "code": "317",
+     "symbol": "SE",
+     "unit": "Microgram",
+     "name_en": "Selenium",
+     "amount": "7.500000000"
+    },
+    {
+     "code": "319",
+     "symbol": "RT-µg",
+     "unit": "Microgram",
+     "name_en": "Retinol",
+     "amount": "0"
+    },
+    {
+     "code": "320",
+     "symbol": "RAE",
+     "unit": "Microgram",
+     "name_en": "Retinol activity equivalents",
+     "amount": "6.000000000"
+    },
+    {
+     "code": "321",
+     "symbol": "BC-µg",
+     "unit": "Microgram",
+     "name_en": "Beta carotene",
+     "amount": "72.000000000"
+    },
+    {
+     "code": "322",
+     "symbol": "AC-µg",
+     "unit": "Microgram",
+     "name_en": "Alpha carotene",
+     "amount": "0"
+    },
+    {
+     "code": "323",
+     "symbol": "ATMG",
+     "unit": "Milligram",
+     "name_en": "Alpha-tocopherol",
+     "amount": "1.950000000"
+    },
+    {
+     "code": "324",
+     "symbol": "D3+D2-IU",
+     "unit": "International Unit",
+     "name_en": "Vitamin D (International Units)",
+     "amount": "0"
+    },
+    {
+     "code": "328",
+     "symbol": "D3+D2-µg",
+     "unit": "Microgram",
+     "name_en": "Vitamin D (D2 + D3)",
+     "amount": "0"
+    },
+    {
+     "code": "334",
+     "symbol": "CRYPX",
+     "unit": "Microgram",
+     "name_en": "Beta cryptoxanthin",
+     "amount": "0"
+    },
+    {
+     "code": "337",
+     "symbol": "LYCPN",
+     "unit": "Microgram",
+     "name_en": "Lycopene",
+     "amount": "0"
+    },
+    {
+     "code": "338",
+     "symbol": "LUT+ZEA",
+     "unit": "Microgram",
+     "name_en": "Lutein and zeaxanthin",
+     "amount": "0"
+    },
+    {
+     "code": "401",
+     "symbol": "VITC",
+     "unit": "Milligram",
+     "name_en": "Vitamin C",
+     "amount": "0"
+    },
+    {
+     "code": "404",
+     "symbol": "THIA",
+     "unit": "Milligram",
+     "name_en": "Thiamine",
+     "amount": "0.581000000"
+    },
+    {
+     "code": "405",
+     "symbol": "RIBO",
+     "unit": "Milligram",
+     "name_en": "Riboflavin",
+     "amount": "1.160000000"
+    },
+    {
+     "code": "406",
+     "symbol": "N-MG",
+     "unit": "Milligram",
+     "name_en": "Niacin (nicotinic acid) preformed",
+     "amount": "4.320000000"
+    },
+    {
+     "code": "409",
+     "symbol": "N-NE",
+     "unit": "Niacin Equivalents",
+     "name_en": "Total niacin equivalent",
+     "amount": "12.686670000"
+    },
+    {
+     "code": "410",
+     "symbol": "PANT",
+     "unit": "Milligram",
+     "name_en": "Pantothenic acid",
+     "amount": "1.590000000"
+    },
+    {
+     "code": "415",
+     "symbol": "B6",
+     "unit": "Milligram",
+     "name_en": "Vitamin B-6",
+     "amount": "0.461000000"
+    },
+    {
+     "code": "417",
+     "symbol": "FOLA",
+     "unit": "Microgram",
+     "name_en": "Total folacin",
+     "amount": "345.000000000"
+    },
+    {
+     "code": "418",
+     "symbol": "B12",
+     "unit": "Microgram",
+     "name_en": "Vitamin B-12",
+     "amount": "0"
+    },
+    {
+     "code": "421",
+     "symbol": "CHOLN",
+     "unit": "Milligram",
+     "name_en": "Choline, total",
+     "amount": "190.600000000"
+    },
+    {
+     "code": "430",
+     "symbol": "VITK",
+     "unit": "Microgram",
+     "name_en": "Vitamin K (phylloquinone)",
+     "amount": "70.000000000"
+    },
+    {
+     "code": "431",
+     "symbol": "FOAC",
+     "unit": "Microgram",
+     "name_en": "Folic acid",
+     "amount": "0"
+    },
+    {
+     "code": "432",
+     "symbol": "FOLN",
+     "unit": "Microgram",
+     "name_en": "Naturally occurring folate",
+     "amount": "345.000000000"
+    },
+    {
+     "code": "435",
+     "symbol": "DFE",
+     "unit": "Microgram",
+     "name_en": "Dietary folate equivalents",
+     "amount": "345.000000000"
+    },
+    {
+     "code": "501",
+     "symbol": "TRP",
+     "unit": "Gram",
+     "name_en": "Tryptophan",
+     "amount": "0.502000000"
+    },
+    {
+     "code": "502",
+     "symbol": "THR",
+     "unit": "Gram",
+     "name_en": "Threonine",
+     "amount": "1.500000000"
+    },
+    {
+     "code": "503",
+     "symbol": "ISO",
+     "unit": "Gram",
+     "name_en": "Isoleucine",
+     "amount": "1.675000000"
+    },
+    {
+     "code": "504",
+     "symbol": "LEU",
+     "unit": "Gram",
+     "name_en": "Leucine",
+     "amount": "2.812000000"
+    },
+    {
+     "code": "505",
+     "symbol": "LYS",
+     "unit": "Gram",
+     "name_en": "Lysine",
+     "amount": "2.298000000"
+    },
+    {
+     "code": "506",
+     "symbol": "MET",
+     "unit": "Gram",
+     "name_en": "Methionine",
+     "amount": "0.466000000"
+    },
+    {
+     "code": "507",
+     "symbol": "CYS",
+     "unit": "Gram",
+     "name_en": "Cystine",
+     "amount": "0.556000000"
+    },
+    {
+     "code": "508",
+     "symbol": "PHE",
+     "unit": "Gram",
+     "name_en": "Phenylalanine",
+     "amount": "1.802000000"
+    },
+    {
+     "code": "509",
+     "symbol": "TYR",
+     "unit": "Gram",
+     "name_en": "Tyrosine",
+     "amount": "1.306000000"
+    },
+    {
+     "code": "510",
+     "symbol": "VAL",
+     "unit": "Gram",
+     "name_en": "Valine",
+     "amount": "1.724000000"
+    },
+    {
+     "code": "511",
+     "symbol": "ARG",
+     "unit": "Gram",
+     "name_en": "Arginine",
+     "amount": "2.679000000"
+    },
+    {
+     "code": "512",
+     "symbol": "HIS",
+     "unit": "Gram",
+     "name_en": "Histidine",
+     "amount": "0.931000000"
+    },
+    {
+     "code": "513",
+     "symbol": "ALA",
+     "unit": "Gram",
+     "name_en": "Alanine",
+     "amount": "1.627000000"
+    },
+    {
+     "code": "514",
+     "symbol": "ASP",
+     "unit": "Gram",
+     "name_en": "Aspartic acid",
+     "amount": "4.342000000"
+    },
+    {
+     "code": "515",
+     "symbol": "GLU",
+     "unit": "Gram",
+     "name_en": "Glutamic acid",
+     "amount": "6.689000000"
+    },
+    {
+     "code": "516",
+     "symbol": "GLY",
+     "unit": "Gram",
+     "name_en": "Glycine",
+     "amount": "1.597000000"
+    },
+    {
+     "code": "517",
+     "symbol": "PRO",
+     "unit": "Gram",
+     "name_en": "Proline",
+     "amount": "2.020000000"
+    },
+    {
+     "code": "518",
+     "symbol": "SER",
+     "unit": "Gram",
+     "name_en": "Serine",
+     "amount": "2.002000000"
+    },
+    {
+     "code": "601",
+     "symbol": "CHOL",
+     "unit": "Milligram",
+     "name_en": "Cholesterol",
+     "amount": "0"
+    },
+    {
+     "code": "605",
+     "symbol": "TRFA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, trans, total",
+     "amount": "0"
+    },
+    {
+     "code": "606",
+     "symbol": "TSAT",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, total",
+     "amount": "2.987000000"
+    },
+    {
+     "code": "607",
+     "symbol": "4:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 4:0, butanoic",
+     "amount": "0"
+    },
+    {
+     "code": "608",
+     "symbol": "6:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 6:0, hexanoic",
+     "amount": "0"
+    },
+    {
+     "code": "609",
+     "symbol": "8:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 8:0, octanoic",
+     "amount": "0"
+    },
+    {
+     "code": "610",
+     "symbol": "10:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 10:0, decanoic",
+     "amount": "0"
+    },
+    {
+     "code": "611",
+     "symbol": "12:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 12:0, dodecanoic",
+     "amount": "0"
+    },
+    {
+     "code": "612",
+     "symbol": "14:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 14:0, tetradecanoic",
+     "amount": "0.057000000"
+    },
+    {
+     "code": "613",
+     "symbol": "16:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 16:0, hexadecanoic",
+     "amount": "2.192000000"
+    },
+    {
+     "code": "614",
+     "symbol": "18:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 18:0, octadecanoic",
+     "amount": "0.737000000"
+    },
+    {
+     "code": "617",
+     "symbol": "18:1undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 18:1undifferentiated, octadecenoic",
+     "amount": "4.504000000"
+    },
+    {
+     "code": "618",
+     "symbol": "18:2undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:2undifferentiated, linoleic, octadecadienoic",
+     "amount": "10.280000000"
+    },
+    {
+     "code": "619",
+     "symbol": "18:3undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:3undifferentiated, linolenic, octadecatrienoic",
+     "amount": "1.378000000"
+    },
+    {
+     "code": "620",
+     "symbol": "20:4undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:4, eicosatetraenoic",
+     "amount": "0"
+    },
+    {
+     "code": "621",
+     "symbol": "22:6n-3DHA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 22:6 n-3, docosahexaenoic (DHA)",
+     "amount": "0"
+    },
+    {
+     "code": "626",
+     "symbol": "16:1undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 16:1undifferentiated, hexadecenoic",
+     "amount": "0.057000000"
+    },
+    {
+     "code": "627",
+     "symbol": "18:04",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:4, octadecatetraenoic",
+     "amount": "0"
+    },
+    {
+     "code": "628",
+     "symbol": "20:01",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 20:1, eicosenoic",
+     "amount": "0"
+    },
+    {
+     "code": "629",
+     "symbol": "20:5n-3EPA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:5 n-3, eicosapentaenoic (EPA)",
+     "amount": "0"
+    },
+    {
+     "code": "630",
+     "symbol": "22:1undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 22:1undifferentiated, docosenoic",
+     "amount": "0"
+    },
+    {
+     "code": "631",
+     "symbol": "22:5n-3DPA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 22:5 n-3, docosapentaenoic (DPA)",
+     "amount": "0"
+    },
+    {
+     "code": "645",
+     "symbol": "MUFA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, total",
+     "amount": "4.561000000"
+    },
+    {
+     "code": "646",
+     "symbol": "PUFA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, total",
+     "amount": "11.657000000"
+    },
+    {
+     "code": "685",
+     "symbol": "18:3cccn-6",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:3 c,c,c n-6, g-linolenic, octadecatrienoic",
+     "amount": "0"
+    },
+    {
+     "code": "851",
+     "symbol": "18:3cccn-3",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:3 c,c,c n-3  linolenic, octadecatrienoic",
+     "amount": "1.378000000"
+    },
+    {
+     "code": "852",
+     "symbol": "20:3n-3",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:3 n-3 eicosatrienoic",
+     "amount": "0"
+    },
+    {
+     "code": "853",
+     "symbol": "20:3n-6",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:3 n-6, eicosatrienoic",
+     "amount": "0"
+    }
+   ],
+   "measures": [
+    {
+     "measure_code": "374",
+     "description_en": "100 ml stirred",
+     "conversion": "35.926"
+    },
+    {
+     "measure_code": "750",
+     "description_en": "total refuse",
+     "conversion": "0"
+    },
+    {
+     "measure_code": "867",
+     "description_en": "1 serving",
+     "conversion": "20"
+    },
+    {
+     "measure_code": "1389",
+     "description_en": "250 ml stirred",
+     "conversion": "89.814"
+    },
+    {
+     "measure_code": "1467",
+     "description_en": "15 g",
+     "conversion": "15"
+    }
+   ]
+  },
+  {
+   "code": "4080",
+   "name_en": "Pie, tourtiere, commercial",
+   "name_fr": "Pâté, tourtière, commercial",
+   "nutrients": [
+    {
+     "code": "203",
+     "symbol": "PROT",
+     "unit": "Gram",
+     "name_en": "Protein",
+     "amount": "11.600000000"
+    },
+    {
+     "code": "204",
+     "symbol": "FAT",
+     "unit": "Gram",
+     "name_en": "Fat (total lipids)",
+     "amount": "26.500000000"
+    },
+    {
+     "code": "205",
+     "symbol": "CARB",
+     "unit": "Gram",
+     "name_en": "Carbohydrate, total (by difference)",
+     "amount": "24.700000000"
+    },
+    {
+     "code": "207",
+     "symbol": "ASH",
+     "unit": "Gram",
+     "name_en": "Ash, total",
+     "amount": "1.520000000"
+    },
+    {
+     "code": "208",
+     "symbol": "KCAL",
+     "unit": "kilocalorie",
+     "name_en": "Energy (kilocalories)",
+     "amount": "385.000000000"
+    },
+    {
+     "code": "221",
+     "symbol": "ALCO",
+     "unit": "Gram",
+     "name_en": "Alcohol",
+     "amount": "0"
+    },
+    {
+     "code": "255",
+     "symbol": "H2O",
+     "unit": "Gram",
+     "name_en": "Moisture",
+     "amount": "36.600000000"
+    },
+    {
+     "code": "262",
+     "symbol": "CAFF",
+     "unit": "Milligram",
+     "name_en": "Caffeine",
+     "amount": "0"
+    },
+    {
+     "code": "263",
+     "symbol": "THBR",
+     "unit": "Milligram",
+     "name_en": "Theobromine",
+     "amount": "0"
+    },
+    {
+     "code": "268",
+     "symbol": "KJ",
+     "unit": "kilojoule",
+     "name_en": "Energy (kilojoules)",
+     "amount": "1610.000000000"
+    },
+    {
+     "code": "291",
+     "symbol": "TDF",
+     "unit": "Gram",
+     "name_en": "Fibre, total dietary",
+     "amount": "0.914000000"
+    },
+    {
+     "code": "301",
+     "symbol": "CA",
+     "unit": "Milligram",
+     "name_en": "Calcium",
+     "amount": "17.000000000"
+    },
+    {
+     "code": "303",
+     "symbol": "FE",
+     "unit": "Milligram",
+     "name_en": "Iron",
+     "amount": "1.510000000"
+    },
+    {
+     "code": "304",
+     "symbol": "MG",
+     "unit": "Milligram",
+     "name_en": "Magnesium",
+     "amount": "20.100000000"
+    },
+    {
+     "code": "305",
+     "symbol": "P",
+     "unit": "Milligram",
+     "name_en": "Phosphorus",
+     "amount": "149.000000000"
+    },
+    {
+     "code": "306",
+     "symbol": "K",
+     "unit": "Milligram",
+     "name_en": "Potassium",
+     "amount": "200.000000000"
+    },
+    {
+     "code": "307",
+     "symbol": "NA",
+     "unit": "Milligram",
+     "name_en": "Sodium",
+     "amount": "500.000000000"
+    },
+    {
+     "code": "309",
+     "symbol": "ZN",
+     "unit": "Milligram",
+     "name_en": "Zinc",
+     "amount": "1.720000000"
+    },
+    {
+     "code": "312",
+     "symbol": "CU",
+     "unit": "Milligram",
+     "name_en": "Copper",
+     "amount": "0.107000000"
+    },
+    {
+     "code": "315",
+     "symbol": "MN",
+     "unit": "Milligram",
+     "name_en": "Manganese",
+     "amount": "0.196000000"
+    },
+    {
+     "code": "319",
+     "symbol": "RT-µg",
+     "unit": "Microgram",
+     "name_en": "Retinol",
+     "amount": "0.858000000"
+    },
+    {
+     "code": "320",
+     "symbol": "RAE",
+     "unit": "Microgram",
+     "name_en": "Retinol activity equivalents",
+     "amount": "1.064000000"
+    },
+    {
+     "code": "321",
+     "symbol": "BC-µg",
+     "unit": "Microgram",
+     "name_en": "Beta carotene",
+     "amount": "2.472000000"
+    },
+    {
+     "code": "324",
+     "symbol": "D3+D2-IU",
+     "unit": "International Unit",
+     "name_en": "Vitamin D (International Units)",
+     "amount": "6.000000000"
+    },
+    {
+     "code": "328",
+     "symbol": "D3+D2-µg",
+     "unit": "Microgram",
+     "name_en": "Vitamin D (D2 + D3)",
+     "amount": "0.100000000"
+    },
+    {
+     "code": "401",
+     "symbol": "VITC",
+     "unit": "Milligram",
+     "name_en": "Vitamin C",
+     "amount": "1.090000000"
+    },
+    {
+     "code": "404",
+     "symbol": "THIA",
+     "unit": "Milligram",
+     "name_en": "Thiamine",
+     "amount": "0.345000000"
+    },
+    {
+     "code": "405",
+     "symbol": "RIBO",
+     "unit": "Milligram",
+     "name_en": "Riboflavin",
+     "amount": "0.195000000"
+    },
+    {
+     "code": "406",
+     "symbol": "N-MG",
+     "unit": "Milligram",
+     "name_en": "Niacin (nicotinic acid) preformed",
+     "amount": "3.430000000"
+    },
+    {
+     "code": "409",
+     "symbol": "N-NE",
+     "unit": "Niacin Equivalents",
+     "name_en": "Total niacin equivalent",
+     "amount": "6.263330000"
+    },
+    {
+     "code": "410",
+     "symbol": "PANT",
+     "unit": "Milligram",
+     "name_en": "Pantothenic acid",
+     "amount": "0.526000000"
+    },
+    {
+     "code": "415",
+     "symbol": "B6",
+     "unit": "Milligram",
+     "name_en": "Vitamin B-6",
+     "amount": "0.182000000"
+    },
+    {
+     "code": "417",
+     "symbol": "FOLA",
+     "unit": "Microgram",
+     "name_en": "Total folacin",
+     "amount": "27.746000000"
+    },
+    {
+     "code": "418",
+     "symbol": "B12",
+     "unit": "Microgram",
+     "name_en": "Vitamin B-12",
+     "amount": "0.300000000"
+    },
+    {
+     "code": "431",
+     "symbol": "FOAC",
+     "unit": "Microgram",
+     "name_en": "Folic acid",
+     "amount": "17.976000000"
+    },
+    {
+     "code": "432",
+     "symbol": "FOLN",
+     "unit": "Microgram",
+     "name_en": "Naturally occurring folate",
+     "amount": "9.770000000"
+    },
+    {
+     "code": "435",
+     "symbol": "DFE",
+     "unit": "Microgram",
+     "name_en": "Dietary folate equivalents",
+     "amount": "40.329200000"
+    },
+    {
+     "code": "501",
+     "symbol": "TRP",
+     "unit": "Gram",
+     "name_en": "Tryptophan",
+     "amount": "0.170000000"
+    },
+    {
+     "code": "502",
+     "symbol": "THR",
+     "unit": "Gram",
+     "name_en": "Threonine",
+     "amount": "0.560000000"
+    },
+    {
+     "code": "503",
+     "symbol": "ISO",
+     "unit": "Gram",
+     "name_en": "Isoleucine",
+     "amount": "0.590000000"
+    },
+    {
+     "code": "504",
+     "symbol": "LEU",
+     "unit": "Gram",
+     "name_en": "Leucine",
+     "amount": "1.010000000"
+    },
+    {
+     "code": "505",
+     "symbol": "LYS",
+     "unit": "Gram",
+     "name_en": "Lysine",
+     "amount": "1.100000000"
+    },
+    {
+     "code": "506",
+     "symbol": "MET",
+     "unit": "Gram",
+     "name_en": "Methionine",
+     "amount": "0.300000000"
+    },
+    {
+     "code": "507",
+     "symbol": "CYS",
+     "unit": "Gram",
+     "name_en": "Cystine",
+     "amount": "0.185000000"
+    },
+    {
+     "code": "508",
+     "symbol": "PHE",
+     "unit": "Gram",
+     "name_en": "Phenylalanine",
+     "amount": "0.535000000"
+    },
+    {
+     "code": "509",
+     "symbol": "TYR",
+     "unit": "Gram",
+     "name_en": "Tyrosine",
+     "amount": "0.445000000"
+    },
+    {
+     "code": "510",
+     "symbol": "VAL",
+     "unit": "Gram",
+     "name_en": "Valine",
+     "amount": "0.656000000"
+    },
+    {
+     "code": "511",
+     "symbol": "ARG",
+     "unit": "Gram",
+     "name_en": "Arginine",
+     "amount": "0.841000000"
+    },
+    {
+     "code": "512",
+     "symbol": "HIS",
+     "unit": "Gram",
+     "name_en": "Histidine",
+     "amount": "0.586000000"
+    },
+    {
+     "code": "513",
+     "symbol": "ALA",
+     "unit": "Gram",
+     "name_en": "Alanine",
+     "amount": "0.698000000"
+    },
+    {
+     "code": "514",
+     "symbol": "ASP",
+     "unit": "Gram",
+     "name_en": "Aspartic acid",
+     "amount": "1.080000000"
+    },
+    {
+     "code": "515",
+     "symbol": "GLU",
+     "unit": "Gram",
+     "name_en": "Glutamic acid",
+     "amount": "2.390000000"
+    },
+    {
+     "code": "516",
+     "symbol": "GLY",
+     "unit": "Gram",
+     "name_en": "Glycine",
+     "amount": "0.565000000"
+    },
+    {
+     "code": "517",
+     "symbol": "PRO",
+     "unit": "Gram",
+     "name_en": "Proline",
+     "amount": "0.655000000"
+    },
+    {
+     "code": "518",
+     "symbol": "SER",
+     "unit": "Gram",
+     "name_en": "Serine",
+     "amount": "0.547000000"
+    },
+    {
+     "code": "601",
+     "symbol": "CHOL",
+     "unit": "Milligram",
+     "name_en": "Cholesterol",
+     "amount": "39.300000000"
+    },
+    {
+     "code": "606",
+     "symbol": "TSAT",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, total",
+     "amount": "5.480000000"
+    },
+    {
+     "code": "610",
+     "symbol": "10:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 10:0, decanoic",
+     "amount": "0.015000000"
+    },
+    {
+     "code": "611",
+     "symbol": "12:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 12:0, dodecanoic",
+     "amount": "0.026400000"
+    },
+    {
+     "code": "612",
+     "symbol": "14:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 14:0, tetradecanoic",
+     "amount": "0.177000000"
+    },
+    {
+     "code": "613",
+     "symbol": "16:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 16:0, hexadecanoic",
+     "amount": "3.280000000"
+    },
+    {
+     "code": "614",
+     "symbol": "18:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 18:0, octadecanoic",
+     "amount": "1.810000000"
+    },
+    {
+     "code": "617",
+     "symbol": "18:1undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 18:1undifferentiated, octadecenoic",
+     "amount": "5.800000000"
+    },
+    {
+     "code": "618",
+     "symbol": "18:2undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:2undifferentiated, linoleic, octadecadienoic",
+     "amount": "1.510000000"
+    },
+    {
+     "code": "619",
+     "symbol": "18:3undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:3undifferentiated, linolenic, octadecatrienoic",
+     "amount": "0.134000000"
+    },
+    {
+     "code": "620",
+     "symbol": "20:4undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:4, eicosatetraenoic",
+     "amount": "0.028000000"
+    },
+    {
+     "code": "621",
+     "symbol": "22:6n-3DHA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 22:6 n-3, docosahexaenoic (DHA)",
+     "amount": "0"
+    },
+    {
+     "code": "626",
+     "symbol": "16:1undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 16:1undifferentiated, hexadecenoic",
+     "amount": "0.383000000"
+    },
+    {
+     "code": "628",
+     "symbol": "20:01",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 20:1, eicosenoic",
+     "amount": "0.132000000"
+    },
+    {
+     "code": "631",
+     "symbol": "22:5n-3DPA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 22:5 n-3, docosapentaenoic (DPA)",
+     "amount": "0"
+    },
+    {
+     "code": "645",
+     "symbol": "MUFA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, total",
+     "amount": "6.330000000"
+    },
+    {
+     "code": "646",
+     "symbol": "PUFA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, total",
+     "amount": "1.690000000"
+    },
+    {
+     "code": "685",
+     "symbol": "18:3cccn-6",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:3 c,c,c n-6, g-linolenic, octadecatrienoic",
+     "amount": "0"
+    },
+    {
+     "code": "689",
+     "symbol": "20:3undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:3, eicosatrienoic",
+     "amount": "0"
+    },
+    {
+     "code": "851",
+     "symbol": "18:3cccn-3",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:3 c,c,c n-3  linolenic, octadecatrienoic",
+     "amount": "0.134000000"
+    },
+    {
+     "code": "852",
+     "symbol": "20:3n-3",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:3 n-3 eicosatrienoic",
+     "amount": "0"
+    },
+    {
+     "code": "853",
+     "symbol": "20:3n-6",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:3 n-6, eicosatrienoic",
+     "amount": "0"
+    }
+   ],
+   "measures": [
+    {
+     "measure_code": "193",
+     "description_en": "1 pie (20 cm dia)",
+     "conversion": "450"
+    },
+    {
+     "measure_code": "196",
+     "description_en": "1 piece",
+     "conversion": "113"
+    },
+    {
+     "measure_code": "341",
+     "description_en": "100 ml",
+     "conversion": "106.508"
+    },
+    {
+     "measure_code": "750",
+     "description_en": "total refuse",
+     "conversion": "0"
+    },
+    {
+     "measure_code": "1457",
+     "description_en": "140 g",
+     "conversion": "140"
+    }
+   ]
+  },
+  {
+   "code": "5081",
+   "name_en": "Cereal, hot, oats (oatmeal), instant: dinosaur eggs, dry, Quaker",
+   "name_fr": "Céréale, chaude, avoine (gruau), instantanée: dinosoeufs, sèche, Quaker",
+   "nutrients": [
+    {
+     "code": "203",
+     "symbol": "PROT",
+     "unit": "Gram",
+     "name_en": "Protein",
+     "amount": "7.940000000"
+    },
+    {
+     "code": "204",
+     "symbol": "FAT",
+     "unit": "Gram",
+     "name_en": "Fat (total lipids)",
+     "amount": "6.980000000"
+    },
+    {
+     "code": "205",
+     "symbol": "CARB",
+     "unit": "Gram",
+     "name_en": "Carbohydrate, total (by difference)",
+     "amount": "76.440000000"
+    },
+    {
+     "code": "207",
+     "symbol": "ASH",
+     "unit": "Gram",
+     "name_en": "Ash, total",
+     "amount": "2.836000000"
+    },
+    {
+     "code": "208",
+     "symbol": "KCAL",
+     "unit": "kilocalorie",
+     "name_en": "Energy (kilocalories)",
+     "amount": "400.000000000"
+    },
+    {
+     "code": "221",
+     "symbol": "ALCO",
+     "unit": "Gram",
+     "name_en": "Alcohol",
+     "amount": "0"
+    },
+    {
+     "code": "255",
+     "symbol": "H2O",
+     "unit": "Gram",
+     "name_en": "Moisture",
+     "amount": "5.800000000"
+    },
+    {
+     "code": "262",
+     "symbol": "CAFF",
+     "unit": "Milligram",
+     "name_en": "Caffeine",
+     "amount": "0"
+    },
+    {
+     "code": "263",
+     "symbol": "THBR",
+     "unit": "Milligram",
+     "name_en": "Theobromine",
+     "amount": "0"
+    },
+    {
+     "code": "268",
+     "symbol": "KJ",
+     "unit": "kilojoule",
+     "name_en": "Energy (kilojoules)",
+     "amount": "1673.000000000"
+    },
+    {
+     "code": "269",
+     "symbol": "TSUG",
+     "unit": "Gram",
+     "name_en": "Sugars, total",
+     "amount": "33.350000000"
+    },
+    {
+     "code": "291",
+     "symbol": "TDF",
+     "unit": "Gram",
+     "name_en": "Fibre, total dietary",
+     "amount": "6.200000000"
+    },
+    {
+     "code": "301",
+     "symbol": "CA",
+     "unit": "Milligram",
+     "name_en": "Calcium",
+     "amount": "184.000000000"
+    },
+    {
+     "code": "303",
+     "symbol": "FE",
+     "unit": "Milligram",
+     "name_en": "Iron",
+     "amount": "13.520000000"
+    },
+    {
+     "code": "304",
+     "symbol": "MG",
+     "unit": "Milligram",
+     "name_en": "Magnesium",
+     "amount": "80.000000000"
+    },
+    {
+     "code": "305",
+     "symbol": "P",
+     "unit": "Milligram",
+     "name_en": "Phosphorus",
+     "amount": "271.000000000"
+    },
+    {
+     "code": "306",
+     "symbol": "K",
+     "unit": "Milligram",
+     "name_en": "Potassium",
+     "amount": "234.000000000"
+    },
+    {
+     "code": "307",
+     "symbol": "NA",
+     "unit": "Milligram",
+     "name_en": "Sodium",
+     "amount": "508.000000000"
+    },
+    {
+     "code": "309",
+     "symbol": "ZN",
+     "unit": "Milligram",
+     "name_en": "Zinc",
+     "amount": "1.820000000"
+    },
+    {
+     "code": "312",
+     "symbol": "CU",
+     "unit": "Milligram",
+     "name_en": "Copper",
+     "amount": "0.231000000"
+    },
+    {
+     "code": "315",
+     "symbol": "MN",
+     "unit": "Milligram",
+     "name_en": "Manganese",
+     "amount": "2.533000000"
+    },
+    {
+     "code": "324",
+     "symbol": "D3+D2-IU",
+     "unit": "International Unit",
+     "name_en": "Vitamin D (International Units)",
+     "amount": "0"
+    },
+    {
+     "code": "328",
+     "symbol": "D3+D2-µg",
+     "unit": "Microgram",
+     "name_en": "Vitamin D (D2 + D3)",
+     "amount": "0"
+    },
+    {
+     "code": "401",
+     "symbol": "VITC",
+     "unit": "Milligram",
+     "name_en": "Vitamin C",
+     "amount": "0.013000000"
+    },
+    {
+     "code": "404",
+     "symbol": "THIA",
+     "unit": "Milligram",
+     "name_en": "Thiamine",
+     "amount": "2.044000000"
+    },
+    {
+     "code": "405",
+     "symbol": "RIBO",
+     "unit": "Milligram",
+     "name_en": "Riboflavin",
+     "amount": "0.077000000"
+    },
+    {
+     "code": "406",
+     "symbol": "N-MG",
+     "unit": "Milligram",
+     "name_en": "Niacin (nicotinic acid) preformed",
+     "amount": "4.667000000"
+    },
+    {
+     "code": "409",
+     "symbol": "N-NE",
+     "unit": "Niacin Equivalents",
+     "name_en": "Total niacin equivalent",
+     "amount": "6.122670000"
+    },
+    {
+     "code": "410",
+     "symbol": "PANT",
+     "unit": "Milligram",
+     "name_en": "Pantothenic acid",
+     "amount": "1.532000000"
+    },
+    {
+     "code": "415",
+     "symbol": "B6",
+     "unit": "Milligram",
+     "name_en": "Vitamin B-6",
+     "amount": "0.609000000"
+    },
+    {
+     "code": "417",
+     "symbol": "FOLA",
+     "unit": "Microgram",
+     "name_en": "Total folacin",
+     "amount": "67.000000000"
+    },
+    {
+     "code": "418",
+     "symbol": "B12",
+     "unit": "Microgram",
+     "name_en": "Vitamin B-12",
+     "amount": "0"
+    },
+    {
+     "code": "431",
+     "symbol": "FOAC",
+     "unit": "Microgram",
+     "name_en": "Folic acid",
+     "amount": "51.000000000"
+    },
+    {
+     "code": "432",
+     "symbol": "FOLN",
+     "unit": "Microgram",
+     "name_en": "Naturally occurring folate",
+     "amount": "16.000000000"
+    },
+    {
+     "code": "435",
+     "symbol": "DFE",
+     "unit": "Microgram",
+     "name_en": "Dietary folate equivalents",
+     "amount": "102.700000000"
+    },
+    {
+     "code": "601",
+     "symbol": "CHOL",
+     "unit": "Milligram",
+     "name_en": "Cholesterol",
+     "amount": "0"
+    },
+    {
+     "code": "605",
+     "symbol": "TRFA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, trans, total",
+     "amount": "0"
+    },
+    {
+     "code": "606",
+     "symbol": "TSAT",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, total",
+     "amount": "2.278000000"
+    },
+    {
+     "code": "621",
+     "symbol": "22:6n-3DHA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 22:6 n-3, docosahexaenoic (DHA)",
+     "amount": "0"
+    },
+    {
+     "code": "631",
+     "symbol": "22:5n-3DPA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 22:5 n-3, docosapentaenoic (DPA)",
+     "amount": "0"
+    },
+    {
+     "code": "645",
+     "symbol": "MUFA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, total",
+     "amount": "2.473000000"
+    },
+    {
+     "code": "646",
+     "symbol": "PUFA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, total",
+     "amount": "1.551000000"
+    },
+    {
+     "code": "685",
+     "symbol": "18:3cccn-6",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:3 c,c,c n-6, g-linolenic, octadecatrienoic",
+     "amount": "0"
+    },
+    {
+     "code": "852",
+     "symbol": "20:3n-3",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:3 n-3 eicosatrienoic",
+     "amount": "0"
+    },
+    {
+     "code": "853",
+     "symbol": "20:3n-6",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:3 n-6, eicosatrienoic",
+     "amount": "0"
+    }
+   ],
+   "measures": [
+    {
+     "measure_code": "750",
+     "description_en": "total refuse",
+     "conversion": "0"
+    },
+    {
+     "measure_code": "867",
+     "description_en": "1 serving",
+     "conversion": "46"
+    },
+    {
+     "measure_code": "1456",
+     "description_en": "40 g",
+     "conversion": "40"
+    },
+    {
+     "measure_code": "1582",
+     "description_en": "amount to make 175ml cooked",
+     "conversion": "46"
+    }
+   ]
+  },
+  {
+   "code": "5908",
+   "name_en": "Willow, Indigenous, leaves in oil",
+   "name_fr": "Feuilles de saule, autochtone, dans l'huile",
+   "nutrients": [
+    {
+     "code": "203",
+     "symbol": "PROT",
+     "unit": "Gram",
+     "name_en": "Protein",
+     "amount": "2.600000000"
+    },
+    {
+     "code": "204",
+     "symbol": "FAT",
+     "unit": "Gram",
+     "name_en": "Fat (total lipids)",
+     "amount": "61.000000000"
+    },
+    {
+     "code": "205",
+     "symbol": "CARB",
+     "unit": "Gram",
+     "name_en": "Carbohydrate, total (by difference)",
+     "amount": "8.100000000"
+    },
+    {
+     "code": "207",
+     "symbol": "ASH",
+     "unit": "Gram",
+     "name_en": "Ash, total",
+     "amount": "0.300000000"
+    },
+    {
+     "code": "208",
+     "symbol": "KCAL",
+     "unit": "kilocalorie",
+     "name_en": "Energy (kilocalories)",
+     "amount": "592.000000000"
+    },
+    {
+     "code": "221",
+     "symbol": "ALCO",
+     "unit": "Gram",
+     "name_en": "Alcohol",
+     "amount": "0"
+    },
+    {
+     "code": "255",
+     "symbol": "H2O",
+     "unit": "Gram",
+     "name_en": "Moisture",
+     "amount": "28.000000000"
+    },
+    {
+     "code": "262",
+     "symbol": "CAFF",
+     "unit": "Milligram",
+     "name_en": "Caffeine",
+     "amount": "0"
+    },
+    {
+     "code": "263",
+     "symbol": "THBR",
+     "unit": "Milligram",
+     "name_en": "Theobromine",
+     "amount": "0"
+    },
+    {
+     "code": "268",
+     "symbol": "KJ",
+     "unit": "kilojoule",
+     "name_en": "Energy (kilojoules)",
+     "amount": "2476.000000000"
+    },
+    {
+     "code": "303",
+     "symbol": "FE",
+     "unit": "Milligram",
+     "name_en": "Iron",
+     "amount": "1.300000000"
+    },
+    {
+     "code": "305",
+     "symbol": "P",
+     "unit": "Milligram",
+     "name_en": "Phosphorus",
+     "amount": "58.000000000"
+    },
+    {
+     "code": "324",
+     "symbol": "D3+D2-IU",
+     "unit": "International Unit",
+     "name_en": "Vitamin D (International Units)",
+     "amount": "0"
+    },
+    {
+     "code": "328",
+     "symbol": "D3+D2-µg",
+     "unit": "Microgram",
+     "name_en": "Vitamin D (D2 + D3)",
+     "amount": "0"
+    },
+    {
+     "code": "418",
+     "symbol": "B12",
+     "unit": "Microgram",
+     "name_en": "Vitamin B-12",
+     "amount": "0"
+    },
+    {
+     "code": "431",
+     "symbol": "FOAC",
+     "unit": "Microgram",
+     "name_en": "Folic acid",
+     "amount": "0"
+    },
+    {
+     "code": "621",
+     "symbol": "22:6n-3DHA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 22:6 n-3, docosahexaenoic (DHA)",
+     "amount": "0"
+    },
+    {
+     "code": "631",
+     "symbol": "22:5n-3DPA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 22:5 n-3, docosapentaenoic (DPA)",
+     "amount": "0"
+    },
+    {
+     "code": "685",
+     "symbol": "18:3cccn-6",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:3 c,c,c n-6, g-linolenic, octadecatrienoic",
+     "amount": "0"
+    },
+    {
+     "code": "852",
+     "symbol": "20:3n-3",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:3 n-3 eicosatrienoic",
+     "amount": "0"
+    },
+    {
+     "code": "853",
+     "symbol": "20:3n-6",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:3 n-6, eicosatrienoic",
+     "amount": "0"
+    }
+   ],
+   "measures": [
+    {
+     "measure_code": "750",
+     "description_en": "total refuse",
+     "conversion": "0"
+    },
+    {
+     "measure_code": "1454",
+     "description_en": "30 g",
+     "conversion": "30"
+    }
+   ]
+  },
+  {
+   "code": "6662",
+   "name_en": "Juice, apple and grape, with added vitamin C",
+   "name_fr": "Jus, pommes et raisins, vitamine C ajoutée",
+   "nutrients": [
+    {
+     "code": "203",
+     "symbol": "PROT",
+     "unit": "Gram",
+     "name_en": "Protein",
+     "amount": "0.160000000"
+    },
+    {
+     "code": "204",
+     "symbol": "FAT",
+     "unit": "Gram",
+     "name_en": "Fat (total lipids)",
+     "amount": "0.120000000"
+    },
+    {
+     "code": "205",
+     "symbol": "CARB",
+     "unit": "Gram",
+     "name_en": "Carbohydrate, total (by difference)",
+     "amount": "12.460000000"
+    },
+    {
+     "code": "207",
+     "symbol": "ASH",
+     "unit": "Gram",
+     "name_en": "Ash, total",
+     "amount": "0.220000000"
+    },
+    {
+     "code": "208",
+     "symbol": "KCAL",
+     "unit": "kilocalorie",
+     "name_en": "Energy (kilocalories)",
+     "amount": "50.000000000"
+    },
+    {
+     "code": "210",
+     "symbol": "SUCR",
+     "unit": "Gram",
+     "name_en": "Sucrose",
+     "amount": "0.740000000"
+    },
+    {
+     "code": "211",
+     "symbol": "GLUC",
+     "unit": "Gram",
+     "name_en": "Glucose",
+     "amount": "3.720000000"
+    },
+    {
+     "code": "212",
+     "symbol": "FRUC",
+     "unit": "Gram",
+     "name_en": "Fructose",
+     "amount": "6.460000000"
+    },
+    {
+     "code": "213",
+     "symbol": "LACT",
+     "unit": "Gram",
+     "name_en": "Lactose",
+     "amount": "0"
+    },
+    {
+     "code": "214",
+     "symbol": "MALT",
+     "unit": "Gram",
+     "name_en": "Maltose",
+     "amount": "0"
+    },
+    {
+     "code": "221",
+     "symbol": "ALCO",
+     "unit": "Gram",
+     "name_en": "Alcohol",
+     "amount": "0"
+    },
+    {
+     "code": "255",
+     "symbol": "H2O",
+     "unit": "Gram",
+     "name_en": "Moisture",
+     "amount": "87.050000000"
+    },
+    {
+     "code": "262",
+     "symbol": "CAFF",
+     "unit": "Milligram",
+     "name_en": "Caffeine",
+     "amount": "0"
+    },
+    {
+     "code": "263",
+     "symbol": "THBR",
+     "unit": "Milligram",
+     "name_en": "Theobromine",
+     "amount": "0"
+    },
+    {
+     "code": "268",
+     "symbol": "KJ",
+     "unit": "kilojoule",
+     "name_en": "Energy (kilojoules)",
+     "amount": "211.000000000"
+    },
+    {
+     "code": "269",
+     "symbol": "TSUG",
+     "unit": "Gram",
+     "name_en": "Sugars, total",
+     "amount": "10.920000000"
+    },
+    {
+     "code": "287",
+     "symbol": "GAL",
+     "unit": "Gram",
+     "name_en": "Galactose",
+     "amount": "0"
+    },
+    {
+     "code": "291",
+     "symbol": "TDF",
+     "unit": "Gram",
+     "name_en": "Fibre, total dietary",
+     "amount": "0.200000000"
+    },
+    {
+     "code": "301",
+     "symbol": "CA",
+     "unit": "Milligram",
+     "name_en": "Calcium",
+     "amount": "11.000000000"
+    },
+    {
+     "code": "303",
+     "symbol": "FE",
+     "unit": "Milligram",
+     "name_en": "Iron",
+     "amount": "0.110000000"
+    },
+    {
+     "code": "304",
+     "symbol": "MG",
+     "unit": "Milligram",
+     "name_en": "Magnesium",
+     "amount": "7.000000000"
+    },
+    {
+     "code": "305",
+     "symbol": "P",
+     "unit": "Milligram",
+     "name_en": "Phosphorus",
+     "amount": "9.000000000"
+    },
+    {
+     "code": "306",
+     "symbol": "K",
+     "unit": "Milligram",
+     "name_en": "Potassium",
+     "amount": "96.000000000"
+    },
+    {
+     "code": "307",
+     "symbol": "NA",
+     "unit": "Milligram",
+     "name_en": "Sodium",
+     "amount": "7.000000000"
+    },
+    {
+     "code": "309",
+     "symbol": "ZN",
+     "unit": "Milligram",
+     "name_en": "Zinc",
+     "amount": "0.050000000"
+    },
+    {
+     "code": "312",
+     "symbol": "CU",
+     "unit": "Milligram",
+     "name_en": "Copper",
+     "amount": "0.010000000"
+    },
+    {
+     "code": "315",
+     "symbol": "MN",
+     "unit": "Milligram",
+     "name_en": "Manganese",
+     "amount": "0.040000000"
+    },
+    {
+     "code": "317",
+     "symbol": "SE",
+     "unit": "Microgram",
+     "name_en": "Selenium",
+     "amount": "0.100000000"
+    },
+    {
+     "code": "319",
+     "symbol": "RT-µg",
+     "unit": "Microgram",
+     "name_en": "Retinol",
+     "amount": "0"
+    },
+    {
+     "code": "320",
+     "symbol": "RAE",
+     "unit": "Microgram",
+     "name_en": "Retinol activity equivalents",
+     "amount": "0"
+    },
+    {
+     "code": "321",
+     "symbol": "BC-µg",
+     "unit": "Microgram",
+     "name_en": "Beta carotene",
+     "amount": "2.000000000"
+    },
+    {
+     "code": "322",
+     "symbol": "AC-µg",
+     "unit": "Microgram",
+     "name_en": "Alpha carotene",
+     "amount": "0"
+    },
+    {
+     "code": "323",
+     "symbol": "ATMG",
+     "unit": "Milligram",
+     "name_en": "Alpha-tocopherol",
+     "amount": "0.010000000"
+    },
+    {
+     "code": "324",
+     "symbol": "D3+D2-IU",
+     "unit": "International Unit",
+     "name_en": "Vitamin D (International Units)",
+     "amount": "0"
+    },
+    {
+     "code": "328",
+     "symbol": "D3+D2-µg",
+     "unit": "Microgram",
+     "name_en": "Vitamin D (D2 + D3)",
+     "amount": "0"
+    },
+    {
+     "code": "334",
+     "symbol": "CRYPX",
+     "unit": "Microgram",
+     "name_en": "Beta cryptoxanthin",
+     "amount": "0"
+    },
+    {
+     "code": "337",
+     "symbol": "LYCPN",
+     "unit": "Microgram",
+     "name_en": "Lycopene",
+     "amount": "0"
+    },
+    {
+     "code": "338",
+     "symbol": "LUT+ZEA",
+     "unit": "Microgram",
+     "name_en": "Lutein and zeaxanthin",
+     "amount": "33.000000000"
+    },
+    {
+     "code": "401",
+     "symbol": "VITC",
+     "unit": "Milligram",
+     "name_en": "Vitamin C",
+     "amount": "28.200000000"
+    },
+    {
+     "code": "404",
+     "symbol": "THIA",
+     "unit": "Milligram",
+     "name_en": "Thiamine",
+     "amount": "0.006000000"
+    },
+    {
+     "code": "405",
+     "symbol": "RIBO",
+     "unit": "Milligram",
+     "name_en": "Riboflavin",
+     "amount": "0.010000000"
+    },
+    {
+     "code": "406",
+     "symbol": "N-MG",
+     "unit": "Milligram",
+     "name_en": "Niacin (nicotinic acid) preformed",
+     "amount": "0.080000000"
+    },
+    {
+     "code": "409",
+     "symbol": "N-NE",
+     "unit": "Niacin Equivalents",
+     "name_en": "Total niacin equivalent",
+     "amount": "0.109330000"
+    },
+    {
+     "code": "410",
+     "symbol": "PANT",
+     "unit": "Milligram",
+     "name_en": "Pantothenic acid",
+     "amount": "0.030000000"
+    },
+    {
+     "code": "415",
+     "symbol": "B6",
+     "unit": "Milligram",
+     "name_en": "Vitamin B-6",
+     "amount": "0.020000000"
+    },
+    {
+     "code": "417",
+     "symbol": "FOLA",
+     "unit": "Microgram",
+     "name_en": "Total folacin",
+     "amount": "0"
+    },
+    {
+     "code": "418",
+     "symbol": "B12",
+     "unit": "Microgram",
+     "name_en": "Vitamin B-12",
+     "amount": "0"
+    },
+    {
+     "code": "421",
+     "symbol": "CHOLN",
+     "unit": "Milligram",
+     "name_en": "Choline, total",
+     "amount": "2.400000000"
+    },
+    {
+     "code": "430",
+     "symbol": "VITK",
+     "unit": "Microgram",
+     "name_en": "Vitamin K (phylloquinone)",
+     "amount": "0.200000000"
+    },
+    {
+     "code": "431",
+     "symbol": "FOAC",
+     "unit": "Microgram",
+     "name_en": "Folic acid",
+     "amount": "0"
+    },
+    {
+     "code": "432",
+     "symbol": "FOLN",
+     "unit": "Microgram",
+     "name_en": "Naturally occurring folate",
+     "amount": "0"
+    },
+    {
+     "code": "435",
+     "symbol": "DFE",
+     "unit": "Microgram",
+     "name_en": "Dietary folate equivalents",
+     "amount": "0"
+    },
+    {
+     "code": "601",
+     "symbol": "CHOL",
+     "unit": "Milligram",
+     "name_en": "Cholesterol",
+     "amount": "0"
+    },
+    {
+     "code": "605",
+     "symbol": "TRFA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, trans, total",
+     "amount": "0"
+    },
+    {
+     "code": "606",
+     "symbol": "TSAT",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, total",
+     "amount": "0.023000000"
+    },
+    {
+     "code": "607",
+     "symbol": "4:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 4:0, butanoic",
+     "amount": "0"
+    },
+    {
+     "code": "608",
+     "symbol": "6:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 6:0, hexanoic",
+     "amount": "0"
+    },
+    {
+     "code": "609",
+     "symbol": "8:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 8:0, octanoic",
+     "amount": "0"
+    },
+    {
+     "code": "610",
+     "symbol": "10:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 10:0, decanoic",
+     "amount": "0"
+    },
+    {
+     "code": "611",
+     "symbol": "12:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 12:0, dodecanoic",
+     "amount": "0"
+    },
+    {
+     "code": "612",
+     "symbol": "14:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 14:0, tetradecanoic",
+     "amount": "0.001000000"
+    },
+    {
+     "code": "613",
+     "symbol": "16:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 16:0, hexadecanoic",
+     "amount": "0.019000000"
+    },
+    {
+     "code": "614",
+     "symbol": "18:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 18:0, octadecanoic",
+     "amount": "0.003000000"
+    },
+    {
+     "code": "617",
+     "symbol": "18:1undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 18:1undifferentiated, octadecenoic",
+     "amount": "0.004000000"
+    },
+    {
+     "code": "618",
+     "symbol": "18:2undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:2undifferentiated, linoleic, octadecadienoic",
+     "amount": "0.027000000"
+    },
+    {
+     "code": "619",
+     "symbol": "18:3undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:3undifferentiated, linolenic, octadecatrienoic",
+     "amount": "0.006000000"
+    },
+    {
+     "code": "620",
+     "symbol": "20:4undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:4, eicosatetraenoic",
+     "amount": "0"
+    },
+    {
+     "code": "621",
+     "symbol": "22:6n-3DHA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 22:6 n-3, docosahexaenoic (DHA)",
+     "amount": "0"
+    },
+    {
+     "code": "626",
+     "symbol": "16:1undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 16:1undifferentiated, hexadecenoic",
+     "amount": "0"
+    },
+    {
+     "code": "627",
+     "symbol": "18:04",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:4, octadecatetraenoic",
+     "amount": "0"
+    },
+    {
+     "code": "628",
+     "symbol": "20:01",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 20:1, eicosenoic",
+     "amount": "0"
+    },
+    {
+     "code": "629",
+     "symbol": "20:5n-3EPA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:5 n-3, eicosapentaenoic (EPA)",
+     "amount": "0"
+    },
+    {
+     "code": "630",
+     "symbol": "22:1undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 22:1undifferentiated, docosenoic",
+     "amount": "0"
+    },
+    {
+     "code": "631",
+     "symbol": "22:5n-3DPA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 22:5 n-3, docosapentaenoic (DPA)",
+     "amount": "0"
+    },
+    {
+     "code": "645",
+     "symbol": "MUFA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, total",
+     "amount": "0.005000000"
+    },
+    {
+     "code": "646",
+     "symbol": "PUFA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, total",
+     "amount": "0.032000000"
+    },
+    {
+     "code": "685",
+     "symbol": "18:3cccn-6",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:3 c,c,c n-6, g-linolenic, octadecatrienoic",
+     "amount": "0"
+    },
+    {
+     "code": "852",
+     "symbol": "20:3n-3",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:3 n-3 eicosatrienoic",
+     "amount": "0"
+    },
+    {
+     "code": "853",
+     "symbol": "20:3n-6",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:3 n-6, eicosatrienoic",
+     "amount": "0"
+    }
+   ],
+   "measures": [
+    {
+     "measure_code": "341",
+     "description_en": "100 ml",
+     "conversion": "105.68"
+    },
+    {
+     "measure_code": "383",
+     "description_en": "125 ml",
+     "conversion": "132.1"
+    },
+    {
+     "measure_code": "415",
+     "description_en": "250 ml",
+     "conversion": "264.2"
+    },
+    {
+     "measure_code": "750",
+     "description_en": "total refuse",
+     "conversion": "0"
+    }
+   ]
+  },
+  {
+   "code": "7376",
+   "name_en": "Soup, chicken noodle, canned, condensed, reduced sodium",
+   "name_fr": "Soupe, poulet et nouilles, conserve, condensée, réduite en sodium",
+   "nutrients": [
+    {
+     "code": "203",
+     "symbol": "PROT",
+     "unit": "Gram",
+     "name_en": "Protein",
+     "amount": "2.560000000"
+    },
+    {
+     "code": "204",
+     "symbol": "FAT",
+     "unit": "Gram",
+     "name_en": "Fat (total lipids)",
+     "amount": "1.150000000"
+    },
+    {
+     "code": "205",
+     "symbol": "CARB",
+     "unit": "Gram",
+     "name_en": "Carbohydrate, total (by difference)",
+     "amount": "5.520000000"
+    },
+    {
+     "code": "207",
+     "symbol": "ASH",
+     "unit": "Gram",
+     "name_en": "Ash, total",
+     "amount": "1.300000000"
+    },
+    {
+     "code": "208",
+     "symbol": "KCAL",
+     "unit": "kilocalorie",
+     "name_en": "Energy (kilocalories)",
+     "amount": "43.000000000"
+    },
+    {
+     "code": "210",
+     "symbol": "SUCR",
+     "unit": "Gram",
+     "name_en": "Sucrose",
+     "amount": "0.260000000"
+    },
+    {
+     "code": "211",
+     "symbol": "GLUC",
+     "unit": "Gram",
+     "name_en": "Glucose",
+     "amount": "0.060000000"
+    },
+    {
+     "code": "212",
+     "symbol": "FRUC",
+     "unit": "Gram",
+     "name_en": "Fructose",
+     "amount": "0.070000000"
+    },
+    {
+     "code": "213",
+     "symbol": "LACT",
+     "unit": "Gram",
+     "name_en": "Lactose",
+     "amount": "0"
+    },
+    {
+     "code": "214",
+     "symbol": "MALT",
+     "unit": "Gram",
+     "name_en": "Maltose",
+     "amount": "0.070000000"
+    },
+    {
+     "code": "221",
+     "symbol": "ALCO",
+     "unit": "Gram",
+     "name_en": "Alcohol",
+     "amount": "0"
+    },
+    {
+     "code": "255",
+     "symbol": "H2O",
+     "unit": "Gram",
+     "name_en": "Moisture",
+     "amount": "89.470000000"
+    },
+    {
+     "code": "262",
+     "symbol": "CAFF",
+     "unit": "Milligram",
+     "name_en": "Caffeine",
+     "amount": "0"
+    },
+    {
+     "code": "263",
+     "symbol": "THBR",
+     "unit": "Milligram",
+     "name_en": "Theobromine",
+     "amount": "0"
+    },
+    {
+     "code": "268",
+     "symbol": "KJ",
+     "unit": "kilojoule",
+     "name_en": "Energy (kilojoules)",
+     "amount": "180.000000000"
+    },
+    {
+     "code": "269",
+     "symbol": "TSUG",
+     "unit": "Gram",
+     "name_en": "Sugars, total",
+     "amount": "0.460000000"
+    },
+    {
+     "code": "287",
+     "symbol": "GAL",
+     "unit": "Gram",
+     "name_en": "Galactose",
+     "amount": "0"
+    },
+    {
+     "code": "291",
+     "symbol": "TDF",
+     "unit": "Gram",
+     "name_en": "Fibre, total dietary",
+     "amount": "0.800000000"
+    },
+    {
+     "code": "301",
+     "symbol": "CA",
+     "unit": "Milligram",
+     "name_en": "Calcium",
+     "amount": "9.000000000"
+    },
+    {
+     "code": "303",
+     "symbol": "FE",
+     "unit": "Milligram",
+     "name_en": "Iron",
+     "amount": "0.400000000"
+    },
+    {
+     "code": "304",
+     "symbol": "MG",
+     "unit": "Milligram",
+     "name_en": "Magnesium",
+     "amount": "7.000000000"
+    },
+    {
+     "code": "305",
+     "symbol": "P",
+     "unit": "Milligram",
+     "name_en": "Phosphorus",
+     "amount": "41.000000000"
+    },
+    {
+     "code": "306",
+     "symbol": "K",
+     "unit": "Milligram",
+     "name_en": "Potassium",
+     "amount": "293.000000000"
+    },
+    {
+     "code": "307",
+     "symbol": "NA",
+     "unit": "Milligram",
+     "name_en": "Sodium",
+     "amount": "388.000000000"
+    },
+    {
+     "code": "309",
+     "symbol": "ZN",
+     "unit": "Milligram",
+     "name_en": "Zinc",
+     "amount": "0.200000000"
+    },
+    {
+     "code": "312",
+     "symbol": "CU",
+     "unit": "Milligram",
+     "name_en": "Copper",
+     "amount": "0.031000000"
+    },
+    {
+     "code": "315",
+     "symbol": "MN",
+     "unit": "Milligram",
+     "name_en": "Manganese",
+     "amount": "0.067000000"
+    },
+    {
+     "code": "317",
+     "symbol": "SE",
+     "unit": "Microgram",
+     "name_en": "Selenium",
+     "amount": "5.600000000"
+    },
+    {
+     "code": "319",
+     "symbol": "RT-µg",
+     "unit": "Microgram",
+     "name_en": "Retinol",
+     "amount": "2.000000000"
+    },
+    {
+     "code": "320",
+     "symbol": "RAE",
+     "unit": "Microgram",
+     "name_en": "Retinol activity equivalents",
+     "amount": "22.000000000"
+    },
+    {
+     "code": "321",
+     "symbol": "BC-µg",
+     "unit": "Microgram",
+     "name_en": "Beta carotene",
+     "amount": "243.000000000"
+    },
+    {
+     "code": "322",
+     "symbol": "AC-µg",
+     "unit": "Microgram",
+     "name_en": "Alpha carotene",
+     "amount": "0"
+    },
+    {
+     "code": "323",
+     "symbol": "ATMG",
+     "unit": "Milligram",
+     "name_en": "Alpha-tocopherol",
+     "amount": "0.050000000"
+    },
+    {
+     "code": "324",
+     "symbol": "D3+D2-IU",
+     "unit": "International Unit",
+     "name_en": "Vitamin D (International Units)",
+     "amount": "0"
+    },
+    {
+     "code": "325",
+     "symbol": "D2-µg",
+     "unit": "Microgram",
+     "name_en": "Vitamin D2, ergocalciferol",
+     "amount": "0"
+    },
+    {
+     "code": "328",
+     "symbol": "D3+D2-µg",
+     "unit": "Microgram",
+     "name_en": "Vitamin D (D2 + D3)",
+     "amount": "0"
+    },
+    {
+     "code": "334",
+     "symbol": "CRYPX",
+     "unit": "Microgram",
+     "name_en": "Beta cryptoxanthin",
+     "amount": "0"
+    },
+    {
+     "code": "337",
+     "symbol": "LYCPN",
+     "unit": "Microgram",
+     "name_en": "Lycopene",
+     "amount": "0"
+    },
+    {
+     "code": "338",
+     "symbol": "LUT+ZEA",
+     "unit": "Microgram",
+     "name_en": "Lutein and zeaxanthin",
+     "amount": "7.000000000"
+    },
+    {
+     "code": "401",
+     "symbol": "VITC",
+     "unit": "Milligram",
+     "name_en": "Vitamin C",
+     "amount": "0"
+    },
+    {
+     "code": "404",
+     "symbol": "THIA",
+     "unit": "Milligram",
+     "name_en": "Thiamine",
+     "amount": "0.041000000"
+    },
+    {
+     "code": "405",
+     "symbol": "RIBO",
+     "unit": "Milligram",
+     "name_en": "Riboflavin",
+     "amount": "0.065000000"
+    },
+    {
+     "code": "406",
+     "symbol": "N-MG",
+     "unit": "Milligram",
+     "name_en": "Niacin (nicotinic acid) preformed",
+     "amount": "1.018000000"
+    },
+    {
+     "code": "409",
+     "symbol": "N-NE",
+     "unit": "Niacin Equivalents",
+     "name_en": "Total niacin equivalent",
+     "amount": "1.487330000"
+    },
+    {
+     "code": "410",
+     "symbol": "PANT",
+     "unit": "Milligram",
+     "name_en": "Pantothenic acid",
+     "amount": "0.107000000"
+    },
+    {
+     "code": "415",
+     "symbol": "B6",
+     "unit": "Milligram",
+     "name_en": "Vitamin B-6",
+     "amount": "0.021000000"
+    },
+    {
+     "code": "417",
+     "symbol": "FOLA",
+     "unit": "Microgram",
+     "name_en": "Total folacin",
+     "amount": "25.000000000"
+    },
+    {
+     "code": "418",
+     "symbol": "B12",
+     "unit": "Microgram",
+     "name_en": "Vitamin B-12",
+     "amount": "0.020000000"
+    },
+    {
+     "code": "421",
+     "symbol": "CHOLN",
+     "unit": "Milligram",
+     "name_en": "Choline, total",
+     "amount": "11.200000000"
+    },
+    {
+     "code": "430",
+     "symbol": "VITK",
+     "unit": "Microgram",
+     "name_en": "Vitamin K (phylloquinone)",
+     "amount": "0"
+    },
+    {
+     "code": "431",
+     "symbol": "FOAC",
+     "unit": "Microgram",
+     "name_en": "Folic acid",
+     "amount": "17.000000000"
+    },
+    {
+     "code": "432",
+     "symbol": "FOLN",
+     "unit": "Microgram",
+     "name_en": "Naturally occurring folate",
+     "amount": "8.000000000"
+    },
+    {
+     "code": "435",
+     "symbol": "DFE",
+     "unit": "Microgram",
+     "name_en": "Dietary folate equivalents",
+     "amount": "36.900000000"
+    },
+    {
+     "code": "573",
+     "symbol": "ATMG-A",
+     "unit": "Milligram",
+     "name_en": "Alpha-tocopherol, added",
+     "amount": "0"
+    },
+    {
+     "code": "578",
+     "symbol": "B12-A",
+     "unit": "Microgram",
+     "name_en": "Vitamin B-12, added",
+     "amount": "0"
+    },
+    {
+     "code": "601",
+     "symbol": "CHOL",
+     "unit": "Milligram",
+     "name_en": "Cholesterol",
+     "amount": "5.560000000"
+    },
+    {
+     "code": "605",
+     "symbol": "TRFA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, trans, total",
+     "amount": "0.009000000"
+    },
+    {
+     "code": "606",
+     "symbol": "TSAT",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, total",
+     "amount": "0.356000000"
+    },
+    {
+     "code": "607",
+     "symbol": "4:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 4:0, butanoic",
+     "amount": "0"
+    },
+    {
+     "code": "608",
+     "symbol": "6:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 6:0, hexanoic",
+     "amount": "0.004000000"
+    },
+    {
+     "code": "609",
+     "symbol": "8:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 8:0, octanoic",
+     "amount": "0"
+    },
+    {
+     "code": "610",
+     "symbol": "10:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 10:0, decanoic",
+     "amount": "0"
+    },
+    {
+     "code": "611",
+     "symbol": "12:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 12:0, dodecanoic",
+     "amount": "0"
+    },
+    {
+     "code": "612",
+     "symbol": "14:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 14:0, tetradecanoic",
+     "amount": "0.007000000"
+    },
+    {
+     "code": "613",
+     "symbol": "16:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 16:0, hexadecanoic",
+     "amount": "0.263000000"
+    },
+    {
+     "code": "614",
+     "symbol": "18:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 18:0, octadecanoic",
+     "amount": "0.070000000"
+    },
+    {
+     "code": "615",
+     "symbol": "20:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 20:0, eicosanoic",
+     "amount": "0"
+    },
+    {
+     "code": "617",
+     "symbol": "18:1undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 18:1undifferentiated, octadecenoic",
+     "amount": "0.376000000"
+    },
+    {
+     "code": "618",
+     "symbol": "18:2undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:2undifferentiated, linoleic, octadecadienoic",
+     "amount": "0.252000000"
+    },
+    {
+     "code": "619",
+     "symbol": "18:3undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:3undifferentiated, linolenic, octadecatrienoic",
+     "amount": "0.016000000"
+    },
+    {
+     "code": "620",
+     "symbol": "20:4undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:4, eicosatetraenoic",
+     "amount": "0.007000000"
+    },
+    {
+     "code": "621",
+     "symbol": "22:6n-3DHA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 22:6 n-3, docosahexaenoic (DHA)",
+     "amount": "0"
+    },
+    {
+     "code": "624",
+     "symbol": "22:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 22:0, docosanoic",
+     "amount": "0"
+    },
+    {
+     "code": "625",
+     "symbol": "14:01",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 14:1, tetradecenoic",
+     "amount": "0"
+    },
+    {
+     "code": "626",
+     "symbol": "16:1undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 16:1undifferentiated, hexadecenoic",
+     "amount": "0.052000000"
+    },
+    {
+     "code": "627",
+     "symbol": "18:04",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:4, octadecatetraenoic",
+     "amount": "0"
+    },
+    {
+     "code": "629",
+     "symbol": "20:5n-3EPA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:5 n-3, eicosapentaenoic (EPA)",
+     "amount": "0"
+    },
+    {
+     "code": "630",
+     "symbol": "22:1undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 22:1undifferentiated, docosenoic",
+     "amount": "0"
+    },
+    {
+     "code": "631",
+     "symbol": "22:5n-3DPA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 22:5 n-3, docosapentaenoic (DPA)",
+     "amount": "0"
+    },
+    {
+     "code": "645",
+     "symbol": "MUFA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, total",
+     "amount": "0.432000000"
+    },
+    {
+     "code": "646",
+     "symbol": "PUFA",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, total",
+     "amount": "0.281000000"
+    },
+    {
+     "code": "652",
+     "symbol": "15:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 15:0, pentadecanoic",
+     "amount": "0"
+    },
+    {
+     "code": "653",
+     "symbol": "17:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 17:0, heptadecanoic",
+     "amount": "0"
+    },
+    {
+     "code": "654",
+     "symbol": "24:00:00",
+     "unit": "Gram",
+     "name_en": "Fatty acids, saturated, 24:0, tetracosanoic",
+     "amount": "0"
+    },
+    {
+     "code": "662",
+     "symbol": "16:1t",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 16:1t, hexadecenoic",
+     "amount": "0"
+    },
+    {
+     "code": "663",
+     "symbol": "18:1t",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 18:1t, octadecenoic",
+     "amount": "0.004000000"
+    },
+    {
+     "code": "664",
+     "symbol": "22:1t",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 22:1t, docosenoic",
+     "amount": "0"
+    },
+    {
+     "code": "666",
+     "symbol": "18:2i",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:2i, linoleic, octadecadienoic",
+     "amount": "0"
+    },
+    {
+     "code": "669",
+     "symbol": "18:2t,t",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:2t,t , octadecadienenoic",
+     "amount": "0"
+    },
+    {
+     "code": "670",
+     "symbol": "18:2cla",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, conjugated, 18:2 cla, linoleic, octadecadienoic",
+     "amount": "0"
+    },
+    {
+     "code": "671",
+     "symbol": "24:1c",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 24:1c, tetracosenoic",
+     "amount": "0"
+    },
+    {
+     "code": "672",
+     "symbol": "20:2cc",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:2 c,c  eicosadienoic",
+     "amount": "0"
+    },
+    {
+     "code": "673",
+     "symbol": "16:1c",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 16:1c, hexadecenoic",
+     "amount": "0.051000000"
+    },
+    {
+     "code": "674",
+     "symbol": "18:1c",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 18:1c, octadecenoic",
+     "amount": "0.372000000"
+    },
+    {
+     "code": "675",
+     "symbol": "18:2ccn-6",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:2 c,c n-6,  linoleic, octadecadienoic",
+     "amount": "0.249000000"
+    },
+    {
+     "code": "676",
+     "symbol": "22:1c",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 22:1c, docosenoic",
+     "amount": "0"
+    },
+    {
+     "code": "685",
+     "symbol": "18:3cccn-6",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:3 c,c,c n-6, g-linolenic, octadecatrienoic",
+     "amount": "0"
+    },
+    {
+     "code": "687",
+     "symbol": "17:01",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 17:1, heptadecenoic",
+     "amount": "0"
+    },
+    {
+     "code": "689",
+     "symbol": "20:3undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:3, eicosatrienoic",
+     "amount": "0"
+    },
+    {
+     "code": "693",
+     "symbol": "TRMO",
+     "unit": "Gram",
+     "name_en": "Fatty acids, total trans-monoenoic",
+     "amount": "0.005000000"
+    },
+    {
+     "code": "695",
+     "symbol": "TRPO",
+     "unit": "Gram",
+     "name_en": "Fatty acids, total trans-polyenoic",
+     "amount": "0.004000000"
+    },
+    {
+     "code": "697",
+     "symbol": "15:01",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated, 15:1, pentadecenoic",
+     "amount": "0"
+    },
+    {
+     "code": "851",
+     "symbol": "18:3cccn-3",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:3 c,c,c n-3  linolenic, octadecatrienoic",
+     "amount": "0.012000000"
+    },
+    {
+     "code": "852",
+     "symbol": "20:3n-3",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:3 n-3 eicosatrienoic",
+     "amount": "0"
+    },
+    {
+     "code": "853",
+     "symbol": "20:3n-6",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:3 n-6, eicosatrienoic",
+     "amount": "0"
+    },
+    {
+     "code": "855",
+     "symbol": "20:4n-6",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 20:4 n-6, arachidonic",
+     "amount": "0.007000000"
+    },
+    {
+     "code": "856",
+     "symbol": "18:3i",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 18:3i, linolenic, octadecatrienoic",
+     "amount": "0"
+    },
+    {
+     "code": "857",
+     "symbol": "21:05",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 21:5",
+     "amount": "0"
+    },
+    {
+     "code": "858",
+     "symbol": "22:4n-6",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 22:4 n-6, docosatetraenoic",
+     "amount": "0"
+    },
+    {
+     "code": "859",
+     "symbol": "24:1undiff",
+     "unit": "Gram",
+     "name_en": "Fatty acids, monounsaturated,  24:1undifferentiated, tetracosenoic",
+     "amount": "0"
+    },
+    {
+     "code": "861",
+     "symbol": "22:03",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 22:3,",
+     "amount": "0"
+    },
+    {
+     "code": "862",
+     "symbol": "22:02",
+     "unit": "Gram",
+     "name_en": "Fatty acids, polyunsaturated, 22:2, docosadienoic",
+     "amount": "0"
+    }
+   ],
+   "measures": [
+    {
+     "measure_code": "341",
+     "description_en": "100 ml",
+     "conversion": "108.357"
+    },
+    {
+     "measure_code": "383",
+     "description_en": "125 ml",
+     "conversion": "135.446"
+    },
+    {
+     "measure_code": "415",
+     "description_en": "250 ml",
+     "conversion": "270.893"
+    },
+    {
+     "measure_code": "750",
+     "description_en": "total refuse",
+     "conversion": "0"
+    },
+    {
+     "measure_code": "985",
+     "description_en": "amount to make 250ml",
+     "conversion": "135.446"
+    }
+   ]
+  }
+ ]
+}

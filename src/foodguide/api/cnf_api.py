@@ -1,7 +1,11 @@
 """
-CNF API Client — Health Canada's Canadian Nutrient File REST API.
+CNF data sources.
 
-Replaces the NutrientFileScraper (src/api/cnf.py) with clean JSON API calls.
+The default path (get_cnf_api_client) now returns LocalCNFSource, which reads
+the offline local CNF SQLite database built by `foodguide data build cnf`; the
+HTTP client is kept for reference but is not used by any default path.
+
+Replaced the NutrientFileScraper (src/api/cnf.py) with clean JSON API calls.
 API docs: https://produits-sante.canada.ca/api/documentation/cnf-documentation-en.html
 Base URL: https://food-nutrition.canada.ca/api/canadian-nutrient-file/
 """
@@ -250,12 +254,20 @@ class CNFApiClient:
 
 # ── Singleton factory ────────────────────────────────────────────
 
-_cnf_api_instance: Optional[CNFApiClient] = None
+_cnf_api_instance: Optional[Any] = None
 
 
-def get_cnf_api_client() -> CNFApiClient:
-    """Get or create the global CNF API client instance."""
+def get_cnf_api_client() -> Any:
+    """Get or create the global CNF client instance.
+
+    Returns a LocalCNFSource backed by the offline local CNF SQLite database;
+    the HTTP client is kept for reference but is not used by any default path.
+    """
     global _cnf_api_instance
     if _cnf_api_instance is None:
-        _cnf_api_instance = CNFApiClient()
+        # Imported here (not at module level) to avoid a circular import:
+        # foodguide.cnf.mcp_source imports CORE_MACRONUTRIENT_IDS from this module.
+        from foodguide.cnf.mcp_source import LocalCNFSource
+
+        _cnf_api_instance = LocalCNFSource()
     return _cnf_api_instance
