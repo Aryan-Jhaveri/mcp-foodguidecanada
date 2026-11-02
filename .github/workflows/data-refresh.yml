@@ -42,6 +42,9 @@ jobs:
           enable-cache: true
       - run: uv sync
 
+      - name: Run the live test suite (full recipes crawl + snapshot comparisons)
+        run: uv run pytest -q -m live
+
       - name: Fetch previous manifest
         id: prev
         run: |

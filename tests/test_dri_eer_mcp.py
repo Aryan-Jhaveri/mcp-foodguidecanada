@@ -1,23 +1,22 @@
 """Tests for the DRI/EER MCP tools (fastmcp in-memory client, offline).
 
 Pattern follows tests/test_recipes_mcp.py: create_server(enable_db=False),
-an in-memory fastmcp Client, asyncio.run. Every requests entry point is
-monkeypatched to raise BEFORE any tool runs, proving the DRI/EER tools work
-purely from the bundled/data-dir snapshots (the session DRI tools cache that
-snapshot in the in-memory virtual session store).
+an in-memory fastmcp Client, asyncio.run. The module-scoped fixture points
+FOODGUIDE_DATA_DIR at a fresh tmp dir via pytest.MonkeyPatch().context() (the
+manager singletons recreate themselves whenever the data dir changes), proving
+the DRI/EER tools work purely from the bundled/data-dir snapshots (the session
+DRI tools cache that snapshot in the in-memory virtual session store).
+Offline-ness is proven for real by the subprocess tests in
+tests/test_offline_subprocess.py.
 """
 
 import asyncio
 import json
-import os
 from importlib.resources import files as pkg_files
-from pathlib import Path
 
 import pytest
-import requests
 from fastmcp import Client
 
-from foodguide import data_manager
 from foodguide.db import schema
 from foodguide.server import create_server
 
@@ -26,39 +25,22 @@ PROFILE_NAME = "tester"
 
 
 @pytest.fixture(scope="module")
-def data_dir_env():
-    """Deterministic (empty) data dir so the bundled snapshot is served."""
-    tmp = Path("/tmp/foodguide-dri-eer-mcp-test")
-    tmp.mkdir(parents=True, exist_ok=True)
-    previous = os.environ.get("FOODGUIDE_DATA_DIR")
-    os.environ["FOODGUIDE_DATA_DIR"] = str(tmp)
-    data_manager._dri_manager = None
-    data_manager._eer_manager = None
-    yield tmp
-    if previous is None:
-        os.environ.pop("FOODGUIDE_DATA_DIR", None)
-    else:
-        os.environ["FOODGUIDE_DATA_DIR"] = previous
-    data_manager._dri_manager = None
-    data_manager._eer_manager = None
+def data_dir_env(tmp_path_factory):
+    """Deterministic (empty) data dir so the bundled snapshot is served.
+
+    pytest.MonkeyPatch().context() keeps the env scoped to the module without
+    any direct data_manager singleton resets: managers key on the data dir and
+    recreate themselves whenever FOODGUIDE_DATA_DIR changes.
+    """
+    tmp = tmp_path_factory.mktemp("foodguide-dri-eer-mcp")
+    with pytest.MonkeyPatch().context() as mp:
+        mp.setenv("FOODGUIDE_DATA_DIR", str(tmp))
+        yield tmp
 
 
 @pytest.fixture(scope="module")
 def server(data_dir_env):
     return create_server(enable_db=False)
-
-
-@pytest.fixture()
-def blocked_network(monkeypatch):
-    """Network access during a tool call is a hard failure."""
-
-    def _blocked(*args, **kwargs):
-        raise AssertionError("network disabled in test")
-
-    monkeypatch.setattr(requests.Session, "request", _blocked)
-    monkeypatch.setattr(requests, "request", _blocked)
-    monkeypatch.setattr(requests, "get", _blocked)
-    monkeypatch.setattr(requests, "post", _blocked)
 
 
 @pytest.fixture(scope="module")
@@ -91,7 +73,7 @@ def call_tool(server, name, arguments):
     return asyncio.run(_run())
 
 
-def test_get_macronutrient_dri_tables_offline(server, blocked_network):
+def test_get_macronutrient_dri_tables_offline(server):
     payload = call_tool(server, "get_macronutrient_dri_tables", {"force_refresh": False})
     assert payload["status"] == "success"
     assert payload["reference_values"]
@@ -100,7 +82,7 @@ def test_get_macronutrient_dri_tables_offline(server, blocked_network):
     assert payload["_data_freshness"]["source"] in ("data_dir", "bundled_snapshot")
 
 
-def test_get_eer_equations_offline(server, blocked_network):
+def test_get_eer_equations_offline(server):
     payload = call_tool(
         server,
         "get_eer_equations",
@@ -112,16 +94,14 @@ def test_get_eer_equations_offline(server, blocked_network):
     assert payload["filtered_equations_count"] == 1
 
 
-def test_get_pal_descriptions_offline(server, blocked_network):
+def test_get_pal_descriptions_offline(server):
     payload = call_tool(server, "get_pal_descriptions", {})
     assert payload["success"] is True
     assert set(payload["pal_categories"]) >= {"inactive", "low_active", "active", "very_active"}
     assert payload["usage_guidance"]
 
 
-def test_calculate_dri_from_eer_offline(
-    server, blocked_network, session_with_profile
-):
+def test_calculate_dri_from_eer_offline(server, session_with_profile):
     # Cache the DRI tables in the session with the store tool (offline data).
     stored = call_tool(
         server, "store_dri_tables_in_session", {"session_id": SESSION_ID}
@@ -156,7 +136,7 @@ def test_calculate_dri_from_eer_offline(
     }
 
 
-def test_calculate_dri_from_eer_unknown_profile(server, blocked_network, session_with_profile):
+def test_calculate_dri_from_eer_unknown_profile(server, session_with_profile):
     payload = call_tool(
         server,
         "calculate_dri_from_eer",

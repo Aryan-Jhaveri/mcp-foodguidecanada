@@ -18,7 +18,7 @@ end-to-end with the real fetch/parse/validate code and no network access.
 
 The 12 recipe pages are the 8 recipes sampled in
 `tests/fixtures/golden_recipes.json` plus 4 more, so the fixture set contains a
-page with two ingredient groups (baked-fish-chips) and one with three
+page with two ingredient groups (baked-fish-chips) and one with four
 (black-bean-enchiladas). If a fixture goes stale (upstream page changed, the
 DRI/EER validators reject it, or a golden comparison fails), re-fetch the page
 with the command above and re-run the suite.

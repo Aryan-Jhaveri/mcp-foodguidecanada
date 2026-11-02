@@ -122,10 +122,9 @@ def test_missing_db_raises_runtime_error(tmp_path: Path, monkeypatch: pytest.Mon
         src.search_food("lentils")
 
 
-def test_factory_returns_local_source(data_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    import foodguide.api.cnf_api as cnf_api_module
-
-    monkeypatch.setattr(cnf_api_module, "_cnf_api_instance", None)
+def test_factory_returns_local_source(data_dir: Path) -> None:
+    # get_cnf_api_client() keys on the data dir: after setenv it returns a
+    # fresh LocalCNFSource reading that dir — no singleton reset needed.
     client = get_cnf_api_client()
     assert isinstance(client, LocalCNFSource)
     # And it actually reads the env-pointed database, not the network.

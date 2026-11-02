@@ -1,17 +1,17 @@
 """Tests for the DRI/EER data managers (data-dir file first, bundled fallback).
 
-All tests run offline: FOODGUIDE_DATA_DIR points at a tmp_path and every
-requests entry point is monkeypatched to raise, proving the managers never
-touch the network.
+All tests run offline: FOODGUIDE_DATA_DIR points at a tmp_path and no network
+access is possible. Offline-ness is proven for real elsewhere: the static AST
+check (tests/test_offline_modules.py) proves data_manager.py never imports
+requests/urllib, and the subprocess tests (tests/test_offline_subprocess.py)
+run the real CLI with every proxy pointed at a dead port.
 """
 
 import json
 from importlib.resources import files
 
 import pytest
-import requests
 
-from foodguide import data_manager
 from foodguide.data_manager import (
     get_dri_data_manager,
     get_eer_data_manager,
@@ -25,25 +25,14 @@ BUNDLED_EER = json.loads((files("foodguide.data") / "eer_equations.json").read_t
 
 @pytest.fixture(autouse=True)
 def data_dir_env(tmp_path, monkeypatch):
-    """Point FOODGUIDE_DATA_DIR at a tmp dir and reset the manager singletons."""
+    """Point FOODGUIDE_DATA_DIR at a fresh tmp dir.
+
+    The manager singletons key on the data dir and recreate themselves
+    whenever it changes, so setenv alone is enough — no attribute resets.
+    """
     monkeypatch.setenv("FOODGUIDE_DATA_DIR", str(tmp_path))
     monkeypatch.delenv("FOODGUIDE_SKIP_LIVE_TESTS", raising=False)
-    monkeypatch.setattr(data_manager, "_dri_manager", None, raising=False)
-    monkeypatch.setattr(data_manager, "_eer_manager", None, raising=False)
     return tmp_path
-
-
-@pytest.fixture(autouse=True)
-def blocked_network(monkeypatch):
-    """Any network access during these tests is a hard failure."""
-
-    def _blocked(*args, **kwargs):
-        raise AssertionError("network disabled in test")
-
-    monkeypatch.setattr(requests.Session, "request", _blocked)
-    monkeypatch.setattr(requests, "request", _blocked)
-    monkeypatch.setattr(requests, "get", _blocked)
-    monkeypatch.setattr(requests, "post", _blocked)
 
 
 def _write_data_dir_file(tmp_path, name: str, payload) -> None:
@@ -118,9 +107,9 @@ def test_non_object_data_dir_file_is_ignored(tmp_path, capsys):
     assert dri.get_status()["source"] == "bundled_snapshot"
 
 
-def test_all_managers_offline_with_requests_blocked(data_dir_env):
-    # Explicit belt-and-braces test: even force_refresh must stay offline
-    # (it only re-reads local files; no network call is possible).
+def test_all_managers_offline(data_dir_env):
+    # Even force_refresh must stay offline (it only re-reads local files;
+    # no network call is possible — proven for real by test_offline_subprocess).
     dri = get_dri_data_manager()
     assert dri.get_dri_data(force_refresh=True)["status"] == "success"
     assert dri.get_dri_data()["status"] == "success"

@@ -9,6 +9,8 @@ must reproduce the same values as the live-page build.
 from pathlib import Path
 
 import pytest
+from pages_fixture import FIXTURE_DIR as PAGES
+from pages_fixture import truncate_html
 
 from foodguide.builders.dri_eer import (
     DRI_URL,
@@ -20,6 +22,7 @@ from foodguide.builders.dri_eer import (
     parse_dri_page,
     parse_eer_page,
 )
+from foodguide.recipes.fetch import CachedFetcher, cache_name
 
 FIXTURES = Path(__file__).parent / "fixtures" / "dri_eer"
 
@@ -231,22 +234,29 @@ def test_eer_lactation(eer_payload):
 # --------------------------------------------------------------------------- broken
 
 
+def _broken_cache(tmp_path: Path, key: str, page_html: str) -> CachedFetcher:
+    """A real CachedFetcher whose cache holds a broken copy of a real page.
+
+    The builder's failure path is exercised through the production fetcher —
+    no stub classes. The broken page is derived from the committed REAL page
+    (tests/fixtures/pages) by truncation, not hand-written.
+    """
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    (cache / cache_name(key)).write_text(truncate_html(page_html, 5000), encoding="utf-8")
+    return CachedFetcher(cache, delay=0.0)
+
+
 def test_broken_dri_raises_missing_table(tmp_path):
+    real = (PAGES / "dri_macronutrients.html").read_text(encoding="utf-8")
     with pytest.raises(BuildError, match="missing table 'reference_values'"):
-        build_dri(tmp_path / "dri.json", _StubFetcher({DRI_URL: _fixture("dri_broken.html")}))
+        build_dri(tmp_path / "dri.json", _broken_cache(tmp_path, DRI_URL, real))
 
 
 def test_broken_eer_raises_missing_section(tmp_path):
-    with pytest.raises(BuildError, match="missing section 'a5'"):
-        build_eer(tmp_path / "eer.json", _StubFetcher({EER_URL: _fixture("eer_broken.html")}))
-
-
-class _StubFetcher:
-    def __init__(self, mapping):
-        self.mapping = mapping
-
-    def fetch(self, url: str) -> str:
-        return self.mapping[url]
+    real = (PAGES / "eer_equations.html").read_text(encoding="utf-8")
+    with pytest.raises(BuildError, match="missing section"):
+        build_eer(tmp_path / "eer.json", _broken_cache(tmp_path, EER_URL, real))
 
 
 # --------------------------------------------------------------------------- calculate_eer

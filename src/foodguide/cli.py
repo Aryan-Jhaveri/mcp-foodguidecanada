@@ -1496,6 +1496,8 @@ data_build_app = typer.Typer(
         "Environment overrides (mainly for tests/dev):\n"
         "  FOODGUIDE_SOURCE_BASE_URL   serve Health Canada pages from another base,\n"
         "                              e.g. a local test server (build recipes/dri/eer)\n"
+        "  FOODGUIDE_RECIPES_CACHE_DIR serve recipe pages from an on-disk cache\n"
+        "                              (build recipes, also used by `data build all`)\n"
         "  FOODGUIDE_CKAN_PACKAGE_URL  override the CKAN package-show URL for --download-cnf\n"
         "  SOURCE_DATE_EPOCH           fixed build timestamp for reproducible builds (build cnf)\n"
         "  FOODGUIDE_CNF_ZIP           CNF zip path (build cnf)\n\n"
@@ -1581,6 +1583,10 @@ def data_build_recipes(
     The output is always these human-readable summary lines; the global
     --format option is ignored.
 
+    Development option: set FOODGUIDE_RECIPES_CACHE_DIR to serve the pages
+    from an on-disk cache (also used by `data build all`) instead of the
+    network.
+
     Example:
       foodguide data build recipes
     """
@@ -1591,9 +1597,15 @@ def data_build_recipes(
             _log("--only did not contain any recipe slugs (comma-separated)")
             raise typer.Exit(code=1)
     out_path = out if out is not None else recipes_data_path()
+    fetcher = None
+    cache_dir = os.environ.get("FOODGUIDE_RECIPES_CACHE_DIR")
+    if cache_dir:
+        from foodguide.recipes.fetch import CachedFetcher
+
+        fetcher = CachedFetcher(cache_dir, delay=0.0)
     try:
         summary = build_recipes_json(
-            out_path, only=only_slugs, max_recipes=max_recipes
+            out_path, fetcher=fetcher, only=only_slugs, max_recipes=max_recipes
         )
     except (ValueError, RuntimeError, OSError) as exc:
         _log(f"Recipes build failed: {exc}")
