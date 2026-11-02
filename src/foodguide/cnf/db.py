@@ -31,7 +31,7 @@ def open_cnf_db(path: Path | None = None) -> sqlite3.Connection:
     if not db_path.exists():
         raise FileNotFoundError(
             f"CNF database not found at {db_path}. "
-            "Run `foodguide data build cnf` to download and build it first."
+            "Build it from the official CNF zip first: `foodguide data build cnf --zip <path-to-cnf-zip>`."
         )
     uri = "file:" + urllib.parse.quote(str(db_path.resolve())) + "?mode=ro"
     conn = sqlite3.connect(uri, uri=True)
