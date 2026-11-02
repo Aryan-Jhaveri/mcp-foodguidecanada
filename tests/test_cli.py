@@ -39,9 +39,19 @@ def test_data_status_csv_header() -> None:
     assert result.stdout.startswith("file,size_bytes,provenance")
 
 
-def test_dri_tables_stub_exits_1() -> None:
+def test_dri_tables_offline_default_output() -> None:
     result = runner.invoke(app, ["dri", "tables"])
-    assert result.exit_code == 1
+    assert result.exit_code == 0
+    assert "Males" in result.stdout
+    assert "protein" in result.stdout
+
+
+def test_dri_table_alias_matches_tables() -> None:
+    tables = runner.invoke(app, ["dri", "tables", "--age-range", "19-30 y", "--format", "json"])
+    alias = runner.invoke(app, ["dri", "table", "--age-range", "19-30 y", "--format", "json"])
+    assert tables.exit_code == 0
+    assert alias.exit_code == 0
+    assert json.loads(tables.stdout) == json.loads(alias.stdout)
 
 
 def test_recipes_help_exits_0_and_lists_examples() -> None:

@@ -1,38 +1,37 @@
+"""Data manager for DRI/EER reference data — pure offline, two-level priority.
+
+This module never touches the network: tool calls and CLI commands must work
+with no connectivity at all. Data priority per dataset:
+
+1. Data-dir file (``$FOODGUIDE_DATA_DIR``/``~/.local/share/foodguide``, from
+   ``foodguide data build dri`` / ``eer``) — the fresher, buildable source.
+2. Bundled snapshot shipped inside the package (``foodguide/data/*.json``)
+   via importlib.resources — always available, works from an installed wheel.
+
+If a data-dir file exists but is corrupt or unreadable, we log to stderr and
+fall back to the bundled snapshot; a missing file is not an error either.
+There is no background refresh, no thread, and no runtime ``cache/`` dir.
 """
-Data manager for DRI/EER reference data.
 
-Provides bundled static data as the guaranteed fallback, with optional
-live refresh from Health Canada's website. This eliminates the dependency
-on www.canada.ca being reachable at tool-call time.
-
-Data priority:
-1. In-memory cache (if populated and not expired)
-2. Runtime cache file (cache/*.json, from successful scrape)
-3. Bundled static data (data/*.json, always available)
-
-The scraper is only used for background refresh — never blocks tool calls.
-"""
+from __future__ import annotations
 
 import json
 import os
 import sys
-import threading
-from datetime import datetime, timedelta
+from datetime import datetime
 from importlib.resources import files as _pkg_files
 from typing import Any, Dict, Optional
+
+from foodguide.cnf.db import get_data_dir
 
 # Bundled data ships inside the package (foodguide/data/*.json) and is loaded
 # with importlib.resources so it works from an installed wheel or zipapp.
 _BUNDLED_DATA_DIR = _pkg_files("foodguide.data")
 
-# Runtime scrape cache: a writable directory outside the package. Override with
-# FOODGUIDE_CACHE_DIR; defaults to ./cache relative to the current directory.
-_CACHE_DIR = os.environ.get("FOODGUIDE_CACHE_DIR", os.path.join(os.getcwd(), "cache"))
-
-_CACHE_DRI_PATH = os.path.join(_CACHE_DIR, 'dri_macronutrients.json')
-
-# Cache duration for runtime cache validity
-_CACHE_DURATION = timedelta(hours=24)
+_BUNDLED_PATH_LABELS = {
+    "dri_macronutrients.json": "foodguide/data/dri_macronutrients.json",
+    "eer_equations.json": "foodguide/data/eer_equations.json",
+}
 
 
 def _load_bundled_json(name: str) -> Optional[Dict[str, Any]]:
@@ -45,119 +44,118 @@ def _load_bundled_json(name: str) -> Optional[Dict[str, Any]]:
         return None
 
 
+def _read_data_dir_json(path) -> Optional[Dict[str, Any]]:
+    """Read a JSON file from the data dir; None if missing, corrupt or unreadable."""
+    try:
+        if not os.path.exists(path):
+            return None
+        with open(path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            print(f"Data file {path} is not a JSON object; ignoring it", file=sys.stderr)
+            return None
+        return data
+    except (json.JSONDecodeError, OSError) as e:
+        # Corrupt or unreadable data-dir file: warn and fall back to bundled.
+        print(f"Data file {path} is unreadable ({e}); falling back to bundled snapshot", file=sys.stderr)
+        return None
+
+
+def _loaded_from(
+    data_dir_name: str, bundled_name: str, require_success: bool = False
+) -> tuple[Dict[str, Any], str, Optional[str], Optional[Dict[str, Any]]]:
+    """Two-level load: data-dir file first, then the bundled snapshot.
+
+    Returns (payload, source, active_path, provenance). Never raises; if the
+    data-dir file is missing or corrupt it silently falls back to bundled.
+    """
+    data_dir_path = get_data_dir() / data_dir_name
+    data = _read_data_dir_json(data_dir_path)
+    if data is not None and (not require_success or data.get("status") == "success"):
+        provenance = data.get("_provenance")
+        if not isinstance(provenance, dict):
+            provenance = None
+        return data, "data_dir", str(data_dir_path), provenance
+
+    bundled = _load_bundled_json(bundled_name)
+    if bundled is not None and (not require_success or bundled.get("status") == "success"):
+        provenance = bundled.get("_provenance")
+        if not isinstance(provenance, dict):
+            provenance = None
+        return bundled, "bundled_snapshot", _BUNDLED_PATH_LABELS[bundled_name], provenance
+
+    # This should never happen — bundled data is shipped with the package.
+    return {}, "missing", None, None
+
+
 class DRIDataManager:
     """
-    Manages DRI macronutrient reference data with bundled fallback.
+    Manages DRI macronutrient reference data (data-dir file, bundled fallback).
 
     Returns data in the exact format that fetch_macronutrient_data() produces,
-    so all existing tools work without modification.
+    so all existing tools work without modification. A data-dir file written by
+    `foodguide data build dri` may carry a top-level ``_provenance`` object; it
+    is exposed as-is in the returned payload.
     """
 
     def __init__(self):
         self._data: Optional[Dict[str, Any]] = None
         self._data_source: str = "not_loaded"
+        self._loaded_path: Optional[str] = None
+        self._provenance: Optional[Dict[str, Any]] = None
         self._last_loaded: Optional[datetime] = None
-        self._refresh_lock = threading.Lock()
-        self._refresh_attempted = False
 
     def get_dri_data(self, force_refresh: bool = False) -> Dict[str, Any]:
         """
-        Get DRI macronutrient data. Never fails — always returns bundled data at minimum.
+        Get DRI macronutrient data. Never fails and never touches the network.
 
-        Returns the same dict structure as MacronutrientScraper.fetch_macronutrient_data().
+        ``force_refresh`` is kept for API compatibility and only forces a
+        reload from local files (data dir, then bundled); it performs no
+        network access in any case.
         """
-        # Return cached in-memory data if available and not forcing refresh
-        if self._data and not force_refresh:
+        if self._data is None or force_refresh:
+            self._reload()
+
+        if self._data is not None:
             return self._add_freshness_info(self._data)
 
-        # Try runtime cache first (from previous successful scrape)
-        if not force_refresh:
-            cache_data = self._load_runtime_cache()
-            if cache_data:
-                self._data = cache_data
-                self._data_source = "runtime_cache"
-                self._last_loaded = datetime.now()
-                return self._add_freshness_info(cache_data)
-
-        # Fall back to bundled static data (always available)
-        bundled = self._load_bundled_data()
-        if bundled:
-            self._data = bundled
-            self._data_source = "bundled_snapshot"
-            self._last_loaded = datetime.now()
-            return self._add_freshness_info(bundled)
-
-        # This should never happen — bundled data is shipped with the package
+        # This should never happen — bundled data is shipped with the package.
         return {
             "status": "error",
             "error": "No DRI data available (bundled data missing)",
             "error_type": "data_unavailable"
         }
 
-    def try_background_refresh(self):
-        """
-        Attempt to refresh DRI data from the live website in a background thread.
-        Non-blocking — tools never wait for this.
-        """
-        if self._refresh_attempted:
-            return
+    def get_status(self) -> Dict[str, Any]:
+        """Describe the active DRI data source (loads it if not loaded yet)."""
+        if self._data is None:
+            self._reload()
+        size_bytes = self._active_size_bytes("dri_macronutrients.json")
+        return {
+            "source": self._data_source,
+            "path": self._loaded_path,
+            "size_bytes": size_bytes,
+            "provenance": self._provenance,
+        }
 
-        def _refresh():
-            with self._refresh_lock:
-                if self._refresh_attempted:
-                    return
-                self._refresh_attempted = True
+    def _reload(self) -> None:
+        data, source, path, provenance = _loaded_from(
+            "dri_macronutrients.json", "dri_macronutrients.json", require_success=True
+        )
+        self._data = data or None
+        self._data_source = source
+        self._loaded_path = path
+        self._provenance = provenance
+        self._last_loaded = datetime.now()
 
-                try:
-                    # Import scraper lazily to avoid circular imports
-                    try:
-                        from foodguide.api.dri import MacronutrientScraper
-                    except ImportError:
-                        from foodguide.api.dri import MacronutrientScraper
-
-                    scraper = MacronutrientScraper()
-                    result = scraper.fetch_macronutrient_data(force_refresh=True)
-
-                    if result.get("status") == "success":
-                        self._data = result
-                        self._data_source = "live_refresh"
-                        self._last_loaded = datetime.now()
-                        print("DRI data refreshed from Health Canada website", file=sys.stderr)
-                    else:
-                        print(f"DRI background refresh failed: {result.get('error', 'unknown')}", file=sys.stderr)
-
-                except Exception as e:
-                    print(f"DRI background refresh error: {e}", file=sys.stderr)
-
-        thread = threading.Thread(target=_refresh, daemon=True)
-        thread.start()
-
-    def _load_runtime_cache(self) -> Optional[Dict[str, Any]]:
-        """Load from runtime cache file if it exists and is fresh enough."""
+    def _active_size_bytes(self, bundled_name: str) -> Optional[int]:
         try:
-            if not os.path.exists(_CACHE_DRI_PATH):
-                return None
-
-            # Check file age
-            file_age = datetime.now() - datetime.fromtimestamp(os.path.getmtime(_CACHE_DRI_PATH))
-            if file_age > _CACHE_DURATION:
-                return None
-
-            with open(_CACHE_DRI_PATH, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-
-            if data.get("status") == "success":
-                return data
-            return None
-
-        except (json.JSONDecodeError, OSError):
-            return None
-
-    def _load_bundled_data(self) -> Optional[Dict[str, Any]]:
-        """Load bundled static data. This should always succeed."""
-        data = _load_bundled_json('dri_macronutrients.json')
-        if data and data.get("status") == "success":
-            return data
+            if self._data_source == "data_dir" and self._loaded_path:
+                return os.path.getsize(self._loaded_path)
+            if self._data_source == "bundled_snapshot":
+                return (_BUNDLED_DATA_DIR / bundled_name).stat().st_size
+        except OSError as e:
+            print(f"Could not stat DRI data file: {e}", file=sys.stderr)
         return None
 
     def _add_freshness_info(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -172,10 +170,11 @@ class DRIDataManager:
         return result
 
     def _freshness_note(self) -> str:
-        if self._data_source == "live_refresh":
-            return "Data freshly verified from Health Canada website"
-        elif self._data_source == "runtime_cache":
-            return "Data from recent scrape cache (within 24 hours)"
+        if self._data_source == "data_dir":
+            return (
+                "Loaded from the local data-dir snapshot (built with "
+                "`foodguide data build dri`); no network access at query time."
+            )
         elif self._data_source == "bundled_snapshot":
             return "Using bundled snapshot. DRI values are updated very rarely by Health Canada (last major update ~2005/2010)."
         return "Data source unknown"
@@ -183,32 +182,66 @@ class DRIDataManager:
 
 class EERDataManager:
     """
-    Manages EER equation reference data with bundled fallback.
+    Manages EER equation reference data (data-dir file, bundled fallback).
 
-    EER equations are mathematical constants that essentially never change.
-    The bundled data is the primary source; live scraping is a bonus.
+    EER equations are mathematical constants that essentially never change;
+    the bundled snapshot is always available offline, and a data-dir file from
+    `foodguide data build eer` takes priority when present.
     """
 
     def __init__(self):
         self._data: Optional[Dict[str, Any]] = None
+        self._data_source: str = "not_loaded"
+        self._loaded_path: Optional[str] = None
+        self._provenance: Optional[Dict[str, Any]] = None
         self._last_loaded: Optional[datetime] = None
 
     def get_eer_data(self) -> Dict[str, Any]:
-        """Get EER equation data. Always returns bundled data."""
-        if self._data:
-            return self._data
+        """Get EER equation data from the data dir or the bundled snapshot."""
+        if self._data is None:
+            self._reload()
 
-        self._data = _load_bundled_json('eer_equations.json')
         if self._data is not None:
-            self._last_loaded = datetime.now()
             return self._data
         return {
             "status": "error",
             "error": "Failed to load EER equation data (bundled data missing or invalid)"
         }
 
+    def get_status(self) -> Dict[str, Any]:
+        """Describe the active EER data source (loads it if not loaded yet)."""
+        if self._data is None:
+            self._reload()
+        size_bytes = self._active_size_bytes("eer_equations.json")
+        return {
+            "source": self._data_source,
+            "path": self._loaded_path,
+            "size_bytes": size_bytes,
+            "provenance": self._provenance,
+        }
+
+    def _reload(self) -> None:
+        data, source, path, provenance = _loaded_from(
+            "eer_equations.json", "eer_equations.json", require_success=False
+        )
+        self._data = data or None
+        self._data_source = source
+        self._loaded_path = path
+        self._provenance = provenance
+        self._last_loaded = datetime.now()
+
+    def _active_size_bytes(self, bundled_name: str) -> Optional[int]:
+        try:
+            if self._data_source == "data_dir" and self._loaded_path:
+                return os.path.getsize(self._loaded_path)
+            if self._data_source == "bundled_snapshot":
+                return (_BUNDLED_DATA_DIR / bundled_name).stat().st_size
+        except OSError as e:
+            print(f"Could not stat EER data file: {e}", file=sys.stderr)
+        return None
+
     def get_pal_descriptions(self) -> Dict[str, Any]:
-        """Get PAL category descriptions from bundled data."""
+        """Get PAL category descriptions from the active EER data."""
         data = self.get_eer_data()
         return data.get("pal_descriptions", {})
 
@@ -256,10 +289,18 @@ class EERDataManager:
             "total_equations_found": len(equations),
             "filtered_equations_count": len(filtered),
             "_data_freshness": {
-                "source": "bundled_snapshot",
-                "note": "EER equations are mathematical constants from Health Canada DRI tables. They essentially never change."
+                "source": self._data_source,
+                "note": self._freshness_note()
             }
         }
+
+    def _freshness_note(self) -> str:
+        if self._data_source == "data_dir":
+            return (
+                "Loaded from the local data-dir snapshot (built with "
+                "`foodguide data build eer`); no network access at query time."
+            )
+        return "EER equations are mathematical constants from Health Canada DRI tables. They essentially never change."
 
     def _filter_by_pal(self, section: Dict, pal_category: str) -> Dict:
         """Filter an equation section to only include matching PAL category."""
