@@ -1,5 +1,7 @@
+from typing import Any, Dict, Optional
+
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional
+
 
 class RecipeInput(BaseModel):
     """Input model for storing recipe data in temporary tables"""

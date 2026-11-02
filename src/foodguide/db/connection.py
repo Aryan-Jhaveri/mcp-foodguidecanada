@@ -2,6 +2,7 @@ import sqlite3
 
 from foodguide.config import DB_FILE
 
+
 def get_db_connection() -> sqlite3.Connection:
     """Establishes a connection to the SQLite database."""
     conn = sqlite3.connect(DB_FILE)

@@ -1,5 +1,7 @@
+from typing import Dict, List
+
 from pydantic import BaseModel, Field
-from typing import List, Dict
+
 
 # Simple math tool input
 class SimpleMathInput(BaseModel):

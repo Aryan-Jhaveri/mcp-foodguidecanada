@@ -19,7 +19,7 @@ import sys
 import threading
 from datetime import datetime, timedelta
 from importlib.resources import files as _pkg_files
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 # Bundled data ships inside the package (foodguide/data/*.json) and is loaded
 # with importlib.resources so it works from an installed wheel or zipapp.

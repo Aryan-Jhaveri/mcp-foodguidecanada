@@ -8,25 +8,19 @@ This module provides tools for:
 4. Providing guidance on energy requirements
 """
 
-import json
 import sys
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict
+
 from fastmcp import FastMCP
 
-# Global flag for whether EER tools are available
-EER_TOOLS_AVAILABLE = False
-
-from foodguide.models.eer_models import (
-    CreateUserProfileInput, CalculateEERInput,
-    GetProfileInput, DeleteProfileInput, GetPALDescriptionsInput,
-    EERCalculationResult, UserProfileResult, PALDescriptionResult,
-    ProfileListResult, EERError
-)
+# Import data manager for bundled EER data (fallback when www.canada.ca is unreachable)
 from foodguide.api.eer import EERCalculator, EERProfileManager, get_pal_activity_descriptions
+from foodguide.data_manager import get_eer_data_manager as _eer_dm_import
+from foodguide.models.eer_models import CreateUserProfileInput, DeleteProfileInput, GetProfileInput
+
+# Global flag for whether EER tools are available
 EER_TOOLS_AVAILABLE = True
 
-# Import data manager for bundled EER data (fallback when www.canada.ca is unreachable)
-from foodguide.data_manager import get_eer_data_manager as _eer_dm_import
 _eer_data_manager_factory = _eer_dm_import
 
 # Global instances
@@ -196,7 +190,7 @@ def register_eer_tools(mcp: FastMCP, enable_db: bool = True):
                 "error": f"Failed to get PAL descriptions: {str(e)}",
                 "error_code": "DESCRIPTION_ERROR"
             }
-    
+
     # Profile management tools require SQLite persistent storage
     if not enable_db:
         return
@@ -212,16 +206,16 @@ def register_eer_tools(mcp: FastMCP, enable_db: bool = True):
         This tool creates a user profile that can be stored either in memory (virtual session)
         or persistently in the database. Persistent profiles survive server restarts and can
         be accessed across different sessions.
-        
+
         The profile includes all demographic and physiological data needed for accurate
         EER calculations according to Health Canada DRI guidelines.
-        
+
         Use this tool when:
         - Setting up user profiles by sdjusting use_persistent_storage for repeated EER calculations
         - Creating profiles for multiple household members
         - Storing long-term nutrition analysis data
         - Building nutrition tracking applications
-        
+
         Args:
             input_data: CreateUserProfileInput containing:
                 - profile_id: Unique identifier for the profile
@@ -235,16 +229,16 @@ def register_eer_tools(mcp: FastMCP, enable_db: bool = True):
                 - gestation_weeks: Required for 2nd/3rd trimester (1-42)
                 - pre_pregnancy_bmi: Required for pregnancy calculations (10-50)
                 - use_persistent_storage: True for database storage, False for session storage
-        
+
         Returns:
             Dictionary with profile creation confirmation and calculated BMI
         """
         try:
             # Get or create profile manager with appropriate storage type
             profile_manager = EERProfileManager(use_persistent_storage=input_data.use_persistent_storage)
-            
+
             # Create the profile
-            profile = profile_manager.create_profile(
+            profile_manager.create_profile(
                 profile_id=input_data.profile_id,
                 age=input_data.age,
                 gender=input_data.gender.value,
@@ -254,10 +248,10 @@ def register_eer_tools(mcp: FastMCP, enable_db: bool = True):
                 pregnancy_status=input_data.pregnancy_status.value,
                 lactation_status=input_data.lactation_status.value
             )
-            
+
             # Calculate BMI
             bmi = input_data.weight_kg / ((input_data.height_cm / 100) ** 2)
-            
+
             return {
                 "success": True,
                 "profile_id": input_data.profile_id,
@@ -275,31 +269,31 @@ def register_eer_tools(mcp: FastMCP, enable_db: bool = True):
                     "storage_type": "persistent" if input_data.use_persistent_storage else "virtual"
                 }
             }
-            
+
         except Exception as e:
             return {
                 "success": False,
                 "error": f"Failed to create user profile: {str(e)}",
                 "error_code": "PROFILE_CREATION_ERROR"
             }
-    
+
     @mcp.tool()
     def get_user_profile(input_data: GetProfileInput) -> Dict[str, Any]:
         """
         Retrieve a user profile by ID from virtual or persistent storage.
-        
+
         This tool fetches a previously created user profile. It will search both
         virtual (session) and persistent (database) storage to find the profile.
-        
+
         Use this tool when:
         - Retrieving profiles for EER calculations
         - Checking existing profile data
         - Validating profile information before calculations
-        
+
         Args:
             input_data: GetProfileInput containing:
                 - profile_id: Identifier of the profile to retrieve
-        
+
         Returns:
             Dictionary with profile data or error message if not found
         """
@@ -307,26 +301,26 @@ def register_eer_tools(mcp: FastMCP, enable_db: bool = True):
             # Try both storage types
             virtual_manager = EERProfileManager(use_persistent_storage=False)
             persistent_manager = EERProfileManager(use_persistent_storage=True)
-            
+
             # First check virtual storage
             profile = virtual_manager.get_profile(input_data.profile_id)
             storage_type = "virtual"
-            
+
             # If not found in virtual, check persistent
             if profile is None:
                 profile = persistent_manager.get_profile(input_data.profile_id)
                 storage_type = "persistent"
-            
+
             if profile is None:
                 return {
                     "success": False,
                     "error": f"Profile '{input_data.profile_id}' not found in virtual or persistent storage",
                     "error_code": "PROFILE_NOT_FOUND"
                 }
-            
+
             # Calculate BMI
             bmi = profile.weight_kg / ((profile.height_cm / 100) ** 2)
-            
+
             return {
                 "success": True,
                 "profile_id": input_data.profile_id,
@@ -343,39 +337,39 @@ def register_eer_tools(mcp: FastMCP, enable_db: bool = True):
                     "storage_type": storage_type
                 }
             }
-            
+
         except Exception as e:
             return {
                 "success": False,
                 "error": f"Failed to retrieve user profile: {str(e)}",
                 "error_code": "PROFILE_RETRIEVAL_ERROR"
             }
-    
+
     @mcp.tool()
     def list_user_profiles() -> Dict[str, Any]:
         """
         List all available user profiles from both virtual and persistent storage.
-        
+
         This tool discovers all user profiles stored in memory (virtual sessions)
-        and in the database (persistent storage), providing an overview of 
+        and in the database (persistent storage), providing an overview of
         available profiles for EER calculations.
-        
+
         Use this tool when:
         - Discovering available user profiles
         - Managing multiple household member profiles
         - Cleaning up old or unused profiles
         - Getting an overview of stored profile data
-        
+
         Returns:
             Dictionary with lists of profile IDs from both storage types
         """
         try:
             virtual_manager = EERProfileManager(use_persistent_storage=False)
             persistent_manager = EERProfileManager(use_persistent_storage=True)
-            
+
             virtual_profiles = virtual_manager.list_profiles()
             persistent_profiles = persistent_manager.list_profiles()
-            
+
             return {
                 "success": True,
                 "virtual_profiles": virtual_profiles,
@@ -384,51 +378,51 @@ def register_eer_tools(mcp: FastMCP, enable_db: bool = True):
                 "total_persistent": len(persistent_profiles),
                 "total_profiles": len(virtual_profiles) + len(persistent_profiles)
             }
-            
+
         except Exception as e:
             return {
                 "success": False,
                 "error": f"Failed to list user profiles: {str(e)}",
                 "error_code": "PROFILE_LIST_ERROR"
             }
-    
+
     @mcp.tool()
     def delete_user_profile(input_data: DeleteProfileInput) -> Dict[str, Any]:
         """
         Delete a user profile from virtual or persistent storage.
-        
+
         This tool removes a user profile completely. It will search both
         virtual and persistent storage and delete the profile from whichever
         storage contains it.
-        
+
         Use this tool when:
         - Cleaning up old profiles
         - Removing incorrect profile data
         - Managing storage space
         - Removing profiles no longer needed
-        
+
         Args:
             input_data: DeleteProfileInput containing:
                 - profile_id: Identifier of the profile to delete
-        
+
         Returns:
             Dictionary with deletion confirmation or error message
         """
         try:
             virtual_manager = EERProfileManager(use_persistent_storage=False)
             persistent_manager = EERProfileManager(use_persistent_storage=True)
-            
+
             # Try to delete from virtual storage first
             virtual_deleted = virtual_manager.delete_profile(input_data.profile_id)
-            
+
             # Try to delete from persistent storage
             persistent_deleted = persistent_manager.delete_profile(input_data.profile_id)
-            
+
             if virtual_deleted or persistent_deleted:
                 storage_type = "virtual" if virtual_deleted else "persistent"
                 if virtual_deleted and persistent_deleted:
                     storage_type = "both virtual and persistent"
-                
+
                 return {
                     "success": True,
                     "profile_id": input_data.profile_id,
@@ -442,7 +436,7 @@ def register_eer_tools(mcp: FastMCP, enable_db: bool = True):
                     "error": f"Profile '{input_data.profile_id}' not found in virtual or persistent storage",
                     "error_code": "PROFILE_NOT_FOUND"
                 }
-            
+
         except Exception as e:
             return {
                 "success": False,

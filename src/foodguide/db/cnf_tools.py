@@ -10,33 +10,30 @@ This module provides tools for:
 """
 
 import json
-import os
-import sqlite3
-import time
-import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict, Any, List, Optional, Callable
-from fastmcp import FastMCP
 import logging
+import os
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Any, Callable, Dict, List, Optional
 
-# Global flag for whether CNF tools are available
-CNF_TOOLS_AVAILABLE = False
+from fastmcp import FastMCP
 
-# Import config first to ensure constants are available
-from foodguide.config import CNF_MAX_CONCURRENT, CNF_CACHE_TTL, BULK_OPERATION_TIMEOUT
-
-from foodguide.models.cnf_models import (
-    CNFSearchInput, CNFProfileInput, CNFMacronutrientsInput, CNFBulkMacronutrientsInput, CNFSearchAndGetInput,
-    SQLQueryInput, CNFFoodResult, CNFNutrientProfile, IngredientCNFMatch,
-    RecipeNutritionSummary, CNFSessionSummary, IngredientNutritionData,
-    AnalyzeRecipeNutritionInput, RecipeNutritionCalculationInput,
-    IngredientNutritionBreakdownInput, DailyNutritionComparisonInput,
-    RecipeMacrosQueryInput, RecipeMacrosUpdateInput
-)
-from foodguide.api.cnf_api import get_cnf_api_client, CORE_MACRONUTRIENT_IDS, parse_measure_name
-from foodguide.db.schema import get_virtual_session_data, store_recipe_in_virtual_session
-from foodguide.db.sql_engine import VirtualSQLEngine, get_available_tables_info
+from foodguide.api.cnf_api import CORE_MACRONUTRIENT_IDS, get_cnf_api_client, parse_measure_name
+from foodguide.config import BULK_OPERATION_TIMEOUT, CNF_CACHE_TTL, CNF_MAX_CONCURRENT
 from foodguide.db.connection import get_db_connection
+from foodguide.db.schema import get_virtual_session_data
+from foodguide.models.cnf_models import (
+    AnalyzeRecipeNutritionInput,
+    CNFBulkMacronutrientsInput,
+    CNFMacronutrientsInput,
+    CNFProfileInput,
+    CNFSearchAndGetInput,
+    RecipeMacrosQueryInput,
+    RecipeMacrosUpdateInput,
+    RecipeNutritionCalculationInput,
+)
+
 CNF_TOOLS_AVAILABLE = True
 
 # Configure logging with environment-based level control
@@ -50,13 +47,13 @@ _cache_lock = threading.Lock()
 
 class CNFCache:
     """Thread-safe cache for CNF API responses."""
-    
+
     def __init__(self, ttl: int = CNF_CACHE_TTL):
         self.cache = {}
         self.timestamps = {}
         self.ttl = ttl
         self.lock = threading.Lock()
-    
+
     def get(self, key: str) -> Optional[Any]:
         """Get cached value if not expired."""
         with self.lock:
@@ -68,13 +65,13 @@ class CNFCache:
                     del self.cache[key]
                     del self.timestamps[key]
             return None
-    
+
     def set(self, key: str, value: Any) -> None:
         """Cache a value with timestamp."""
         with self.lock:
             self.cache[key] = value
             self.timestamps[key] = time.time()
-    
+
     def clear_expired(self) -> None:
         """Remove all expired entries."""
         current_time = time.time()
@@ -244,27 +241,27 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
     def search_and_get_cnf_macronutrients(input_data: CNFSearchAndGetInput) -> Dict[str, Any]:
         """
         Search Canadian Nutrient File foods and retrieve core macronutrient data.
-        
+
         This tool searches Health Canada's CNF database for foods matching the provided name
         and returns either complete macronutrient data for single matches or a list of
         options for multiple matches. It focuses on 13 core macronutrients essential for
         basic nutrition analysis while maintaining compatibility with session-based storage.
-        
+
         Use this tool to:
         - Discover CNF foods matching ingredient names from recipes
         - Retrieve core macronutrient data for immediate nutrition analysis
         - Identify available food options when multiple matches exist
         - Prepare data for recipe nutrition calculations
-        
+
         The tool returns different outputs based on search results:
         - Single match: Complete macronutrient data stored in session tables
         - Multiple matches: List of food options with codes for selection
         - No matches: Error message with search suggestions
-        
+
         Args:
             input_data: Contains food_name (search term), session_id (storage identifier),
                        optional preferred_units (serving size filter), and max_results (limit)
-            
+
         Returns:
             Dict with search results, macronutrient data, or error message depending on
             number of matches found
@@ -338,7 +335,7 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                 return {
                     "success": True,
                     "action": "auto_fetched_macronutrients",
-                    "message": f"Found single match and automatically fetched macronutrients",
+                    "message": "Found single match and automatically fetched macronutrients",
                     "food_selected": {
                         "food_code": food_code,
                         "food_name": food_description
@@ -378,42 +375,42 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                         "ALTERNATIVE: get_cnf_macronutrients_only(food_code='chosen_code') for single ingredient",
                         "Or try a more specific search term to get fewer results"
                     ],
-                    "efficiency_note": f"For maximum efficiency, collect multiple food codes and use bulk_get_cnf_macronutrients()"
+                    "efficiency_note": "For maximum efficiency, collect multiple food codes and use bulk_get_cnf_macronutrients()"
                 }
 
         except Exception as e:
             return {"error": f"Error in combined search and macronutrient fetch: {str(e)}"}
-    
+
     @mcp.tool()
     def get_cnf_macronutrients_only(input_data: CNFMacronutrientsInput) -> Dict[str, Any]:
         """
         Retrieve core macronutrients for a specific CNF food code with automatic ingredient linking.
-        
+
         This tool fetches macronutrient data directly from Health Canada's CNF database using
         a known food code and optionally links the data to recipe ingredients for nutrition
         calculations. It stores only 13 essential macronutrients for efficient processing
         while maintaining compatibility with session-based nutrition analysis tools.
-        
+
         **TEMP_RECIPE_MACROS WORKFLOW GUIDANCE:**
         After using this tool, you can populate the temp_recipe_macros table for cached calculations:
-        
+
         1. **Check ingredient data quality first:**
            Query: `SELECT ingredient_id, amount, unit FROM temp_recipe_ingredients WHERE amount IS NULL`
            Fix missing data: `UPDATE temp_recipe_ingredients SET amount = 150, unit = 'g' WHERE ingredient_id = 'salmon_001'`
-        
+
         2. **Review available serving sizes for matching:**
            Query: `SELECT per_amount, unit, nutrient_value FROM temp_cnf_nutrients WHERE cnf_food_code = '4294' AND nutrient_name = 'Energy (kcal)'`
            Example: honey 10.0 mL → CNF options: 5.0 ml (22 kcal), 15.0 ml (65 kcal), 100.0 ml (435 kcal)
-        
+
         3. **Choose best serving match and populate temp_recipe_macros:**
            ```sql
            INSERT INTO temp_recipe_macros (
-               session_id, recipe_id, ingredient_id, cnf_food_code, 
+               session_id, recipe_id, ingredient_id, cnf_food_code,
                matched_serving_amount, matched_serving_unit, conversion_factor,
-               calories_per_recipe_amount, protein_per_recipe_amount, fat_per_recipe_amount, 
+               calories_per_recipe_amount, protein_per_recipe_amount, fat_per_recipe_amount,
                carbs_per_recipe_amount, sodium_per_recipe_amount, fiber_per_recipe_amount
            )
-           SELECT 
+           SELECT
                'session_id', 'recipe_id', 'honey_001', '4294',
                5.0, 'ml', (10.0 / 5.0),  -- 2.0x conversion factor
                22.0 * (10.0 / 5.0),     -- 44.0 calories for recipe amount
@@ -423,25 +420,25 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                0.0 * (10.0 / 5.0),      -- scaled sodium (if available)
                0.0 * (10.0 / 5.0)       -- scaled fiber (if available)
            ```
-        
+
         4. **Calculate recipe totals from cached data:**
            Query: `SELECT SUM(calories_per_recipe_amount) as total_calories FROM temp_recipe_macros WHERE session_id = ? AND recipe_id = ?`
-        
+
         Use this tool to:
         - Fetch macronutrients when you have a specific CNF food code
         - Link CNF data to recipe ingredients for nutrition calculations
         - Store streamlined nutrient data for efficient analysis
         - Prepare data for temp_recipe_macros population workflow
-        
+
         When ingredient_id and recipe_id are provided, the tool automatically updates
         the recipe ingredient with the CNF food code, enabling calculate_recipe_nutrition_summary
         to work correctly. This eliminates the need for separate linking steps.
-        
+
         Args:
             input_data: Contains food_code (CNF identifier), session_id (storage location),
                        optional ingredient_id and recipe_id (for automatic linking),
                        and preferred_units (serving size filter)
-            
+
         Returns:
             Dict with macronutrient data, linking status, and guidance for next steps
         """
@@ -546,7 +543,7 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
 
         The tool fetches 13 essential macronutrients for each food code:
         - Energy (kcal), Protein, Total Fat, Carbohydrate
-        - Saturated Fat, Monounsaturated Fat, Polyunsaturated Fat, Trans Fat  
+        - Saturated Fat, Monounsaturated Fat, Polyunsaturated Fat, Trans Fat
         - Dietary Fiber, Sugars, Sodium, Cholesterol, Energy (kJ)
 
         Advanced features include automatic ingredient linking when ingredient_mappings are provided, allowing the tool to connect CNF nutrition data directly to recipe ingredients in one operation. This eliminates the need for separate linking steps and enables immediate nutrition calculations.
@@ -560,7 +557,7 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
         Args:
         input_data: Contains food_codes (list of up to 20 CNF identifiers), session_id (data storage location),
                 optional preferred_units (serving size preferences), continue_on_error (error handling mode),
-                optional ingredient_mappings (food_code to ingredient_id mapping), and optional recipe_id 
+                optional ingredient_mappings (food_code to ingredient_id mapping), and optional recipe_id
                 (required for automatic ingredient linking)
 
         Returns:
@@ -748,26 +745,26 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
     def get_cnf_nutrient_profile(input_data: CNFProfileInput) -> Dict[str, Any]:
         """
         Retrieve complete nutrient profile with all available nutrients for research-grade analysis.
-        
+
         This tool fetches comprehensive nutrient data from Health Canada's CNF database,
         including all vitamins, minerals, fatty acids, and other micronutrients. It stores
         significantly more data than the streamlined macronutrient tools and should be
         used only when detailed micronutrient analysis is specifically required.
-        
+
         Use this tool for:
         - Detailed vitamin and mineral analysis
         - Research-grade nutritional studies
         - Micronutrient deficiency assessment
         - Academic or professional nutrition work requiring complete profiles
-        
+
         For basic recipe nutrition analysis, consider using get_cnf_macronutrients_only
         which provides 13 core nutrients with significantly reduced data complexity.
         This tool processes all available nutrients (146+) and may impact performance.
-        
+
         Args:
             input_data: Contains food_code (CNF identifier), session_id (storage location),
                        and optional preferred_units (serving size preferences)
-            
+
         Returns:
             Dict with complete nutrient profile data and storage confirmation
         """
@@ -858,28 +855,28 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
     def simple_recipe_setup(input_data: AnalyzeRecipeNutritionInput) -> Dict[str, Any]:
         """
         Transfer recipe data to analysis tables with comprehensive ingredient parsing for streamlined nutrition analysis preparation.
-        
+
         This tool prepares complete recipe data for CNF nutrition analysis by transferring stored recipe information from virtual session storage to temporary database tables and automatically parsing ingredient text into structured components. It provides the essential foundation for linking ingredients to CNF foods and calculating detailed nutrition summaries.
-        
+
         The tool performs comprehensive ingredient parsing that handles complex measurement formats including:
         - Unicode fractions (½, ⅓, ¼, ¾, etc.) converted to precise decimal values
         - Mixed numbers (1½, 2¼) with accurate decimal conversion
         - Regular fractions (1/2, 3/4) and measurement ranges (2-3 cups)
         - All standard units (mL, cups, tsp, tbsp, kg, g, lbs, oz)
         - Ingredient preparation notes (sliced, chopped, optional)
-        
+
         Use this tool for:
         - Complete recipe data transfer from session storage to analysis tables
         - Automatic ingredient parsing into structured amount, unit, and name components
         - Foundation preparation for CNF food linking and nutrition calculations
         - Streamlined setup for multi-step recipe nutrition analysis workflows
-        
+
         The processed data includes recipe metadata, fully parsed ingredients with structured amounts/units, and step-by-step instructions, all stored in temporary database tables optimized for nutrition analysis tools.
-        
+
         Args:
             input_data: Contains session_id (source virtual session location) and recipe_id
                        (specific recipe identifier to process and parse)
-            
+
         Returns:
             Dict with setup status, ingredient parsing statistics, structured data counts,
             and comprehensive guidance for next steps in nutrition analysis workflow
@@ -888,31 +885,31 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
             # Extract parameters from input_data
             session_id = input_data.session_id
             recipe_id = input_data.recipe_id
-            
+
             session_data = get_virtual_session_data(session_id)
             if session_data is None:
                 return {"error": f"Session {session_id} not found"}
-            
+
             # Check if recipe exists
             if 'recipes' not in session_data or recipe_id not in session_data['recipes']:
                 available_recipes = list(session_data.get('recipes', {}).keys()) if session_data else []
                 return {"error": f"Recipe {recipe_id} not found in session. Available recipes: {available_recipes}"}
-            
+
             recipe_data = session_data['recipes'][recipe_id]
             recipe_title = recipe_data.get('title', 'Unknown Recipe')
-            
+
             # Step 1: Setup temp persistent storage
             from .schema import create_temp_nutrition_session, update_session_access_time
             create_temp_nutrition_session(session_id)
             update_session_access_time(session_id)
-            
+
             # Step 2: Transfer recipe data from virtual session to temp SQLite tables
             with get_db_connection() as conn:
                 cursor = conn.cursor()
-                
+
                 # Transfer recipe metadata
                 cursor.execute("""
-                    INSERT OR REPLACE INTO temp_recipes 
+                    INSERT OR REPLACE INTO temp_recipes
                     (session_id, recipe_id, title, base_servings, prep_time, cook_time, url)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 """, (
@@ -922,23 +919,23 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                     recipe_data.get('cook_time', ''),
                     recipe_data.get('url', '')
                 ))
-                
+
                 # Transfer ingredients from virtual session
                 if 'ingredients' in session_data:
                     recipe_ingredients = [
-                        ing_data for ing_data in session_data['ingredients'].values() 
+                        ing_data for ing_data in session_data['ingredients'].values()
                         if ing_data.get('recipe_id') == recipe_id
                     ]
-                    
+
                     for i, ingredient_data in enumerate(recipe_ingredients):
                         if isinstance(ingredient_data, dict):
                             cursor.execute("""
-                                INSERT OR REPLACE INTO temp_recipe_ingredients 
-                                (session_id, recipe_id, ingredient_id, ingredient_list_org, ingredient_name, 
+                                INSERT OR REPLACE INTO temp_recipe_ingredients
+                                (session_id, recipe_id, ingredient_id, ingredient_list_org, ingredient_name,
                                  amount, unit, ingredient_order, cnf_food_code)
                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                             """, (
-                                session_id, recipe_id, 
+                                session_id, recipe_id,
                                 ingredient_data.get('ingredient_id', f"ing_{i}_{ingredient_data.get('ingredient_order', i)}"),
                                 ingredient_data.get('ingredient_list_org', ''),
                                 ingredient_data.get('ingredient_name', ''),
@@ -947,40 +944,40 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                                 ingredient_data.get('ingredient_order', i),
                                 None  # cnf_food_code will be set manually
                             ))
-                
+
                 conn.commit()
-            
+
             # Step 3: ENHANCED - Parse ingredients using comprehensive parser
             from .math_tools import _parse_ingredient_comprehensive
-            
+
             parsed_count = 0
             failed_count = 0
             parsing_details = []
-            
+
             with get_db_connection() as conn:
                 cursor = conn.cursor()
-                
+
                 # Get all ingredients for parsing
                 cursor.execute("""
-                    SELECT ingredient_id, ingredient_list_org 
-                    FROM temp_recipe_ingredients 
+                    SELECT ingredient_id, ingredient_list_org
+                    FROM temp_recipe_ingredients
                     WHERE session_id = ? AND recipe_id = ?
                     ORDER BY ingredient_order
                 """, (session_id, recipe_id))
-                
+
                 ingredients_to_parse = cursor.fetchall()
-                
+
                 for ingredient_id, ingredient_text in ingredients_to_parse:
                     if not ingredient_text or not ingredient_text.strip():
                         failed_count += 1
                         continue
-                    
+
                     # Parse the ingredient text using comprehensive parser
                     parsed_data = _parse_ingredient_comprehensive(ingredient_text)
-                    
+
                     # Update the temp table with parsed data
                     cursor.execute("""
-                        UPDATE temp_recipe_ingredients 
+                        UPDATE temp_recipe_ingredients
                         SET ingredient_name = ?, amount = ?, unit = ?
                         WHERE session_id = ? AND ingredient_id = ?
                     """, (
@@ -990,7 +987,7 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                         session_id,
                         ingredient_id
                     ))
-                    
+
                     parsing_details.append({
                         'ingredient_id': ingredient_id,
                         'original_text': ingredient_text,
@@ -999,21 +996,21 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                         'clean_name': parsed_data['clean_name'],
                         'parsing_notes': parsed_data.get('parsing_notes', '')
                     })
-                    
+
                     if parsed_data.get('amount') is not None:
                         parsed_count += 1
                     else:
                         failed_count += 1
-                
+
                 # Get final ingredient count
                 cursor.execute("""
-                    SELECT COUNT(*) FROM temp_recipe_ingredients 
+                    SELECT COUNT(*) FROM temp_recipe_ingredients
                     WHERE session_id = ? AND recipe_id = ?
                 """, (session_id, recipe_id))
                 ingredient_count = cursor.fetchone()[0]
-                
+
                 conn.commit()
-            
+
             return {
                 "success": f"Recipe setup and parsing complete for: {recipe_title}",
                 "recipe_id": recipe_id,
@@ -1031,7 +1028,7 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                 "parsing_details": parsing_details[:5],  # Show first 5 for LLM review
                 "workflow_status": {
                     "recipe_transfer": "✅ Complete",
-                    "ingredient_parsing": f"✅ Complete - {parsed_count}/{len(ingredients_to_parse)} parsed successfully", 
+                    "ingredient_parsing": f"✅ Complete - {parsed_count}/{len(ingredients_to_parse)} parsed successfully",
                     "cnf_linking": "⏳ Ready for bulk_get_cnf_macronutrients with ingredient_mappings",
                     "nutrition_analysis": "⏳ Ready after CNF linking"
                 },
@@ -1043,7 +1040,7 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                 ],
                 "storage_location": "temp_recipe_ingredients table with parsed amount, unit, and ingredient_name columns"
             }
-            
+
         except Exception as e:
             ###logger.error(f"Error in simple_recipe_setup: {e}")
             return {"error": f"Failed to setup recipe: {str(e)}"}
@@ -1058,30 +1055,30 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
     def calculate_recipe_nutrition_summary(input_data: RecipeNutritionCalculationInput) -> Dict[str, Any]:
         """
         Analyze unit matching for recipe ingredients and populate temp_recipe_macros table.
-        
+
         This tool performs unit matching analysis between recipe ingredients and CNF nutrition data,
         identifying which conversions are possible and which need manual LLM decisions. It populates
         the temp_recipe_macros table with detailed unit matching information for LLM review.
-        
+
         NEW BEHAVIOR (Unit Matching Analysis):
         - Analyzes each ingredient's unit compatibility with available CNF serving sizes
         - Identifies exact matches, possible conversions, and manual decision needs
         - Populates temp_recipe_macros with unit matching status and recommendations
         - Returns analysis summary for LLM to make conversion decisions
-        
+
         Use this tool to:
         - Set up unit matching analysis for recipe nutrition calculations
         - Identify which ingredients need manual conversion decisions
         - Prepare data for LLM-driven nutrition calculations
         - Get transparent view of unit conversion challenges
-        
+
         The tool requires that ingredients have been previously linked to CNF data using
         get_cnf_macronutrients_only or bulk_get_cnf_macronutrients. After running this tool,
         review the temp_recipe_macros table and use simple_math_calculator for final calculations.
-        
+
         Args:
             input_data: Contains session_id (data location) and recipe_id (target recipe identifier)
-            
+
         Returns:
             Dict with unit matching analysis summary and temp_recipe_macros population status
         """
@@ -1089,20 +1086,20 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
             # Get recipe details
             with get_db_connection() as conn:
                 cursor = conn.cursor()
-                
+
                 # Get recipe base servings
                 cursor.execute("""
-                    SELECT title, base_servings FROM temp_recipes 
+                    SELECT title, base_servings FROM temp_recipes
                     WHERE session_id = ? AND recipe_id = ?
                 """, (input_data.session_id, input_data.recipe_id))
-                
+
                 recipe_info = cursor.fetchone()
                 if not recipe_info:
                     return {"error": f"Recipe {input_data.recipe_id} not found in session {input_data.session_id}"}
-                
+
                 recipe_title, base_servings = recipe_info
                 base_servings = base_servings or 1
-                
+
                 # Get all ingredients (including those without CNF linkage)
                 cursor.execute("""
                     SELECT ri.ingredient_id, ri.ingredient_name, ri.amount, ri.unit, ri.cnf_food_code
@@ -1110,27 +1107,27 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                     WHERE ri.session_id = ? AND ri.recipe_id = ?
                     ORDER BY ri.ingredient_order
                 """, (input_data.session_id, input_data.recipe_id))
-                
+
                 ingredients = cursor.fetchall()
                 if not ingredients:
                     return {"error": f"No ingredients found for recipe {input_data.recipe_id}"}
-                
+
                 # Clear existing temp_recipe_macros for this recipe
                 cursor.execute("""
-                    DELETE FROM temp_recipe_macros 
+                    DELETE FROM temp_recipe_macros
                     WHERE session_id = ? AND recipe_id = ?
                 """, (input_data.session_id, input_data.recipe_id))
-                
+
                 # Analyze unit matching for each ingredient
                 ingredients_analyzed = 0
                 manual_decisions_needed = 0
                 exact_matches = 0
                 conversion_available = 0
                 no_cnf_data = 0
-                
+
                 for ingredient_id, ingredient_name, amount, unit, cnf_food_code in ingredients:
                     ingredients_analyzed += 1
-                    
+
                     if cnf_food_code:
                         # Get nutrient data for unit matching analysis
                         cursor.execute("""
@@ -1140,9 +1137,9 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                             AND nutrient_name IN ('Energy (kcal)', 'Protein', 'Total Fat', 'Carbohydrate')
                             ORDER BY nutrient_name, per_amount
                         """, (input_data.session_id, cnf_food_code))
-                        
+
                         nutrients = cursor.fetchall()
-                        
+
                         # Analyze unit matching
                         matching_analysis = _analyze_unit_matching(
                             ingredient_name, amount, unit, nutrients
@@ -1155,7 +1152,7 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                             "recommended_conversion": f"No CNF data linked for '{ingredient_name}' - needs CNF food code assignment",
                             "confidence_level": 'low'
                         }
-                    
+
                     # Count status types
                     status = matching_analysis["unit_match_status"]
                     if status == 'exact_match':
@@ -1166,13 +1163,13 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                         manual_decisions_needed += 1
                     elif status == 'no_cnf_data':
                         no_cnf_data += 1
-                    
+
                     # Insert into temp_recipe_macros
                     cursor.execute("""
                         INSERT INTO temp_recipe_macros (
                             session_id, recipe_id, ingredient_id, cnf_food_code,
                             recipe_ingredient_name, recipe_amount, recipe_unit,
-                            unit_match_status, available_cnf_servings, 
+                            unit_match_status, available_cnf_servings,
                             recommended_conversion, confidence_level
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, (
@@ -1183,9 +1180,9 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                         matching_analysis["recommended_conversion"],
                         matching_analysis["confidence_level"]
                     ))
-                
+
                 conn.commit()
-                
+
                 return {
                     "success": True,
                     "recipe_title": recipe_title,
@@ -1201,13 +1198,13 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                     },
                     "next_steps": [
                         "1. Review temp_recipe_macros table for unit matching status",
-                        "2. Make conversion decisions for manual_decision_needed ingredients", 
+                        "2. Make conversion decisions for manual_decision_needed ingredients",
                         "3. Use simple_math_calculator for nutrition calculations",
                         "4. Update temp_recipe_macros with final calculated values"
                     ],
                     "sql_query_example": f"SELECT * FROM temp_recipe_macros WHERE session_id = '{input_data.session_id}' AND recipe_id = '{input_data.recipe_id}' ORDER BY unit_match_status, recipe_ingredient_name"
                 }
-                
+
         except Exception as e:
             return {
                 "error": f"Failed to analyze recipe unit matching: {str(e)}",
@@ -1218,32 +1215,32 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
     def query_recipe_macros_table(input_data: RecipeMacrosQueryInput) -> Dict[str, Any]:
         """
         Query temp_recipe_macros table with joined CNF nutrition data for recipe calculations.
-        
+
         This tool retrieves recipe ingredients with their matched Canadian Nutrient File data,
-        including nutrition values (calories, protein, fat, carbohydrates) for each available 
+        including nutrition values (calories, protein, fat, carbohydrates) for each available
         serving size. The data enables direct nutrition calculations using bulk_math_calculator
         without requiring database storage of intermediate results.
-        
+
         Returns recipe ingredient details, unit matching status, available CNF serving sizes,
         and complete CNF nutrition values per serving size for each ingredient. Unit matching
         status indicates: exact_match, conversion_available, manual_decision_needed, or no_cnf_data.
-        
+
         Use this tool to:
         - Get ingredient data with CNF nutrition values for each serving size
         - Review unit matching status and available serving options
         - Select appropriate serving sizes for nutrition calculations
         - Obtain complete data for bulk_math_calculator operations
-        
+
         Args:
             input_data: Contains session_id, optional recipe_id filter, optional unit_match_status filter
-            
+
         Returns:
             Dict with ingredient data and CNF nutrition values per serving size
         """
         try:
             with get_db_connection() as conn:
                 cursor = conn.cursor()
-                
+
                 # Build query with optional filters - JOIN with CNF nutrients for complete data
                 query = """
                     SELECT DISTINCT
@@ -1266,42 +1263,42 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                         rm.final_carbs,
                         -- Add CNF nutrition data for each serving size
                         GROUP_CONCAT(
-                            CASE WHEN cn.nutrient_name = 'Energy' 
-                            THEN cn.nutrient_value || '|' || cn.per_amount || '|' || cn.unit 
+                            CASE WHEN cn.nutrient_name = 'Energy'
+                            THEN cn.nutrient_value || '|' || cn.per_amount || '|' || cn.unit
                             END
                         ) as cnf_calories_servings,
                         GROUP_CONCAT(
-                            CASE WHEN cn.nutrient_name = 'Protein' 
-                            THEN cn.nutrient_value || '|' || cn.per_amount || '|' || cn.unit 
+                            CASE WHEN cn.nutrient_name = 'Protein'
+                            THEN cn.nutrient_value || '|' || cn.per_amount || '|' || cn.unit
                             END
                         ) as cnf_protein_servings,
                         GROUP_CONCAT(
-                            CASE WHEN cn.nutrient_name = 'Total Fat' 
-                            THEN cn.nutrient_value || '|' || cn.per_amount || '|' || cn.unit 
+                            CASE WHEN cn.nutrient_name = 'Total Fat'
+                            THEN cn.nutrient_value || '|' || cn.per_amount || '|' || cn.unit
                             END
                         ) as cnf_fat_servings,
                         GROUP_CONCAT(
-                            CASE WHEN cn.nutrient_name = 'Carbohydrate' 
-                            THEN cn.nutrient_value || '|' || cn.per_amount || '|' || cn.unit 
+                            CASE WHEN cn.nutrient_name = 'Carbohydrate'
+                            THEN cn.nutrient_value || '|' || cn.per_amount || '|' || cn.unit
                             END
                         ) as cnf_carbs_servings
                     FROM temp_recipe_macros rm
-                    LEFT JOIN temp_cnf_nutrients cn ON rm.session_id = cn.session_id 
+                    LEFT JOIN temp_cnf_nutrients cn ON rm.session_id = cn.session_id
                         AND rm.cnf_food_code = cn.cnf_food_code
                         AND cn.nutrient_name IN ('Energy', 'Protein', 'Total Fat', 'Carbohydrate')
                     WHERE rm.session_id = ?
                 """
-                
+
                 params = [input_data.session_id]
-                
+
                 if input_data.recipe_id:
                     query += " AND rm.recipe_id = ?"
                     params.append(input_data.recipe_id)
-                    
+
                 if input_data.unit_match_status:
                     query += " AND rm.unit_match_status = ?"
                     params.append(input_data.unit_match_status)
-                    
+
                 query += """
                     GROUP BY rm.recipe_id, rm.ingredient_id, rm.cnf_food_code, rm.recipe_ingredient_name,
                              rm.recipe_amount, rm.recipe_unit, rm.unit_match_status, rm.available_cnf_servings,
@@ -1310,10 +1307,10 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                              rm.final_fat, rm.final_carbs
                     ORDER BY rm.unit_match_status, rm.recipe_ingredient_name
                 """
-                
+
                 cursor.execute(query, params)
                 results = cursor.fetchall()
-                
+
                 if not results:
                     return {
                         "message": f"No recipe macros data found for session {input_data.session_id}",
@@ -1321,11 +1318,11 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                         "recipe_id": input_data.recipe_id,
                         "suggestion": "Run calculate_recipe_nutrition_summary first to populate temp_recipe_macros table"
                     }
-                
+
                 # Process results into structured format
                 ingredients_data = []
                 status_summary = {}
-                
+
                 for row in results:
                     # Helper function to parse concatenated nutrition data
                     def parse_nutrition_servings(concat_str):
@@ -1342,7 +1339,7 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                                         "unit": parts[2]
                                     })
                         return servings
-                    
+
                     ingredient_data = {
                         "recipe_id": row[0],
                         "ingredient_id": row[1],
@@ -1368,15 +1365,15 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                         "cnf_carbs_per_serving": parse_nutrition_servings(row[20])
                     }
                     ingredients_data.append(ingredient_data)
-                    
+
                     # Count status types
                     status = row[6]
                     status_summary[status] = status_summary.get(status, 0) + 1
-                
+
                 # Identify ingredients needing LLM attention
                 needs_decision = [ing for ing in ingredients_data if ing["unit_match_status"] == "manual_decision_needed"]
                 has_decisions = [ing for ing in ingredients_data if ing["llm_conversion_decision"]]
-                
+
                 return {
                     "success": True,
                     "session_id": input_data.session_id,
@@ -1405,7 +1402,7 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                         for ing in needs_decision
                     ]
                 }
-                
+
         except Exception as e:
             return {
                 "error": f"Failed to query recipe macros: {str(e)}",
@@ -1417,40 +1414,40 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
     def update_recipe_macros_decisions(input_data: RecipeMacrosUpdateInput) -> Dict[str, Any]:
         """
         Update temp_recipe_macros table with LLM conversion decisions and reasoning.
-        
+
         This tool allows the LLM to record intelligent conversion decisions for ingredients
         that need manual unit conversions (e.g., "4 salmon fillets" -> "565g"). After
         reviewing the temp_recipe_macros table, use this tool to update specific ingredients
         with conversion factors and reasoning.
-        
+
         The tool updates the LLM decision fields in temp_recipe_macros:
         - llm_conversion_decision: Human-readable conversion (e.g., "4 fillets = 565g")
         - llm_conversion_factor: Calculated factor for nutrition math (e.g., 5.65 for 565g/100g)
         - llm_reasoning: LLM's reasoning for the conversion estimate
-        
+
         Use this tool to:
         - Record conversion decisions for manual_decision_needed ingredients
         - Document reasoning for conversion estimates
         - Prepare data for final nutrition calculations with simple_math_calculator
         - Build transparent audit trail of conversion decisions
-        
+
         Args:
             input_data: Contains session_id, ingredient_id, conversion decision, factor, and reasoning
-            
+
         Returns:
             Dict with update status and next steps for nutrition calculations
         """
         try:
             with get_db_connection() as conn:
                 cursor = conn.cursor()
-                
+
                 # First, verify the ingredient exists and needs a decision
                 cursor.execute("""
                     SELECT recipe_ingredient_name, recipe_amount, recipe_unit, unit_match_status, cnf_food_code
-                    FROM temp_recipe_macros 
+                    FROM temp_recipe_macros
                     WHERE session_id = ? AND ingredient_id = ?
                 """, (input_data.session_id, input_data.ingredient_id))
-                
+
                 result = cursor.fetchone()
                 if not result:
                     return {
@@ -1459,13 +1456,13 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                         "ingredient_id": input_data.ingredient_id,
                         "suggestion": "Use query_recipe_macros_table to see available ingredient IDs"
                     }
-                
+
                 ingredient_name, recipe_amount, recipe_unit, unit_status, cnf_food_code = result
-                
+
                 # Update the LLM decision fields
                 cursor.execute("""
-                    UPDATE temp_recipe_macros 
-                    SET 
+                    UPDATE temp_recipe_macros
+                    SET
                         llm_conversion_decision = ?,
                         llm_conversion_factor = ?,
                         llm_reasoning = ?,
@@ -1478,25 +1475,25 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                     input_data.session_id,
                     input_data.ingredient_id
                 ))
-                
+
                 if cursor.rowcount == 0:
                     return {
                         "error": f"Failed to update ingredient {input_data.ingredient_id}",
                         "session_id": input_data.session_id,
                         "ingredient_id": input_data.ingredient_id
                     }
-                
+
                 conn.commit()
-                
+
                 # Check if this was the last ingredient needing decisions
                 cursor.execute("""
-                    SELECT COUNT(*) FROM temp_recipe_macros 
-                    WHERE session_id = ? AND unit_match_status = 'manual_decision_needed' 
+                    SELECT COUNT(*) FROM temp_recipe_macros
+                    WHERE session_id = ? AND unit_match_status = 'manual_decision_needed'
                     AND llm_conversion_decision IS NULL
                 """, (input_data.session_id,))
-                
+
                 remaining_decisions = cursor.fetchone()[0]
-                
+
                 return {
                     "success": True,
                     "message": f"Updated conversion decision for ingredient: {ingredient_name}",
@@ -1523,13 +1520,13 @@ def register_cnf_tools(mcp: FastMCP, enable_db: bool = True) -> None:
                     "calculation_example": {
                         "expression": "cnf_calories * conversion_factor",
                         "variables": {
-                            "cnf_calories": "VALUE_FROM_CNF_DATA",  
+                            "cnf_calories": "VALUE_FROM_CNF_DATA",
                             "conversion_factor": input_data.llm_conversion_factor
                         },
                         "description": f"Use this pattern to calculate final nutrition for {ingredient_name}"
                     }
                 }
-                
+
         except Exception as e:
             return {
                 "error": f"Failed to update conversion decision: {str(e)}",
@@ -1543,9 +1540,9 @@ def _normalize_unit(unit: str) -> str:
     """Normalize unit variations for better matching."""
     if not unit:
         return ""
-    
+
     unit_lower = unit.lower().strip()
-    
+
     # Volume units
     if unit_lower in ['ml', 'millilitre', 'milliliter']:
         return 'ml'
@@ -1564,26 +1561,26 @@ def _normalize_unit(unit: str) -> str:
         return 'lb'
     elif unit_lower in ['oz', 'ounce', 'ounces']:
         return 'oz'
-    
+
     return unit_lower
 
 def _analyze_unit_matching(ingredient_name: str, amount: float, unit: str, cnf_nutrients: list) -> Dict[str, Any]:
     """
     Analyze unit matching between recipe ingredient and CNF data without doing calculations.
-    
+
     Returns analysis of what conversions are possible and recommendations for LLM decisions.
     """
     try:
         import json
-        
+
         # Normalize recipe unit
         normalized_unit = _normalize_unit(unit) if unit else 'unknown'
-        
+
         # Get available CNF servings
         available_servings = []
         exact_matches = []
         conversion_matches = []
-        
+
         for nutrient_name, nutrient_value, per_amount, cnf_unit in cnf_nutrients:
             if nutrient_name == 'Energy (kcal)':  # Use energy as representative nutrient
                 serving_info = {
@@ -1592,17 +1589,17 @@ def _analyze_unit_matching(ingredient_name: str, amount: float, unit: str, cnf_n
                     "calories_per_serving": nutrient_value
                 }
                 available_servings.append(serving_info)
-                
+
                 cnf_normalized = _normalize_unit(cnf_unit)
-                
+
                 # Check for exact matches
                 if normalized_unit == cnf_normalized:
                     exact_matches.append(serving_info)
-                
+
                 # Check for conversion possibilities
                 elif _can_convert_units(normalized_unit, cnf_normalized):
                     conversion_matches.append(serving_info)
-        
+
         # Determine unit match status
         if not cnf_nutrients:
             unit_match_status = 'no_cnf_data'
@@ -1626,7 +1623,7 @@ def _analyze_unit_matching(ingredient_name: str, amount: float, unit: str, cnf_n
             unit_match_status = 'manual_decision_needed'
             confidence_level = 'low'
             recommended_conversion = f"Manual decision needed: '{amount} {unit}' needs conversion estimate to match available CNF servings"
-        
+
         return {
             "unit_match_status": unit_match_status,
             "available_cnf_servings": json.dumps(available_servings),
@@ -1635,7 +1632,7 @@ def _analyze_unit_matching(ingredient_name: str, amount: float, unit: str, cnf_n
             "exact_matches_found": len(exact_matches),
             "conversion_matches_found": len(conversion_matches)
         }
-        
+
     except Exception as e:
         return {
             "unit_match_status": 'no_match',
@@ -1651,55 +1648,55 @@ def _can_convert_units(recipe_unit: str, cnf_unit: str) -> bool:
     # Volume conversions
     volume_units = {'tsp', 'tbsp', 'cup', 'ml', 'l', 'fl oz'}
     weight_units = {'g', 'kg', 'lb', 'oz'}
-    
+
     recipe_is_volume = recipe_unit in volume_units
     recipe_is_weight = recipe_unit in weight_units
     cnf_is_volume = cnf_unit in volume_units
     cnf_is_weight = cnf_unit in weight_units
-    
+
     # Same category conversions
     if recipe_is_volume and cnf_is_volume:
         return True
     if recipe_is_weight and cnf_is_weight:
         return True
-    
+
     # Cross-category approximations (liquids only)
     if recipe_is_volume and cnf_is_weight and cnf_unit == 'g':
         return True
     if recipe_is_weight and cnf_is_volume and cnf_unit == 'ml':
         return True
-    
+
     return False
 
-    
+
 # Helper functions for direct SQLite CNF population
 
-def populate_cnf_food_in_sqlite(session_id: str, food_code: str, food_description: str, 
+def populate_cnf_food_in_sqlite(session_id: str, food_code: str, food_description: str,
                                ingredient_name: str = None, refuse_info: str = None) -> bool:
     """
     Helper function to populate CNF food data directly in SQLite.
-    
+
     Args:
         session_id: Session identifier
         food_code: CNF food code
         food_description: Food description
         ingredient_name: Optional ingredient name this CNF food is linked to
         refuse_info: Optional refuse information
-        
+
     Returns:
         bool: True if successful, False otherwise
     """
     try:
         from .schema import create_temp_nutrition_session, update_session_access_time
-        
+
         # Ensure session exists
         create_temp_nutrition_session(session_id)
         update_session_access_time(session_id)
-        
+
         with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                INSERT OR REPLACE INTO temp_cnf_foods 
+                INSERT OR REPLACE INTO temp_cnf_foods
                 (session_id, cnf_food_code, food_description, ingredient_name, refuse_flag, refuse_amount)
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (
@@ -1715,12 +1712,12 @@ def populate_cnf_food_in_sqlite(session_id: str, food_code: str, food_descriptio
     except Exception:
         return False
 
-def populate_cnf_nutrient_in_sqlite(session_id: str, food_code: str, nutrient_name: str, 
+def populate_cnf_nutrient_in_sqlite(session_id: str, food_code: str, nutrient_name: str,
                                    nutrient_value: float, per_amount: float, unit: str,
                                    nutrient_symbol: str = '') -> bool:
     """
     Helper function to populate individual CNF nutrient data directly in SQLite.
-    
+
     Args:
         session_id: Session identifier
         food_code: CNF food code
@@ -1729,7 +1726,7 @@ def populate_cnf_nutrient_in_sqlite(session_id: str, food_code: str, nutrient_na
         per_amount: Amount this value represents
         unit: Unit of measurement
         nutrient_symbol: Optional nutrient symbol
-        
+
     Returns:
         bool: True if successful, False otherwise
     """
@@ -1737,8 +1734,8 @@ def populate_cnf_nutrient_in_sqlite(session_id: str, food_code: str, nutrient_na
         with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                INSERT OR REPLACE INTO temp_cnf_nutrients 
-                (session_id, cnf_food_code, nutrient_name, nutrient_value, 
+                INSERT OR REPLACE INTO temp_cnf_nutrients
+                (session_id, cnf_food_code, nutrient_name, nutrient_value,
                  per_amount, unit, nutrient_symbol)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             """, (
@@ -1753,32 +1750,32 @@ def populate_cnf_nutrient_in_sqlite(session_id: str, food_code: str, nutrient_na
 def clear_cnf_data_from_sqlite(session_id: str, food_code: str = None) -> Dict[str, Any]:
     """
     Helper function to clear CNF data from SQLite tables.
-    
+
     Args:
         session_id: Session identifier
         food_code: Optional specific food code to clear (clears all if None)
-        
+
     Returns:
         Dict with cleanup results
     """
     try:
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            
+
             if food_code:
                 # Clear specific food
-                cursor.execute("DELETE FROM temp_cnf_nutrients WHERE session_id = ? AND cnf_food_code = ?", 
+                cursor.execute("DELETE FROM temp_cnf_nutrients WHERE session_id = ? AND cnf_food_code = ?",
                               (session_id, food_code))
-                cursor.execute("DELETE FROM temp_cnf_foods WHERE session_id = ? AND cnf_food_code = ?", 
+                cursor.execute("DELETE FROM temp_cnf_foods WHERE session_id = ? AND cnf_food_code = ?",
                               (session_id, food_code))
             else:
                 # Clear all CNF data for session
                 cursor.execute("DELETE FROM temp_cnf_nutrients WHERE session_id = ?", (session_id,))
                 cursor.execute("DELETE FROM temp_cnf_foods WHERE session_id = ?", (session_id,))
-            
+
             deleted_nutrients = cursor.rowcount
             conn.commit()
-            
+
             return {
                 "success": f"Cleared CNF data from SQLite for session {session_id}",
                 "food_code": food_code or "all",

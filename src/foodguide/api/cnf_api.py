@@ -7,8 +7,9 @@ Base URL: https://food-nutrition.canada.ca/api/canadian-nutrient-file/
 """
 
 import re
+from typing import Any, Dict, List, Optional, Tuple
+
 import requests
-from typing import Optional, List, Dict, Any, Tuple
 
 # Nutrient name IDs for core macronutrients (from nutrientname endpoint)
 CORE_MACRONUTRIENT_IDS = {
