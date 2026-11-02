@@ -152,6 +152,21 @@ publishes to the `data-latest` release only when `data changed` exits 10 (or whe
 - Clean up unused legacy code in `api/` (`cnf.py`, and the HTTP client in `cnf_api.py`).
 - Extend DRI support to micronutrients, vitamins and minerals.
 - Add a Dockerfile for the http transport.
+- Check whether Health Canada offers DRI or EER data through an API instead of web pages.
+- Ideas: weekly meal planning, tracking ingredients in stock, personal nutrition goals, more export
+  formats, Smithery or npm packaging, and keeping `temp_recipe_` data permanently with a configurable
+  retention period.
+
+## Design notes
+
+- FastMCP 2.3 and later use Streamable HTTP as the HTTP transport. SSE is deprecated.
+- Virtual sessions (Python dictionaries) work the same on stdio and HTTP. The SQLite-backed session
+  tools are registered on stdio only.
+- Many chat clients can crawl the web themselves, so scraping DRI and EER pages at question time
+  would be redundant. The scrapers still matter for smaller or local models with no web access,
+  which is why the data is built into files ahead of time.
+- canada.ca stalls requests that send a `Mozilla/5.0` User-Agent from some clients. The builders send
+  an identifying User-Agent and wait 1 second between requests.
 
 ## Credits
 

@@ -177,6 +177,46 @@ answer keys") and explain the change in the pull request. For a full build into 
 with a manifest, use `uv run foodguide data build all --out-dir out`. Use `--download-cnf` to
 download the CNF zip, or `--cnf-zip PATH`.
 
+## Code standards
+
+Follow the patterns already in `src/foodguide`. `uv run ruff check .` must pass.
+
+- **Type hints** on every function parameter and return value. Use `Optional[X]` for values that can be
+  `None`, and `List[...]` and `Dict[str, Any]` for collections.
+- **Docstrings:** a short module docstring at the top of each file, and a docstring on each public
+  function that says what it does and what it returns. MCP tool docstrings are the text the model
+  reads, so write them for the model: say when to use the tool and what the arguments mean.
+- **Comments:** use `#` for field explanations in dataclasses.
+- **Errors:** return a clear message instead of raising into the client. MCP tools return
+  `{"error": "..."}`, and CLI commands print the message to stderr and exit 1.
+
+```python
+def get_recipe(url_or_slug: str) -> Dict[str, Any]:
+    """Return one recipe by slug or canada.ca URL."""
+    try:
+        recipe = _get_source().get_recipe(url_or_slug)
+    except RuntimeError as exc:
+        return {"error": str(exc)}
+    if recipe is None:
+        return {"error": f"Recipe '{url_or_slug}' not found in local data."}
+    return recipe
+```
+
+- **Offline modules stay offline.** Code that runs when a user asks a question (CLI readers, MCP tools)
+  must not import `requests` or `urllib.request`. Only the builders and `data fetch` touch the network.
+  `tests/test_offline_modules.py` checks this.
+
+## Commit messages
+
+Use a short prefix and a clear sentence:
+
+- `feat:` new feature
+- `fix:` bug fix
+- `docs:` documentation
+- `refactor:` code change with no behaviour change
+- `test:` adding or fixing tests
+- `perf:` performance
+
 ## Pull requests
 
 Before you open one:
@@ -194,6 +234,20 @@ how you tested it, and any issue it closes. Maintainers review within a few days
 Maintainers cut releases. The steps (version bump, tag `vX.Y.Z`, PyPI trusted publishing) are in
 [docs/RELEASING.md](docs/RELEASING.md). The PyPI name is `foodguidecanada`. The import package and
 commands stay `foodguide` and `foodguide-mcp`.
+
+## Where help is wanted
+
+- **Fewer tool calls.** Merge `calculate_recipe_nutrition_summary` and `query_recipe_macros_table`,
+  and `store_recipe_in_temp_tables` and `simple_recipe_setup`, so a model needs fewer steps.
+- **Smaller files.** Split `db/cnf_tools.py` and move helpers into utility modules.
+- **Diagrams.** A Mermaid diagram of the data flow and of how the tools work together.
+- **More nutrition.** Micronutrients, vitamins and minerals in the DRI tables and the adequacy tools.
+- **Easier install.** A Dockerfile for the HTTP transport, Smithery or npm packaging.
+- **Ideas:** weekly meal planning, tracking ingredients in stock, personal nutrition goals, more
+  export formats.
+
+Check [IMPLEMENTATIONS.MD](IMPLEMENTATIONS.MD) for the current list before you start, and open an
+issue first for anything large.
 
 ## Community
 
