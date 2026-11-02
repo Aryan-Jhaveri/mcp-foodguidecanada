@@ -258,3 +258,14 @@ MCP_TRANSPORT=http PORT=8000 python3 src/server.py
 Built using <a href="https://github.com/jlowin/fastmcp" target="_blank">FastMCP</a>
 </p>
 </div>
+
+## Data sources and licences
+
+- **Code:** MIT (see `LICENSE`).
+- **Canadian Nutrient File 2026:** Health Canada, published under the
+  [Open Government Licence – Canada](https://open.canada.ca/en/open-government-licence-canada).
+  The database is built locally with `foodguide data build cnf --zip …`; the zip is not
+  bundled. Contains information licensed under the Open Government Licence – Canada.
+- **DRI and EER tables:** Health Canada reference values, shipped as JSON in `data/`.
+- **Recipes:** Health Canada pages on canada.ca (Crown copyright). Not bundled. The recipe
+  tools are currently unavailable because the site moved (see issue HOM-78).
